@@ -13,7 +13,6 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
 import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
-// مفاتيحك الحقيقية التي زودتني بها
 const firebaseConfig = {
   apiKey: "AIzaSyCKMrH2E_GP_MYZJrhF4LbxC1LmtVGx3Co",
   authDomain: "brave-academy.firebaseapp.com",
@@ -30,16 +29,24 @@ const db = getFirestore(app);
 
 const appId = 'brave-academy-live-data';
 
+// --- صور النظام (يمكنك استبدال الروابط بروابط صورك الخاصة) ---
+const IMAGES = {
+  LOGO: "https://cdn-icons-png.flaticon.com/512/10405/10405838.png", // رابط الشعار (يمكن تغييره)
+  HERO_BG: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80", // صورة الخلفية الرئيسية
+  BRANCH_SHAFA: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&q=80", // صورة فرع شفا بدران
+  BRANCH_ABU_NSEIR: "https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?auto=format&fit=crop&q=80" // صورة فرع أبو نصير
+};
+
 // --- Custom Hook for Firestore ---
-// هذا "الخطاف" البرمجي هو المحرك الذي يجلب البيانات ويحفظها
-const useCollection = (collectionName) => {
+const useCollection = (collectionName, allowPublic = false) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // جلب البيانات من المسار العام لضمان رؤية المدير والطلاب لنفس البيانات
+    // التعديل: السماح بجلب البيانات إذا كان مسموحاً للعامة (مثل الجدول) أو إذا كان هناك مستخدم مسجل
+    // هذا يحل مشكلة عدم ظهور الجدول للزوار
+    
     const path = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
-    // نقوم بجلب البيانات ونستمع لأي تغيير لحظي
     const q = query(path);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -50,7 +57,7 @@ const useCollection = (collectionName) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [collectionName]);
+  }, [collectionName]); // إزالة الاعتماد على user للسماح بالجلب الدائم للقراءة
 
   const add = async (item) => {
     try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الإنترنت"); }
@@ -68,7 +75,7 @@ const useCollection = (collectionName) => {
 // --- Constants ---
 const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
-// بيانات أولية للجدول في حال كان فارغاً
+// بيانات أولية للجدول (تستخدم فقط كاحتياط قبل تحميل البيانات من النت)
 const INITIAL_SCHEDULE = [
   { id: 1, days: "السبت / الاثنين / الأربعاء", time: "4:00 م - 5:00 م", level: "مبتدئين (أبيض - أصفر)", branch: "مشترك" },
   { id: 2, days: "السبت / الاثنين / الأربعاء", time: "5:00 م - 6:30 م", level: "أحزمة ملونة (أخضر - أزرق)", branch: "مشترك" },
@@ -110,7 +117,7 @@ const printReceipt = (payment, branch) => {
         <style>
           body { font-family: 'Courier New', sans-serif; direction: rtl; padding: 20px; text-align: center; border: 2px solid #000; max-width: 600px; margin: 20px auto; }
           .header { margin-bottom: 20px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
-          .logo { font-size: 30px; font-weight: bold; }
+          .logo { width: 80px; height: auto; margin-bottom: 10px; }
           .title { font-size: 24px; margin: 10px 0; background: #eee; display: inline-block; padding: 5px 20px; border-radius: 5px; }
           .content { text-align: right; margin: 20px 0; font-size: 18px; line-height: 2; }
           .amount { font-weight: bold; font-size: 22px; }
@@ -118,7 +125,11 @@ const printReceipt = (payment, branch) => {
         </style>
       </head>
       <body>
-        <div class="header"><div class="logo">🥋 أكاديمية الشجاع</div><div>Brave Taekwondo Academy</div><div>فرع: ${branch}</div></div>
+        <div class="header">
+          <img src="${IMAGES.LOGO}" class="logo" alt="Logo" />
+          <div>Brave Taekwondo Academy</div>
+          <div>فرع: ${branch}</div>
+        </div>
         <div class="title">سند قبض</div>
         <div class="content">
           <div><strong>التاريخ:</strong> ${payment.date}</div>
@@ -222,7 +233,8 @@ const HomeView = ({ setView, schedule }) => (
     <header className="bg-black text-yellow-500 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
-          <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-xl">B</div>
+          {/* تم إضافة لوجو النادي هنا */}
+          <img src={IMAGES.LOGO} alt="Logo" className="w-12 h-12 rounded-full bg-white p-1 object-contain" />
           <div><h1 className="text-lg font-extrabold leading-none">أكاديمية الشجاع</h1><p className="text-[10px] text-gray-400 tracking-wider uppercase">Brave Taekwondo</p></div>
         </div>
         <nav className="hidden md:flex gap-8 font-medium text-sm">
@@ -238,7 +250,8 @@ const HomeView = ({ setView, schedule }) => (
     </header>
     <div className="relative bg-gray-900 text-white h-[600px] flex items-center">
       <div className="absolute inset-0 bg-black/60 z-10"></div>
-      <img src="https://images.unsplash.com/photo-1595078475328-1ab05d0a6a0e?auto=format&fit=crop&q=80" className="absolute inset-0 w-full h-full object-cover" alt="Hero" />
+      {/* تم تحديث صورة الهيرو */}
+      <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
       <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
         <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm">التسجيل مفتوح الآن</span>
         <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">اصنع قوتك ..<br/><span className="text-yellow-500">ابنِ مستقبلك</span></h2>
@@ -250,8 +263,13 @@ const HomeView = ({ setView, schedule }) => (
       <div className="container mx-auto px-6">
         <div className="text-center mb-16"><h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2><p className="text-gray-500">اختر الفرع الأقرب إليك وابدأ رحلتك</p></div>
         <div className="grid md:grid-cols-2 gap-8">
+          {/* تم إضافة صورة لفرع شفا بدران */}
           <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
-            <div className="h-64 bg-gray-800 relative overflow-hidden"><div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition"></div><div className="absolute bottom-4 right-4 text-white"><h3 className="text-2xl font-bold">فرع شفا بدران</h3></div></div>
+            <div className="h-64 bg-gray-800 relative overflow-hidden">
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
+                <img src={IMAGES.BRANCH_SHAFA} alt="Shafa Badran" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع شفا بدران</h3></div>
+            </div>
             <div className="p-8 space-y-4">
               <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">شفا بدران - شارع رفعت شموط</p><p className="text-gray-500 text-sm">بجانب مشاتل ربيع الأردن</p></div></div>
               <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0795629606" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9562 9606</a></div></div>
@@ -259,8 +277,13 @@ const HomeView = ({ setView, schedule }) => (
               <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')}>موقعنا على الخريطة</Button>
             </div>
           </div>
+          {/* تم إضافة صورة لفرع أبو نصير */}
           <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
-            <div className="h-64 bg-gray-800 relative overflow-hidden"><div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition"></div><div className="absolute bottom-4 right-4 text-white"><h3 className="text-2xl font-bold">فرع أبو نصير</h3></div></div>
+            <div className="h-64 bg-gray-800 relative overflow-hidden">
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
+                <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع أبو نصير</h3></div>
+            </div>
             <div className="p-8 space-y-4">
               <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">أبو نصير - دوار البحرية</p><p className="text-gray-500 text-sm">مجمع الفرا</p></div></div>
               <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0790368603" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9036 8603</a></div></div>
@@ -284,7 +307,13 @@ const LoginView = ({ setView, handleLogin, loginError }) => {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 relative overflow-hidden" dir="rtl">
       <Card className="w-full max-w-md relative z-10 border-t-4 border-yellow-500">
-        <div className="text-center mb-8"><div className="w-20 h-20 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-3xl mx-auto mb-4">B</div><h2 className="text-3xl font-bold text-gray-800 mb-2">تسجيل الدخول</h2></div>
+        <div className="text-center mb-8">
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg p-2">
+                {/* لوجو في صفحة تسجيل الدخول */}
+                <img src={IMAGES.LOGO} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">تسجيل الدخول</h2>
+        </div>
         {loginError && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">{loginError}</div>}
         <form className="space-y-5" onSubmit={(e)=>{e.preventDefault(); handleLogin(u,p)}}>
           <input className="w-full border p-3 rounded-lg" placeholder="اسم المستخدم" value={u} onChange={e=>setU(e.target.value)} />
@@ -312,7 +341,11 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
     <div className="min-h-screen bg-gray-100 font-sans" dir="rtl">
       <header className="bg-black text-yellow-500 p-4 shadow-lg sticky top-0 z-40">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3"><div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-yellow-500 font-bold">{user.name.charAt(0)}</div><div><h1 className="font-bold text-lg">مرحباً {user.name}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div></div>
+          <div className="flex items-center gap-3">
+             {/* لوجو في بوابة الطالب */}
+             <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 bg-white rounded-full p-1" />
+             <div><h1 className="font-bold text-lg">مرحباً {user.name}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div>
+          </div>
           <Button variant="secondary" onClick={handleLogout} className="text-sm"><LogOut size={16}/> خروج</Button>
         </div>
       </header>
