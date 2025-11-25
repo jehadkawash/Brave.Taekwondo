@@ -10,9 +10,10 @@ import {
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "firebase/firestore";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
+// مفاتيحك الحقيقية التي زودتني بها
 const firebaseConfig = {
   apiKey: "AIzaSyCKMrH2E_GP_MYZJrhF4LbxC1LmtVGx3Co",
   authDomain: "brave-academy.firebaseapp.com",
@@ -30,12 +31,15 @@ const db = getFirestore(app);
 const appId = 'brave-academy-live-data';
 
 // --- Custom Hook for Firestore ---
-const useCollection = (collectionName, user) => {
+// هذا "الخطاف" البرمجي هو المحرك الذي يجلب البيانات ويحفظها
+const useCollection = (collectionName) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // جلب البيانات من المسار العام لضمان رؤية المدير والطلاب لنفس البيانات
     const path = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+    // نقوم بجلب البيانات ونستمع لأي تغيير لحظي
     const q = query(path);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -49,7 +53,7 @@ const useCollection = (collectionName, user) => {
   }, [collectionName]);
 
   const add = async (item) => {
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ"); }
+    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الإنترنت"); }
   };
   const update = async (id, updates) => {
     try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates); } catch (e) { console.error(e); }
@@ -64,6 +68,7 @@ const useCollection = (collectionName, user) => {
 // --- Constants ---
 const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
+// بيانات أولية للجدول في حال كان فارغاً
 const INITIAL_SCHEDULE = [
   { id: 1, days: "السبت / الاثنين / الأربعاء", time: "4:00 م - 5:00 م", level: "مبتدئين (أبيض - أصفر)", branch: "مشترك" },
   { id: 2, days: "السبت / الاثنين / الأربعاء", time: "5:00 م - 6:30 م", level: "أحزمة ملونة (أخضر - أزرق)", branch: "مشترك" },
