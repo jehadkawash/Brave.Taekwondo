@@ -1,10 +1,45 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Users, Calendar, Trophy, DollarSign, Menu, X, 
-  LogOut, UserPlus, CheckCircle, Activity, Phone, 
-  MapPin, Search, FileText, Edit, 
-  Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter
+  Users, 
+  Calendar, 
+  Trophy, 
+  DollarSign, 
+  Menu, 
+  X, 
+  LogOut, 
+  UserPlus, 
+  CheckCircle, 
+  Activity, 
+  Phone, 
+  MapPin, 
+  Search, 
+  FileText, 
+  Edit, 
+  Trash2, 
+  Archive, 
+  ArrowRight, 
+  ArrowUp, 
+  ArrowDown, 
+  AlertTriangle, 
+  ChevronLeft, 
+  ChevronRight as ChevronRightIcon,
+  Lock, 
+  UserCheck, 
+  Star, 
+  Clock, 
+  Facebook, 
+  Instagram, 
+  Youtube, 
+  Printer, 
+  MessageCircle, 
+  TrendingUp, 
+  TrendingDown, 
+  Plus, 
+  ClipboardList, 
+  ShieldAlert, 
+  FileSearch, 
+  ArrowDownAZ, 
+  Filter
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -29,13 +64,21 @@ const db = getFirestore(app);
 
 const appId = 'brave-academy-live-data';
 
-// --- صور النظام (تم التحديث لملف JPG) ---
+// --- صور النظام ---
 const IMAGES = {
-  LOGO: "/logo.jpg",            // تم التعديل هنا ليتناسب مع صورتك المرفقة
-  HERO_BG: "/hero.jpg",         
-  BRANCH_SHAFA: "/shafa.jpg",   
+  LOGO: "/logo.jpg",           
+  HERO_BG: "/hero.jpg",        
+  BRANCH_SHAFA: "/shafa.jpg",  
   BRANCH_ABU_NSEIR: "/abunseir.jpg" 
 };
+
+// --- جدول الحصص الافتراضي ---
+const INITIAL_SCHEDULE = [
+  { id: 1, days: "السبت / الاثنين / الأربعاء", time: "4:00 م - 5:00 م", level: "مبتدئين (أبيض - أصفر)", branch: "مشترك" },
+  { id: 2, days: "السبت / الاثنين / الأربعاء", time: "5:00 م - 6:30 م", level: "أحزمة ملونة (أخضر - أزرق)", branch: "مشترك" },
+  { id: 3, days: "الأحد / الثلاثاء / الخميس", time: "5:00 م - 6:30 م", level: "متقدم (أحمر - أسود)", branch: "مشترك" },
+  { id: 4, days: "الجمعة", time: "9:00 ص - 11:00 ص", level: "فريق المنتخبات", branch: "الفرع الرئيسي" },
+];
 
 // --- Custom Hook for Firestore ---
 const useCollection = (collectionName) => {
@@ -44,7 +87,9 @@ const useCollection = (collectionName) => {
 
   useEffect(() => {
     const path = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+    // جلب البيانات بدون ترتيب افتراضي (سنرتبها في الواجهة)
     const q = query(path);
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setData(items);
@@ -53,17 +98,33 @@ const useCollection = (collectionName) => {
       console.error(`Error fetching ${collectionName}:`, error);
       setLoading(false);
     });
+    
     return () => unsubscribe();
   }, [collectionName]);
 
   const add = async (item) => {
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الإنترنت"); }
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item);
+    } catch (e) {
+      console.error(e);
+      alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت");
+    }
   };
+
   const update = async (id, updates) => {
-    try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates); } catch (e) { console.error(e); }
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates);
+    } catch (e) {
+      console.error(e);
+    }
   };
+
   const remove = async (id) => {
-    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id)); } catch (e) { console.error(e); }
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return { data, loading, add, update, remove };
@@ -72,22 +133,19 @@ const useCollection = (collectionName) => {
 // --- Constants ---
 const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
-const INITIAL_SCHEDULE = [
-  { id: 1, days: "السبت / الاثنين / الأربعاء", time: "4:00 م - 5:00 م", level: "مبتدئين (أبيض - أصفر)", branch: "مشترك" },
-  { id: 2, days: "السبت / الاثنين / الأربعاء", time: "5:00 م - 6:30 م", level: "أحزمة ملونة (أخضر - أزرق)", branch: "مشترك" },
-  { id: 3, days: "الأحد / الثلاثاء / الخميس", time: "5:00 م - 6:30 م", level: "متقدم (أحمر - أسود)", branch: "مشترك" },
-  { id: 4, days: "الجمعة", time: "9:00 ص - 11:00 ص", level: "فريق المنتخبات", branch: "الفرع الرئيسي" },
-];
 
 // --- Helpers ---
 const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
   const today = new Date();
   const end = new Date(dateString);
+  
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
+
   const diffTime = end - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
   if (diffDays < 0) return 'expired';
   if (diffDays <= 7) return 'near_end';
   return 'active';
@@ -104,10 +162,9 @@ const generateCredentials = () => {
   return { username, password };
 };
 
-// دالة طباعة السند (تستخدم IMAGES.LOGO تلقائياً)
 const printReceipt = (payment, branch) => {
   const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
-  const logoUrl = window.location.origin + IMAGES.LOGO; 
+  const logoUrl = window.location.origin + IMAGES.LOGO;
   
   receiptWindow.document.write(`
     <html>
@@ -121,22 +178,14 @@ const printReceipt = (payment, branch) => {
           .content { text-align: right; margin: 20px 0; font-size: 18px; line-height: 2; position: relative; z-index: 2; }
           .amount { font-weight: bold; font-size: 22px; }
           .footer { margin-top: 40px; border-top: 2px dashed #000; padding-top: 10px; font-size: 12px; position: relative; z-index: 2; }
-          
           .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            opacity: 0.1;
-            width: 60%;
-            z-index: 1;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            opacity: 0.1; width: 60%; z-index: 1; pointer-events: none;
           }
         </style>
       </head>
       <body>
         <img src="${logoUrl}" class="watermark" />
-        
         <div class="header">
           <img src="${logoUrl}" class="logo" alt="Logo" />
           <div>Brave Taekwondo Academy</div>
@@ -148,7 +197,7 @@ const printReceipt = (payment, branch) => {
           <div><strong>رقم السند:</strong> #${payment.id.slice(0,8)}</div>
           <div><strong>استلمنا من السيد/ة:</strong> ${payment.name}</div>
           <div><strong>مبلغ وقدره:</strong> <span class="amount">${payment.amount} JOD</span></div>
-          <div><strong>وذلك عن:</strong> ${payment.reason} ${payment.details ? `(${payment.details})` : ''}</div>
+          <div><strong>وذلك عن:</strong> ${payment.reason} ${payment.details ? '(${payment.details})' : ''}</div>
         </div>
         <div class="footer"><p>توقيع المستلم: __________________</p><p>شكراً لثقتكم بنا | هاتف: 0791234567</p></div>
       </body>
@@ -159,7 +208,7 @@ const printReceipt = (payment, branch) => {
   setTimeout(() => {
       receiptWindow.print();
       receiptWindow.close();
-  }, 500); 
+  }, 500);
   return true;
 };
 
@@ -176,7 +225,6 @@ const openLocation = (url) => {
 };
 
 // --- UI Components ---
-
 const StudentSearch = ({ students, onSelect, placeholder = "بحث عن طالب...", showAllOption = false, onClear }) => {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -193,21 +241,36 @@ const StudentSearch = ({ students, onSelect, placeholder = "بحث عن طالب
           className="w-full border p-2 pr-8 rounded focus:ring-2 focus:ring-yellow-500 outline-none"
           placeholder={placeholder}
           value={query}
-          onChange={e => { setQuery(e.target.value); setIsOpen(true); if(e.target.value === '' && onClear) onClear(); }}
+          onChange={e => {
+             setQuery(e.target.value);
+             setIsOpen(true);
+             if(e.target.value === '' && onClear) onClear();
+          }}
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 200)} 
         />
         <Search className="absolute left-2 top-2.5 text-gray-400" size={16}/>
         {query && (
-           <button onClick={() => { setQuery(''); if(onClear) onClear(); }} className="absolute left-8 top-2.5 text-gray-400 hover:text-red-500"><X size={16}/></button>
+           <button onClick={() => { setQuery(''); if(onClear) onClear(); }} className="absolute left-8 top-2.5 text-gray-400 hover:text-red-500">
+             <X size={16}/>
+           </button>
         )}
       </div>
       {isOpen && (
         <div className="absolute z-50 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto mt-1">
-          {showAllOption && <div className="p-2 hover:bg-gray-100 cursor-pointer text-sm border-b font-bold text-blue-600" onClick={() => { setQuery(''); if(onClear) onClear(); setIsOpen(false); }}>عرض الكل</div>}
+          {showAllOption && (
+             <div className="p-2 hover:bg-gray-100 cursor-pointer text-sm border-b font-bold text-blue-600" onClick={() => { setQuery(''); if(onClear) onClear(); setIsOpen(false); }}>
+               عرض الكل
+             </div>
+          )}
           {filtered.length > 0 ? filtered.map(s => (
-              <div key={s.id} className="p-2 hover:bg-yellow-50 cursor-pointer text-sm border-b last:border-0 flex justify-between items-center" onClick={() => { setQuery(s.name); onSelect(s); setIsOpen(false); }}>
-                <span className="font-bold">{s.name}</span><span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{s.belt}</span>
+              <div
+                key={s.id}
+                className="p-2 hover:bg-yellow-50 cursor-pointer text-sm border-b last:border-0 flex justify-between items-center"
+                onClick={() => { setQuery(s.name); onSelect(s); setIsOpen(false); }}
+              >
+                <span className="font-bold">{s.name}</span>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{s.belt}</span>
               </div>
             )) : <div className="p-2 text-gray-500 text-sm text-center">لا توجد نتائج</div>}
         </div>
@@ -224,96 +287,148 @@ const Button = ({ children, onClick, variant = "primary", className = "", type="
     outline: "border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50",
     ghost: "bg-transparent text-gray-600 hover:bg-gray-100"
   };
-  return <button type={type} onClick={onClick} className={`px-4 py-2 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-sm ${variants[variant]} ${className}`}>{children}</button>;
+  return (
+    <button type={type} onClick={onClick} className={`px-4 py-2 rounded-lg transition duration-200 flex items-center justify-center gap-2 shadow-sm ${variants[variant]} ${className}`}>
+      {children}
+    </button>
+  );
 };
 
 const Card = ({ children, className = "", title, action }) => (
   <div className={`bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${className}`}>
-    {(title || action) && <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">{title && <h3 className="font-bold text-gray-800 text-lg">{title}</h3>}{action && <div>{action}</div>}</div>}
+    {(title || action) && (
+      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+        {title && <h3 className="font-bold text-gray-800 text-lg">{title}</h3>}
+        {action && <div>{action}</div>}
+      </div>
+    )}
     <div className="p-6">{children}</div>
   </div>
 );
 
 const StatusBadge = ({ status }) => {
-  const map = { active: { text: "فعال", style: "bg-green-100 text-green-800 border-green-200" }, near_end: { text: "قارب الانتهاء", style: "bg-yellow-100 text-yellow-800 border-yellow-200" }, expired: { text: "منتهي", style: "bg-red-100 text-red-800 border-red-200" } };
+  const map = {
+    active: { text: "فعال", style: "bg-green-100 text-green-800 border-green-200" },
+    near_end: { text: "قارب الانتهاء", style: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+    expired: { text: "منتهي", style: "bg-red-100 text-red-800 border-red-200" },
+  };
   const current = map[status] || map.active;
   return <span className={`px-3 py-1 rounded-full text-xs font-bold border ${current.style}`}>{current.text}</span>;
 };
 
 // --- Views ---
 
-const HomeView = ({ setView, schedule }) => (
-  <div className="min-h-screen bg-gray-50 font-sans text-right" dir="rtl">
-    <header className="bg-black text-yellow-500 shadow-lg sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
-          <img src={IMAGES.LOGO} alt="Logo" className="w-12 h-12 rounded-full bg-white p-1 object-contain" />
-          <div><h1 className="text-lg font-extrabold leading-none">أكاديمية الشجاع</h1><p className="text-[10px] text-gray-400 tracking-wider uppercase">Brave Taekwondo</p></div>
+const HomeView = ({ setView, schedule }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans text-right" dir="rtl">
+      <header className="bg-black text-yellow-500 shadow-lg sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
+            <img src={IMAGES.LOGO} alt="Logo" className="w-12 h-12 rounded-full bg-white p-1 object-contain" />
+            <div>
+              <h1 className="text-lg font-extrabold leading-none">أكاديمية الشجاع</h1>
+              <p className="text-[10px] text-gray-400 tracking-wider uppercase">Brave Taekwondo</p>
+            </div>
+          </div>
+          <nav className="hidden md:flex gap-8 font-medium text-sm">
+            {['الرئيسية', 'من نحن', 'جدول الحصص', 'الفروع'].map((item) => (
+              <button key={item} className="hover:text-white transition-colors duration-300" onClick={() => {
+                if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
+                if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
+                if (item === 'الرئيسية') window.scrollTo(0,0);
+              }}>{item}</button>
+            ))}
+          </nav>
+          <div className="flex gap-2">
+            <Button onClick={() => setView('login')} className="px-4 py-2 text-sm hidden md:block">بوابة الأعضاء</Button>
+            <button className="md:hidden p-2 text-yellow-500" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+               {mobileMenuOpen ? <X size={24}/> : <Menu size={24}/>}
+            </button>
+          </div>
         </div>
-        <nav className="hidden md:flex gap-8 font-medium text-sm">
-          {['الرئيسية', 'من نحن', 'جدول الحصص', 'الفروع'].map((item) => (
-            <button key={item} className="hover:text-white transition-colors duration-300" onClick={() => {
-              if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
-              if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
-            }}>{item}</button>
+        {mobileMenuOpen && (
+           <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 flex flex-col gap-4">
+             {['الرئيسية', 'من نحن', 'جدول الحصص', 'الفروع'].map((item) => (
+                <button key={item} className="text-right py-2 hover:text-white border-b border-gray-800" onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
+                  if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
+                }}>{item}</button>
+             ))}
+             <Button onClick={() => { setMobileMenuOpen(false); setView('login'); }} className="w-full py-3">بوابة الأعضاء</Button>
+           </div>
+        )}
+      </header>
+
+      <div className="relative bg-gray-900 text-white h-[600px] flex items-center">
+        <div className="absolute inset-0 bg-black/60 z-10"></div>
+        <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
+          <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm">التسجيل مفتوح الآن</span>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">اصنع قوتك ..<br/><span className="text-yellow-500">ابنِ مستقبلك</span></h2>
+          <div className="flex gap-4"><Button onClick={() => setView('login')} className="px-8 py-4 text-lg">سجل الآن</Button></div>
+        </div>
+      </div>
+      
+      <section id="branches" className="py-20 bg-gray-100">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16"><h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2><p className="text-gray-500">اختر الفرع الأقرب إليك وابدأ رحلتك</p></div>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
+              <div className="h-64 bg-gray-800 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
+                  <img src={IMAGES.BRANCH_SHAFA} alt="Shafa Badran" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع شفا بدران</h3></div>
+              </div>
+              <div className="p-8 space-y-4">
+                <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">شفا بدران - شارع رفعت شموط</p><p className="text-gray-500 text-sm">بجانب مشاتل ربيع الأردن</p></div></div>
+                <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0795629606" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9562 9606</a></div></div>
+                <div className="flex items-center gap-4"><Clock className="text-yellow-600" /><p className="text-gray-600 text-sm">يومياً من 3:00 م - 9:00 م (ما عدا الجمعة)</p></div>
+                <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')}>موقعنا على الخريطة</Button>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
+              <div className="h-64 bg-gray-800 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
+                  <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع أبو نصير</h3></div>
+              </div>
+              <div className="p-8 space-y-4">
+                <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">أبو نصير - دوار البحرية</p><p className="text-gray-500 text-sm">مجمع الفرا</p></div></div>
+                <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0790368603" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9036 8603</a></div></div>
+                <div className="flex items-center gap-4"><Clock className="text-yellow-600" /><p className="text-gray-600 text-sm">يومياً من 3:00 م - 9:00 م (ما عدا الجمعة)</p></div>
+                <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')}>موقعنا على الخريطة</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="schedule" className="py-20 container mx-auto px-6">
+        <div className="text-center mb-12"><h2 className="text-4xl font-bold text-gray-900 mb-4">جدول الحصص الأسبوعي</h2></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {(schedule && schedule.length > 0 ? schedule : INITIAL_SCHEDULE).map((cls) => (
+            <div key={cls.id} className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-yellow-500">
+              <div className="bg-gray-50 w-12 h-12 rounded-full flex items-center justify-center mb-4"><Clock className="text-gray-800" size={24}/></div>
+              <h3 className="font-bold text-lg mb-2">{cls.level}</h3>
+              <p className="text-gray-600 text-sm mb-4">{cls.branch}</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-500"><Calendar size={16} className="text-yellow-500"/><span>{cls.days}</span></div>
+                <div className="flex items-center gap-2 text-sm font-bold text-gray-800"><Activity size={16} className="text-yellow-500"/><span>{cls.time}</span></div>
+              </div>
+            </div>
           ))}
-        </nav>
-        <Button onClick={() => setView('login')} className="px-6 py-2 text-sm">بوابة الأعضاء</Button>
-      </div>
-    </header>
-    <div className="relative bg-gray-900 text-white h-[600px] flex items-center">
-      <div className="absolute inset-0 bg-black/60 z-10"></div>
-      <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
-        <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm">التسجيل مفتوح الآن</span>
-        <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">اصنع قوتك ..<br/><span className="text-yellow-500">ابنِ مستقبلك</span></h2>
-        <div className="flex gap-4"><Button onClick={() => setView('login')} className="px-8 py-4 text-lg">سجل الآن</Button></div>
-      </div>
-    </div>
-    
-    <section id="branches" className="py-20 bg-gray-100">
-      <div className="container mx-auto px-6">
-        <div className="text-center mb-16"><h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2><p className="text-gray-500">اختر الفرع الأقرب إليك وابدأ رحلتك</p></div>
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
-            <div className="h-64 bg-gray-800 relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
-                <img src={IMAGES.BRANCH_SHAFA} alt="Shafa Badran" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع شفا بدران</h3></div>
-            </div>
-            <div className="p-8 space-y-4">
-              <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">شفا بدران - شارع رفعت شموط</p><p className="text-gray-500 text-sm">بجانب مشاتل ربيع الأردن</p></div></div>
-              <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0795629606" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9562 9606</a></div></div>
-              <div className="flex items-center gap-4"><Clock className="text-yellow-600" /><p className="text-gray-600 text-sm">يومياً من 3:00 م - 9:00 م (ما عدا الجمعة)</p></div>
-              <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')}>موقعنا على الخريطة</Button>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
-            <div className="h-64 bg-gray-800 relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
-                <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع أبو نصير</h3></div>
-            </div>
-            <div className="p-8 space-y-4">
-              <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">أبو نصير - دوار البحرية</p><p className="text-gray-500 text-sm">مجمع الفرا</p></div></div>
-              <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0790368603" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9036 8603</a></div></div>
-              <div className="flex items-center gap-4"><Clock className="text-yellow-600" /><p className="text-gray-600 text-sm">يومياً من 3:00 م - 9:00 م (ما عدا الجمعة)</p></div>
-              <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')}>موقعنا على الخريطة</Button>
-            </div>
-          </div>
         </div>
-      </div>
-    </section>
-    <section id="schedule" className="py-20 container mx-auto px-6">
-      <div className="text-center mb-12"><h2 className="text-4xl font-bold text-gray-900 mb-4">جدول الحصص الأسبوعي</h2></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">{schedule.map((cls) => (<div key={cls.id} className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-yellow-500"><div className="bg-gray-50 w-12 h-12 rounded-full flex items-center justify-center mb-4"><Clock className="text-gray-800" size={24}/></div><h3 className="font-bold text-lg mb-2">{cls.level}</h3><p className="text-gray-600 text-sm mb-4">{cls.branch}</p><div className="space-y-2"><div className="flex items-center gap-2 text-sm text-gray-500"><Calendar size={16} className="text-yellow-500"/><span>{cls.days}</span></div><div className="flex items-center gap-2 text-sm font-bold text-gray-800"><Activity size={16} className="text-yellow-500"/><span>{cls.time}</span></div></div></div>))}</div>
-    </section>
-    <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-yellow-500"><div className="container mx-auto px-6 text-center text-sm text-gray-500"><p>© 2023 جميع الحقوق محفوظة لأكاديمية الشجاع للتايكوندو.</p></div></footer>
-  </div>
-);
+      </section>
+      <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-yellow-500"><div className="container mx-auto px-6 text-center text-sm text-gray-500"><p>© 2023 جميع الحقوق محفوظة لأكاديمية الشجاع للتايكوندو.</p></div></footer>
+    </div>
+  );
+};
 
 const LoginView = ({ setView, handleLogin, loginError }) => {
-  const [u, setU] = useState(''); const [p, setP] = useState('');
+  const [u, setU] = useState(''); 
+  const [p, setP] = useState('');
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 relative overflow-hidden" dir="rtl">
       <Card className="w-full max-w-md relative z-10 border-t-4 border-yellow-500">
@@ -360,7 +475,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
       <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
         <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-2xl shadow-lg">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Clock className="text-yellow-500"/> مواعيد الحصص</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{schedule.map(s=><div key={s.id} className="bg-white/10 p-4 rounded-lg"><p className="font-bold text-yellow-400 mb-1">{s.level}</p><p className="text-sm">{s.days} | {s.time}</p></div>)}</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">{schedule && schedule.length > 0 ? schedule.map(s=><div key={s.id} className="bg-white/10 p-4 rounded-lg"><p className="font-bold text-yellow-400 mb-1">{s.level}</p><p className="text-sm">{s.days} | {s.time}</p></div>) : <p className="text-gray-400">لا يوجد جدول حصص معلن حالياً</p>}</div>
         </div>
 
         {/* Financial History Section */}
@@ -448,10 +563,27 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="جدول الحصص الحالي">
-          <div className="space-y-3">{schedule.map(cls => (<div key={cls.id} className="flex justify-between p-3 bg-gray-50 rounded border hover:border-yellow-500 transition"><span className="font-bold text-gray-700">{cls.level}</span><span className="text-sm text-gray-500">{cls.time}</span></div>))}</div>
+          <div className="space-y-3">
+            {schedule.map(cls => (
+              <div key={cls.id} className="flex justify-between p-3 bg-gray-50 rounded border hover:border-yellow-500 transition">
+                <span className="font-bold text-gray-700">{cls.level}</span>
+                <span className="text-sm text-gray-500">{cls.time}</span>
+              </div>
+            ))}
+          </div>
         </Card>
         <Card title="آخر المسجلين">
-          <div className="space-y-2">{branchStudents.slice(-3).reverse().map(s => (<div key={s.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-yellow-100 text-yellow-800 rounded-full flex items-center justify-center font-bold">{s.name.charAt(0)}</div><span className="font-medium">{s.name}</span></div><StatusBadge status={calculateStatus(s.subEnd)}/></div>))}</div>
+          <div className="space-y-2">
+            {branchStudents.slice(-3).reverse().map(s => (
+              <div key={s.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-yellow-100 text-yellow-800 rounded-full flex items-center justify-center font-bold">{s.name.charAt(0)}</div>
+                  <span className="font-medium">{s.name}</span>
+                </div>
+                <StatusBadge status={calculateStatus(s.subEnd)}/>
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
     </div>
@@ -484,7 +616,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       subEndDateObj.setMonth(subEndDateObj.getMonth() + 1);
       const subEnd = subEndDateObj.toISOString().split('T')[0];
 
-      // Note: We initialize customOrder with a large number to put new students at the end
       const student = { branch: selectedBranch, status: 'active', subEnd: subEnd, notes: [], internalNotes: [], attendance: {}, username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(), ...newS };
       await studentsCollection.add(student);
       setCreatedCreds({ name: student.name, username, password });
@@ -587,7 +718,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     );
   };
 
-  // ... (Other Managers Remain Similar with Enhancements)
   const AttendanceManager = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [filterId, setFilterId] = useState(null);
@@ -790,9 +920,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   };
 
   const NotesManager = () => {
-    const [noteTxt, setNoteTxt] = useState('');
-    const [selectedTargets, setSelectedTargets] = useState([]); 
-    const [selectAll, setSelectAll] = useState(false);
+    const [noteTxt, setNoteTxt] = useState(''); const [selectedTargets, setSelectedTargets] = useState([]); const [selectAll, setSelectAll] = useState(false);
     const toggleSelectAll = () => { if (selectAll) setSelectedTargets([]); else setSelectedTargets(branchStudents.map(s => s.id)); setSelectAll(!selectAll); };
     const toggleTarget = (id) => { if (selectedTargets.includes(id)) setSelectedTargets(selectedTargets.filter(t => t !== id)); else setSelectedTargets([...selectedTargets, id]); };
     const sendNotes = async () => { 
@@ -820,10 +948,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   };
 
   const SubsManager = () => {
-    const [quickRenewId, setQuickRenewId] = useState('');
-    const [filterId, setFilterId] = useState('');
+    const [quickRenewId, setQuickRenewId] = useState(''); const [filterId, setFilterId] = useState('');
     const updateSub = async (id, date) => { await studentsCollection.update(id, { subEnd: date }); };
-    
     const displayedStudents = filterId ? branchStudents.filter(s => s.id === filterId) : branchStudents;
 
     return (
@@ -853,9 +979,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   };
 
   const ArchiveManager = () => {
-    const [selectedStudent, setSelectedStudent] = useState(null); 
-    const [editingArchived, setEditingArchived] = useState(null); 
-    const [formData, setFormData] = useState({});
+    const [selectedStudent, setSelectedStudent] = useState(null); const [editingArchived, setEditingArchived] = useState(null); const [formData, setFormData] = useState({});
 
     const openEditArchived = (student) => {
       setEditingArchived(student);
@@ -971,12 +1095,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 export default function App() {
   const [view, setView] = useState('home'); 
   const [user, setUser] = useState(() => {
-      // Load user from local storage for persistence
       const saved = localStorage.getItem('braveUser');
       return saved ? JSON.parse(saved) : null;
   });
   
-  // Auto-redirect if logged in
   useEffect(() => {
       if (user) {
           if (user.role === 'admin') setView('admin_dashboard');
@@ -984,7 +1106,6 @@ export default function App() {
       }
   }, []);
 
-  // الاتصال بقاعدة البيانات
   const studentsCollection = useCollection('students', true); 
   const paymentsCollection = useCollection('payments', true);
   const expensesCollection = useCollection('expenses', true);
