@@ -29,23 +29,20 @@ const db = getFirestore(app);
 
 const appId = 'brave-academy-live-data';
 
-// --- صور النظام (يمكنك استبدال الروابط بروابط صورك الخاصة) ---
+// --- صور النظام (تم التحديث لملف JPG) ---
 const IMAGES = {
-  LOGO: "https://cdn-icons-png.flaticon.com/512/10405/10405838.png", // رابط الشعار (يمكن تغييره)
-  HERO_BG: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80", // صورة الخلفية الرئيسية
-  BRANCH_SHAFA: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&q=80", // صورة فرع شفا بدران
-  BRANCH_ABU_NSEIR: "https://images.unsplash.com/photo-1599058945522-28d584b6f0ff?auto=format&fit=crop&q=80" // صورة فرع أبو نصير
+  LOGO: "/logo.jpg",            // تم التعديل هنا ليتناسب مع صورتك المرفقة
+  HERO_BG: "/hero.jpg",         
+  BRANCH_SHAFA: "/shafa.jpg",   
+  BRANCH_ABU_NSEIR: "/abunseir.jpg" 
 };
 
 // --- Custom Hook for Firestore ---
-const useCollection = (collectionName, allowPublic = false) => {
+const useCollection = (collectionName) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // التعديل: السماح بجلب البيانات إذا كان مسموحاً للعامة (مثل الجدول) أو إذا كان هناك مستخدم مسجل
-    // هذا يحل مشكلة عدم ظهور الجدول للزوار
-    
     const path = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
     const q = query(path);
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -57,7 +54,7 @@ const useCollection = (collectionName, allowPublic = false) => {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [collectionName]); // إزالة الاعتماد على user للسماح بالجلب الدائم للقراءة
+  }, [collectionName]);
 
   const add = async (item) => {
     try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الإنترنت"); }
@@ -75,7 +72,6 @@ const useCollection = (collectionName, allowPublic = false) => {
 // --- Constants ---
 const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
-// بيانات أولية للجدول (تستخدم فقط كاحتياط قبل تحميل البيانات من النت)
 const INITIAL_SCHEDULE = [
   { id: 1, days: "السبت / الاثنين / الأربعاء", time: "4:00 م - 5:00 م", level: "مبتدئين (أبيض - أصفر)", branch: "مشترك" },
   { id: 2, days: "السبت / الاثنين / الأربعاء", time: "5:00 م - 6:30 م", level: "أحزمة ملونة (أخضر - أزرق)", branch: "مشترك" },
@@ -108,25 +104,41 @@ const generateCredentials = () => {
   return { username, password };
 };
 
+// دالة طباعة السند (تستخدم IMAGES.LOGO تلقائياً)
 const printReceipt = (payment, branch) => {
   const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
+  const logoUrl = window.location.origin + IMAGES.LOGO; 
+  
   receiptWindow.document.write(`
     <html>
       <head>
         <title>سند قبض - ${payment.id.slice(0,8)}</title>
         <style>
-          body { font-family: 'Courier New', sans-serif; direction: rtl; padding: 20px; text-align: center; border: 2px solid #000; max-width: 600px; margin: 20px auto; }
-          .header { margin-bottom: 20px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
+          body { font-family: 'Courier New', sans-serif; direction: rtl; padding: 20px; text-align: center; border: 2px solid #000; max-width: 600px; margin: 20px auto; position: relative; overflow: hidden; }
+          .header { margin-bottom: 20px; border-bottom: 2px dashed #000; padding-bottom: 10px; position: relative; z-index: 2; }
           .logo { width: 80px; height: auto; margin-bottom: 10px; }
-          .title { font-size: 24px; margin: 10px 0; background: #eee; display: inline-block; padding: 5px 20px; border-radius: 5px; }
-          .content { text-align: right; margin: 20px 0; font-size: 18px; line-height: 2; }
+          .title { font-size: 24px; margin: 10px 0; background: #eee; display: inline-block; padding: 5px 20px; border-radius: 5px; position: relative; z-index: 2; }
+          .content { text-align: right; margin: 20px 0; font-size: 18px; line-height: 2; position: relative; z-index: 2; }
           .amount { font-weight: bold; font-size: 22px; }
-          .footer { margin-top: 40px; border-top: 2px dashed #000; padding-top: 10px; font-size: 12px; }
+          .footer { margin-top: 40px; border-top: 2px dashed #000; padding-top: 10px; font-size: 12px; position: relative; z-index: 2; }
+          
+          .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.1;
+            width: 60%;
+            z-index: 1;
+            pointer-events: none;
+          }
         </style>
       </head>
       <body>
+        <img src="${logoUrl}" class="watermark" />
+        
         <div class="header">
-          <img src="${IMAGES.LOGO}" class="logo" alt="Logo" />
+          <img src="${logoUrl}" class="logo" alt="Logo" />
           <div>Brave Taekwondo Academy</div>
           <div>فرع: ${branch}</div>
         </div>
@@ -144,8 +156,10 @@ const printReceipt = (payment, branch) => {
   `);
   receiptWindow.document.close();
   receiptWindow.focus();
-  receiptWindow.print();
-  receiptWindow.close();
+  setTimeout(() => {
+      receiptWindow.print();
+      receiptWindow.close();
+  }, 500); 
   return true;
 };
 
@@ -233,7 +247,6 @@ const HomeView = ({ setView, schedule }) => (
     <header className="bg-black text-yellow-500 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
-          {/* تم إضافة لوجو النادي هنا */}
           <img src={IMAGES.LOGO} alt="Logo" className="w-12 h-12 rounded-full bg-white p-1 object-contain" />
           <div><h1 className="text-lg font-extrabold leading-none">أكاديمية الشجاع</h1><p className="text-[10px] text-gray-400 tracking-wider uppercase">Brave Taekwondo</p></div>
         </div>
@@ -250,7 +263,6 @@ const HomeView = ({ setView, schedule }) => (
     </header>
     <div className="relative bg-gray-900 text-white h-[600px] flex items-center">
       <div className="absolute inset-0 bg-black/60 z-10"></div>
-      {/* تم تحديث صورة الهيرو */}
       <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
       <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
         <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm">التسجيل مفتوح الآن</span>
@@ -263,7 +275,6 @@ const HomeView = ({ setView, schedule }) => (
       <div className="container mx-auto px-6">
         <div className="text-center mb-16"><h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2><p className="text-gray-500">اختر الفرع الأقرب إليك وابدأ رحلتك</p></div>
         <div className="grid md:grid-cols-2 gap-8">
-          {/* تم إضافة صورة لفرع شفا بدران */}
           <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
             <div className="h-64 bg-gray-800 relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
@@ -277,7 +288,6 @@ const HomeView = ({ setView, schedule }) => (
               <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')}>موقعنا على الخريطة</Button>
             </div>
           </div>
-          {/* تم إضافة صورة لفرع أبو نصير */}
           <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
             <div className="h-64 bg-gray-800 relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
@@ -309,7 +319,6 @@ const LoginView = ({ setView, handleLogin, loginError }) => {
       <Card className="w-full max-w-md relative z-10 border-t-4 border-yellow-500">
         <div className="text-center mb-8">
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg p-2">
-                {/* لوجو في صفحة تسجيل الدخول */}
                 <img src={IMAGES.LOGO} alt="Logo" className="w-full h-full object-contain" />
             </div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">تسجيل الدخول</h2>
@@ -342,7 +351,6 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
       <header className="bg-black text-yellow-500 p-4 shadow-lg sticky top-0 z-40">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-             {/* لوجو في بوابة الطالب */}
              <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 bg-white rounded-full p-1" />
              <div><h1 className="font-bold text-lg">مرحباً {user.name}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div>
           </div>
