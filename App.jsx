@@ -366,7 +366,7 @@ const HomeView = ({ setView, schedule }) => {
         <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
         <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
           <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm">التسجيل مفتوح الآن</span>
-          <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">اصنع قوتك ..<br/><span className="text-yellow-500">ابنِ مستقبلك</span></h2>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">سجل الان ..<br/><span className="text-yellow-500">وانضم لعائلتنا</span></h2>
           <div className="flex gap-4"><Button onClick={() => setView('login')} className="px-8 py-4 text-lg">سجل الآن</Button></div>
         </div>
       </div>
@@ -421,7 +421,7 @@ const HomeView = ({ setView, schedule }) => {
           ))}
         </div>
       </section>
-      <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-yellow-500"><div className="container mx-auto px-6 text-center text-sm text-gray-500"><p>© 2023 جميع الحقوق محفوظة لأكاديمية الشجاع للتايكوندو.</p></div></footer>
+      <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-yellow-500"><div className="container mx-auto px-6 text-center text-sm text-gray-500"><p>© 2026 جميع الحقوق محفوظة لأكاديمية الشجاع للتايكوندو.</p></div></footer>
     </div>
   );
 };
