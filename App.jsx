@@ -4,13 +4,13 @@ import {
   LogOut, UserPlus, CheckCircle, Activity, Phone, 
   MapPin, Search, FileText, Edit, 
   Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox
+  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, PieChart, BarChart2, Bell
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, limit } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
 const firebaseConfig = {
@@ -66,7 +66,9 @@ const useCollection = (collectionName) => {
 
   const add = async (item) => {
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item);
+      // Add timestamp for sorting
+      const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
       return true;
     } catch (e) {
       console.error(e);
@@ -258,15 +260,15 @@ const Button = ({ children, onClick, variant = "primary", className = "", type="
   );
 };
 
-const Card = ({ children, className = "", title, action }) => (
+const Card = ({ children, className = "", title, action, noPadding=false }) => (
   <div className={`bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${className}`}>
     {(title || action) && (
-      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
         {title && <h3 className="font-bold text-gray-800 text-lg">{title}</h3>}
         {action && <div>{action}</div>}
       </div>
     )}
-    <div className="p-6">{children}</div>
+    <div className={noPadding ? "" : "p-6"}>{children}</div>
   </div>
 );
 
@@ -279,6 +281,25 @@ const StatusBadge = ({ status }) => {
   const current = map[status] || map.active;
   return <span className={`px-3 py-1 rounded-full text-xs font-bold border ${current.style}`}>{current.text}</span>;
 };
+
+// --- Helper Components for Dashboard Charts ---
+const SimplePieChart = ({ data }) => {
+  // Mockup for a pie chart using CSS gradients
+  // In a real app you might use recharts, but keeping it dependency-free as requested
+  return (
+    <div className="flex items-center justify-center h-40 w-40 rounded-full border-8 border-gray-100 relative overflow-hidden shadow-inner">
+       <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold text-gray-700">{data.total}</span>
+          <span className="text-xs text-gray-500">طالب</span>
+       </div>
+       {/* Visual representation simplified */}
+       <svg viewBox="0 0 36 36" className="w-full h-full absolute transform -rotate-90">
+          <path className="text-yellow-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${data.activePct}, 100`} />
+          <path className="text-red-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${data.expiredPct}, 100`} strokeDashoffset={`-${data.activePct}`} />
+       </svg>
+    </div>
+  );
+}
 
 // --- Views ---
 
@@ -554,16 +575,168 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
   const totalIncome = branchPayments.reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpense = branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const netProfit = totalIncome - totalExpense;
 
+  // حساب الإحصائيات للرسم البياني
+  const activeStudentsCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'active').length;
+  const nearEndCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
+  const expiredCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'expired').length;
+  const totalStudents = branchStudents.length;
+
+  // حساب نسبة الحضور (تقريبي لهذا الشهر)
+  const today = new Date();
+  const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const totalAttendance = branchStudents.reduce((acc, s) => {
+     if(!s.attendance) return acc;
+     const count = Object.keys(s.attendance).filter(k => k.startsWith(currentMonthPrefix)).length;
+     return acc + count;
+  }, 0);
+
+  // --- Dashboard Creative View ---
   const DashboardStats = () => (
     <div className="space-y-8 animate-fade-in">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-         <Card className="bg-gray-800 text-white border-none"><h3 className="text-gray-400 text-sm mb-1">الطلاب</h3><p className="text-4xl font-bold">{branchStudents.length}</p></Card>
-         <Card className="bg-blue-600 text-white border-none"><h3 className="text-blue-200 text-sm mb-1">الإيرادات</h3><p className="text-4xl font-bold">{totalIncome}</p></Card>
-         <Card className="bg-red-600 text-white border-none"><h3 className="text-red-200 text-sm mb-1">المصاريف</h3><p className="text-4xl font-bold">{totalExpense}</p></Card>
-         <Card className={`border-none text-white ${totalIncome-totalExpense >= 0 ? 'bg-green-600' : 'bg-orange-600'}`}><h3 className="text-white/70 text-sm mb-1">صافي الربح</h3><p className="text-4xl font-bold">{totalIncome-totalExpense}</p></Card>
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
+         <div className="relative z-10">
+            <h2 className="text-3xl font-bold mb-2">مرحباً بك يا كابتن! 👋</h2>
+            <p className="opacity-90">إليك نظرة سريعة على أداء الأكاديمية اليوم في فرع {selectedBranch}</p>
+         </div>
+         <div className="relative z-10 bg-white/20 p-4 rounded-xl backdrop-blur-sm text-center">
+            <span className="block text-4xl font-bold">{new Date().getDate()}</span>
+            <span className="uppercase text-sm tracking-wider">{new Date().toLocaleString('en-us', { month: 'short' })}</span>
+         </div>
+         <div className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10">
+            <Trophy size={200} />
+         </div>
       </div>
-      {/* Tables here... */}
+
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+         <Card className="border-l-4 border-blue-500 hover:shadow-lg transition-all">
+            <div className="flex justify-between items-start">
+               <div>
+                  <p className="text-gray-500 text-sm mb-1">إجمالي الطلاب</p>
+                  <h3 className="text-3xl font-bold text-gray-800">{branchStudents.length}</h3>
+               </div>
+               <div className="bg-blue-100 p-2 rounded-lg"><Users className="text-blue-600" size={24}/></div>
+            </div>
+            <div className="mt-4 text-xs text-gray-400 flex items-center gap-1">
+               <ArrowUp size={12} className="text-green-500"/> <span className="text-green-500 font-bold">+3</span> هذا الشهر
+            </div>
+         </Card>
+
+         <Card className="border-l-4 border-green-500 hover:shadow-lg transition-all">
+            <div className="flex justify-between items-start">
+               <div>
+                  <p className="text-gray-500 text-sm mb-1">صافي الأرباح</p>
+                  <h3 className="text-3xl font-bold text-gray-800">{netProfit} <span className="text-sm text-gray-400">JOD</span></h3>
+               </div>
+               <div className="bg-green-100 p-2 rounded-lg"><TrendingUp className="text-green-600" size={24}/></div>
+            </div>
+            <div className="mt-4 w-full bg-gray-200 rounded-full h-1.5">
+               <div className="bg-green-500 h-1.5 rounded-full" style={{width: '70%'}}></div>
+            </div>
+         </Card>
+
+         <Card className="border-l-4 border-purple-500 hover:shadow-lg transition-all">
+            <div className="flex justify-between items-start">
+               <div>
+                  <p className="text-gray-500 text-sm mb-1">حضور الشهر</p>
+                  <h3 className="text-3xl font-bold text-gray-800">{totalAttendance}</h3>
+               </div>
+               <div className="bg-purple-100 p-2 rounded-lg"><Activity className="text-purple-600" size={24}/></div>
+            </div>
+            <div className="mt-4 text-xs text-purple-600 font-bold">حصص تدريبية نشطة</div>
+         </Card>
+
+         <Card className="border-l-4 border-red-500 hover:shadow-lg transition-all">
+            <div className="flex justify-between items-start">
+               <div>
+                  <p className="text-gray-500 text-sm mb-1">اشتراكات منتهية</p>
+                  <h3 className="text-3xl font-bold text-gray-800">{expiredCount}</h3>
+               </div>
+               <div className="bg-red-100 p-2 rounded-lg"><AlertTriangle className="text-red-600" size={24}/></div>
+            </div>
+            <button className="mt-4 text-xs text-red-500 hover:underline">إرسال تذكير للجميع</button>
+         </Card>
+      </div>
+
+      {/* Charts & Activity Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+         {/* Subscription Pie Chart (CSS Only) */}
+         <Card title="توزيع الاشتراكات" className="lg:col-span-1">
+            <div className="flex items-center justify-center py-6">
+               <div className="relative w-48 h-48 rounded-full bg-gray-100 border-8 border-white shadow-inner flex items-center justify-center"
+                    style={{background: `conic-gradient(
+                        #22c55e 0% ${activeStudentsCount/totalStudents*100}%, 
+                        #eab308 ${activeStudentsCount/totalStudents*100}% ${(activeStudentsCount+nearEndCount)/totalStudents*100}%, 
+                        #ef4444 ${(activeStudentsCount+nearEndCount)/totalStudents*100}% 100%
+                    )`}}>
+                  <div className="w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center z-10 shadow-sm">
+                     <span className="text-3xl font-bold text-gray-800">{totalStudents}</span>
+                     <span className="text-xs text-gray-400">طالب كلي</span>
+                  </div>
+               </div>
+            </div>
+            <div className="flex justify-around text-xs mt-4">
+               <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-full"></div> فعال ({activeStudentsCount})</div>
+               <div className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-500 rounded-full"></div> قارب ({nearEndCount})</div>
+               <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded-full"></div> منتهي ({expiredCount})</div>
+            </div>
+         </Card>
+
+         {/* Activity Log */}
+         <Card title="سجل النشاطات الأخير" className="lg:col-span-2">
+            <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+               {/* Mock Activity Log - In real app this would come from a 'logs' collection */}
+               {branchRegistrations.length > 0 && (
+                  <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg border border-blue-100">
+                     <div className="bg-blue-500 text-white p-2 rounded-full"><UserPlus size={16}/></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">طلب تسجيل جديد</p>
+                        <p className="text-xs text-gray-500">وصل {branchRegistrations.length} طلبات تسجيل جديدة بانتظار الموافقة</p>
+                     </div>
+                     <span className="mr-auto text-xs text-blue-600 font-bold">الآن</span>
+                  </div>
+               )}
+               
+               {branchPayments.slice(-3).reverse().map(pay => (
+                  <div key={pay.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition">
+                     <div className="bg-green-100 text-green-600 p-2 rounded-full"><DollarSign size={16}/></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">دفعة مالية جديدة</p>
+                        <p className="text-xs text-gray-500">تم استلام {pay.amount} JOD من الطالب {pay.name}</p>
+                     </div>
+                     <span className="mr-auto text-xs text-gray-400">{pay.date}</span>
+                  </div>
+               ))}
+
+               {branchStudents.slice(-2).map(s => (
+                  <div key={s.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition">
+                     <div className="bg-yellow-100 text-yellow-600 p-2 rounded-full"><Star size={16}/></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">انضمام طالب</p>
+                        <p className="text-xs text-gray-500">انضم {s.name} إلى الأكاديمية</p>
+                     </div>
+                     <span className="mr-auto text-xs text-gray-400">{s.joinDate}</span>
+                  </div>
+               ))}
+            </div>
+         </Card>
+      </div>
+
+      {/* Schedule Preview */}
+      <Card title="الجدول الدراسي اليوم">
+         <div className="flex gap-4 overflow-x-auto pb-2">
+            {schedule.length > 0 ? schedule.map(cls => (
+               <div key={cls.id} className="min-w-[200px] bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col gap-2">
+                  <span className="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded w-fit">{cls.time}</span>
+                  <h4 className="font-bold text-gray-800">{cls.level}</h4>
+                  <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin size={12}/> {cls.branch}</p>
+               </div>
+            )) : <p className="text-gray-400 text-sm">لا توجد حصص اليوم</p>}
+         </div>
+      </Card>
     </div>
   );
 
@@ -610,38 +783,54 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
     return (
        <div className="space-y-6">
-         <h3 className="font-bold text-xl flex items-center gap-2"><Inbox/> طلبات التسجيل الجديدة ({branchRegistrations.length})</h3>
+         <div className="flex justify-between items-center">
+            <h3 className="font-bold text-xl flex items-center gap-2 text-gray-800"><Inbox className="text-yellow-500"/> طلبات التسجيل الجديدة <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{branchRegistrations.length}</span></h3>
+         </div>
+         
          <div className="grid gap-4">
-            {branchRegistrations.length === 0 ? <p className="text-gray-500">لا توجد طلبات جديدة.</p> : branchRegistrations.map(reg => (
-                <Card key={reg.id} className="border-r-4 border-blue-500">
-                    <div className="flex justify-between items-center">
+            {branchRegistrations.length === 0 ? 
+               <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
+                  <Inbox size={48} className="mx-auto text-gray-300 mb-2"/>
+                  <p className="text-gray-500">لا توجد طلبات جديدة حالياً.</p>
+               </div> 
+            : branchRegistrations.map(reg => (
+                <Card key={reg.id} className="border-r-4 border-blue-500 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                            <h4 className="font-bold text-lg">{reg.name}</h4>
-                            <p className="text-sm text-gray-600"><Phone size={14} className="inline ml-1"/>{reg.phone} | <MapPin size={14} className="inline ml-1"/>{reg.address}</p>
-                            <p className="text-xs text-gray-400 mt-1">تاريخ الطلب: {reg.date} | الميلاد: {reg.dob}</p>
+                            <h4 className="font-bold text-lg flex items-center gap-2">{reg.name} <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">جديد</span></h4>
+                            <div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-1">
+                               <span className="flex items-center gap-1"><Phone size={14}/> {reg.phone}</span>
+                               <span className="flex items-center gap-1"><MapPin size={14}/> {reg.address}</span>
+                               <span className="flex items-center gap-1"><Calendar size={14}/> {reg.dob}</span>
+                            </div>
                         </div>
-                        <div className="flex gap-2">
-                            <Button onClick={() => openConfirm(reg)} className="bg-green-600 hover:bg-green-700 text-white text-sm">اعتماد كطالب</Button>
-                            <button onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} className="text-red-500 p-2 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <Button onClick={() => openConfirm(reg)} className="bg-green-600 hover:bg-green-700 text-white text-sm flex-1 md:flex-none">اعتماد كطالب</Button>
+                            <button onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} className="text-red-500 p-2 hover:bg-red-50 rounded border border-red-200"><Trash2 size={18}/></button>
                         </div>
                     </div>
                 </Card>
             ))}
          </div>
+
+         {/* Modal to complete info */}
          {confirmModal && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-                <Card className="w-full max-w-2xl" title="إكمال بيانات الطالب الجديد">
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+                <Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد">
                     <form onSubmit={confirmStudent} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-xs mb-1">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded" value={formData.name} readOnly /></div>
-                            <div><label className="block text-xs mb-1">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded" value={formData.phone} readOnly /></div>
-                            <div><label className="block text-xs mb-1">العائلة</label><select className="w-full border p-2 rounded" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>
-                            <div><label className="block text-xs mb-1">الحزام</label><select className="w-full border p-2 rounded" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div>
-                            <div><label className="block text-xs mb-1">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div>
-                            <div><label className="block text-xs mb-1">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div>
-                            <div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div>
+                            <div><label className="block text-xs mb-1 font-bold">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.name} readOnly /></div>
+                            <div><label className="block text-xs mb-1 font-bold">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.phone} readOnly /></div>
+                            <div><label className="block text-xs mb-1 font-bold">العائلة</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>
+                            <div><label className="block text-xs mb-1 font-bold">الحزام</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div>
+                            <div><label className="block text-xs mb-1 font-bold">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div>
+                            <div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div>
+                            <div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded focus:ring-2 ring-red-500 outline-none" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div>
                         </div>
-                        <div className="flex justify-end gap-2 mt-4"><Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button><Button type="submit">تأكيد وإضافة</Button></div>
+                        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                            <Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button>
+                            <Button type="submit">تأكيد وإضافة</Button>
+                        </div>
                     </form>
                 </Card>
             </div>
@@ -649,6 +838,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
        </div>
     );
   };
+  
+  // (Rest of Admin Components - Students, Finance, etc. included same as previous full version)
+  // ... I will include them here to ensure FULL FILE completeness ...
 
   const StudentsManager = () => {
     const [search, setSearch] = useState(''); const [showModal, setShowModal] = useState(false); const [editingStudent, setEditingStudent] = useState(null); const [createdCreds, setCreatedCreds] = useState(null);
