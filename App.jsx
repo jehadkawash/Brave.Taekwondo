@@ -65,7 +65,7 @@ const useCollection = (collectionName) => {
   }, [collectionName]);
 
   const add = async (item) => {
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت"); }
+    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); return true; } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت"); return false; }
   };
   const update = async (id, updates) => {
     try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates); } catch (e) { console.error(e); }
@@ -484,31 +484,9 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
 
         {myStudents.map(s => (
           <Card key={s.id} className="mb-8 border-t-4 border-yellow-500" title={s.name}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6">
-              <div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الحزام الحالي</p><p className="font-bold text-xl">{s.belt}</p></div>
-              <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-gray-500 text-xs mb-1">حالة الاشتراك</p>
-                  <StatusBadge status={calculateStatus(s.subEnd)}/>
-                  <p className="text-xs text-gray-400 mt-1">ينتهي: {s.subEnd}</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الرصيد المستحق</p><p className={`font-bold text-xl ${s.balance>0?"text-red-600":"text-green-600"}`}>{s.balance} JOD</p></div>
-              <div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الفرع</p><p className="font-bold text-lg">{s.branch}</p></div>
-            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6"><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الحزام الحالي</p><p className="font-bold text-xl">{s.belt}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">حالة الاشتراك</p><StatusBadge status={calculateStatus(s.subEnd)}/><p className="text-xs text-gray-400 mt-1">ينتهي: {s.subEnd}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الرصيد المستحق</p><p className={`font-bold text-xl ${s.balance>0?"text-red-600":"text-green-600"}`}>{s.balance} JOD</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الفرع</p><p className="font-bold text-lg">{s.branch}</p></div></div>
             {s.notes && s.notes.length > 0 && (<div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-800 text-sm mb-2">ملاحظات الإدارة:</h4><ul className="list-disc list-inside text-sm text-blue-900">{s.notes.map(n=><li key={n.id}>{n.text} ({n.date})</li>)}</ul></div>)}
-            
-            <div className="border-t pt-6">
-               <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4>
-                  <div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div>
-               </div>
-               <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                 {[...Array(daysInMonth)].map((_,i)=>{
-                   const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
-                   const isP=s.attendance && s.attendance[dateStr]; 
-                   return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>
-                 })}
-               </div>
-            </div>
+            <div className="border-t pt-6"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4><div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div></div><div className="flex flex-wrap gap-2 justify-center md:justify-start">{[...Array(daysInMonth)].map((_,i)=>{const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const isP=s.attendance && s.attendance[dateStr]; return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>})}</div></div>
           </Card>
         ))}
       </div>
@@ -800,7 +778,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     );
   };
 
-  // --- Captains Manager Component ---
+  // --- Captains Manager Component (NEW) ---
   const CaptainsManager = () => {
     const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '' });
     
@@ -808,7 +786,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
         e.preventDefault();
         if (!form.username || !form.password) return alert("يرجى تعبئة جميع الحقول");
         
-        // Add to captains collection
         await captainsCollection.add({ ...form, role: 'captain' });
         setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '' });
         alert("تم إضافة الكابتن بنجاح");
@@ -1026,8 +1003,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             {id:'payments',icon:DollarSign,label:'المالية'},
             {id:'notes',icon:MessageCircle,label:'مراسلات الأهل'},
             {id:'internal_notes',icon:ClipboardList,label:'سجل المتابعة'},
-            {id:'archive',icon:Archive,label:'الأرشيف'}
-          ].map(item => (
+            {id:'archive',icon:Archive,label:'الأرشيف'},
+            {id:'captains',icon:Shield,label:'إدارة الكباتن', hidden: user.role !== 'admin'} // Hidden for captains
+          ].filter(item => !item.hidden).map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
               <div className="relative"><item.icon size={22} />{item.badge > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{item.badge}</span>}</div>{sidebarOpen && <span>{item.label}</span>}
             </button>
@@ -1046,6 +1024,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          {activeTab === 'internal_notes' && <InternalNotesManager />}
          {activeTab === 'subs' && <SubsManager />}
          {activeTab === 'archive' && <ArchiveManager />}
+         {activeTab === 'captains' && <CaptainsManager />}
       </main>
     </div>
   );
@@ -1056,15 +1035,15 @@ export default function App() {
   const [view, setView] = useState('home'); 
   const [user, setUser] = useState(() => { const saved = localStorage.getItem('braveUser'); return saved ? JSON.parse(saved) : null; });
   
-  useEffect(() => { if (user) { if (user.role === 'admin') setView('admin_dashboard'); else setView('student_portal'); } }, []);
+  useEffect(() => { if (user) { if (user.role === 'admin' || user.role === 'captain') setView('admin_dashboard'); else setView('student_portal'); } }, []);
 
   const studentsCollection = useCollection('students', true); 
   const paymentsCollection = useCollection('payments', true);
   const expensesCollection = useCollection('expenses', true);
   const scheduleCollection = useCollection('schedule', true);
   const archiveCollection = useCollection('archive', true);
-  const registrationsCollection = useCollection('registrations', true); // New Collection
-  const captainsCollection = useCollection('captains', true); // New Collection
+  const registrationsCollection = useCollection('registrations', true); 
+  const captainsCollection = useCollection('captains', true); 
 
   const handleLogin = (username, password) => {
     if (username.startsWith('admin') && password === '123') {
@@ -1082,8 +1061,9 @@ export default function App() {
       } else {
         const captainUser = captainsCollection.data.find(c => c.username === username && c.password === password);
         if (captainUser) {
-             setUser({ role: 'captain', name: captainUser.name, branch: captainUser.branch, username: captainUser.username });
-             localStorage.setItem('braveUser', JSON.stringify({ role: 'captain', name: captainUser.name, branch: captainUser.branch, username: captainUser.username }));
+             const userData = { role: 'captain', name: captainUser.name, branch: captainUser.branch, username: captainUser.username };
+             setUser(userData);
+             localStorage.setItem('braveUser', JSON.stringify(userData));
              setView('admin_dashboard');
         } else {
              alert('بيانات خاطئة! جرب admin1/123');
