@@ -10,7 +10,7 @@ import {
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
 const firebaseConfig = {
@@ -65,13 +65,32 @@ const useCollection = (collectionName) => {
   }, [collectionName]);
 
   const add = async (item) => {
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); return true; } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت"); return false; }
+    try {
+      // Add timestamp for sorting if needed
+      const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت");
+      return false;
+    }
   };
+
   const update = async (id, updates) => {
-    try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates); } catch (e) { console.error(e); }
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates);
+    } catch (e) {
+      console.error(e);
+    }
   };
+
   const remove = async (id) => {
-    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id)); } catch (e) { console.error(e); }
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return { data, loading, add, update, remove };
@@ -82,6 +101,22 @@ const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
 
 // --- Helpers ---
+// تسجيل النشاطات
+const logActivity = async (action, details, branch, user) => {
+  try {
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_logs'), {
+      action,
+      details,
+      branch,
+      performedBy: user.name || 'Admin',
+      role: user.role || 'admin',
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error("Failed to log activity", e);
+  }
+};
+
 const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
   const today = new Date();
@@ -241,12 +276,12 @@ const Button = ({ children, onClick, variant = "primary", className = "", type="
 const Card = ({ children, className = "", title, action, noPadding=false }) => (
   <div className={`bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${className}`}>
     {(title || action) && (
-      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+      <div className="px-4 py-3 md:px-6 md:py-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50/50 gap-2">
         {title && <h3 className="font-bold text-gray-800 text-lg">{title}</h3>}
-        {action && <div>{action}</div>}
+        {action && <div className="self-end md:self-auto">{action}</div>}
       </div>
     )}
-    <div className={noPadding ? "" : "p-6"}>{children}</div>
+    <div className={noPadding ? "" : "p-4 md:p-6"}>{children}</div>
   </div>
 );
 
@@ -257,7 +292,7 @@ const StatusBadge = ({ status }) => {
     expired: { text: "منتهي", style: "bg-red-100 text-red-800 border-red-200" },
   };
   const current = map[status] || map.active;
-  return <span className={`px-3 py-1 rounded-full text-xs font-bold border ${current.style}`}>{current.text}</span>;
+  return <span className={`px-2 py-1 rounded-full text-xs font-bold border ${current.style}`}>{current.text}</span>;
 };
 
 // --- Views ---
@@ -486,7 +521,20 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
           <Card key={s.id} className="mb-8 border-t-4 border-yellow-500" title={s.name}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6"><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الحزام الحالي</p><p className="font-bold text-xl">{s.belt}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">حالة الاشتراك</p><StatusBadge status={calculateStatus(s.subEnd)}/><p className="text-xs text-gray-400 mt-1">ينتهي: {s.subEnd}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الرصيد المستحق</p><p className={`font-bold text-xl ${s.balance>0?"text-red-600":"text-green-600"}`}>{s.balance} JOD</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الفرع</p><p className="font-bold text-lg">{s.branch}</p></div></div>
             {s.notes && s.notes.length > 0 && (<div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-800 text-sm mb-2">ملاحظات الإدارة:</h4><ul className="list-disc list-inside text-sm text-blue-900">{s.notes.map(n=><li key={n.id}>{n.text} ({n.date})</li>)}</ul></div>)}
-            <div className="border-t pt-6"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4><div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div></div><div className="flex flex-wrap gap-2 justify-center md:justify-start">{[...Array(daysInMonth)].map((_,i)=>{const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const isP=s.attendance && s.attendance[dateStr]; return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>})}</div></div>
+            
+            <div className="border-t pt-6">
+               <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4>
+                  <div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div>
+               </div>
+               <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                 {[...Array(daysInMonth)].map((_,i)=>{
+                   const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
+                   const isP=s.attendance && s.attendance[dateStr]; 
+                   return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>
+                 })}
+               </div>
+            </div>
           </Card>
         ))}
       </div>
@@ -496,15 +544,15 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
 
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const students = studentsCollection.data;
-  const payments = paymentsCollection.data;
-  const expenses = expensesCollection.data;
-  const schedule = scheduleCollection.data;
-  const registrations = registrationsCollection.data;
-  const archivedStudents = archiveCollection.data;
-  const captains = captainsCollection.data;
+  const { data: students } = studentsCollection;
+  const { data: payments } = paymentsCollection;
+  const { data: expenses } = expensesCollection;
+  const { data: schedule } = scheduleCollection;
+  const { data: registrations } = registrationsCollection;
+  const { data: archive } = archiveCollection;
+  const { data: captains } = captainsCollection;
 
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
@@ -515,13 +563,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const totalExpense = branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalIncome - totalExpense;
 
-  // حساب الإحصائيات للرسم البياني
   const activeStudentsCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'active').length;
   const nearEndCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
   const expiredCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'expired').length;
   const totalStudents = branchStudents.length;
-
-  // حساب نسبة الحضور (تقريبي لهذا الشهر)
   const today = new Date();
   const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const totalAttendance = branchStudents.reduce((acc, s) => {
@@ -530,10 +575,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
      return acc + count;
   }, 0);
 
-  // --- Dashboard Creative View ---
+  const logAction = (action, details) => logActivity(action, details, selectedBranch, user);
+
   const DashboardStats = () => (
     <div className="space-y-8 animate-fade-in">
-      {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
          <div className="relative z-10">
             <h2 className="text-3xl font-bold mb-2">مرحباً بك يا كابتن! 👋</h2>
@@ -548,7 +593,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </div>
       </div>
 
-      {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
          <Card className="border-l-4 border-blue-500 hover:shadow-lg transition-all">
             <div className="flex justify-between items-start">
@@ -599,16 +643,14 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </Card>
       </div>
 
-      {/* Charts & Activity Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         {/* Subscription Pie Chart (CSS Only) */}
          <Card title="توزيع الاشتراكات" className="lg:col-span-1">
             <div className="flex items-center justify-center py-6">
                <div className="relative w-48 h-48 rounded-full bg-gray-100 border-8 border-white shadow-inner flex items-center justify-center"
                     style={{background: `conic-gradient(
-                        #22c55e 0% ${activeStudentsCount/totalStudents*100}%, 
-                        #eab308 ${activeStudentsCount/totalStudents*100}% ${(activeStudentsCount+nearEndCount)/totalStudents*100}%, 
-                        #ef4444 ${(activeStudentsCount+nearEndCount)/totalStudents*100}% 100%
+                        #22c55e 0% ${activeStudentsCount/totalStudents*100 || 0}%, 
+                        #eab308 ${activeStudentsCount/totalStudents*100 || 0}% ${(activeStudentsCount+nearEndCount)/totalStudents*100 || 0}%, 
+                        #ef4444 ${(activeStudentsCount+nearEndCount)/totalStudents*100 || 0}% 100%
                     )`}}>
                   <div className="w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center z-10 shadow-sm">
                      <span className="text-3xl font-bold text-gray-800">{totalStudents}</span>
@@ -623,10 +665,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             </div>
          </Card>
 
-         {/* Activity Log */}
          <Card title="سجل النشاطات الأخير" className="lg:col-span-2">
             <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-               {/* Mock Activity Log - In real app this would come from a 'logs' collection */}
                {branchRegistrations.length > 0 && (
                   <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg border border-blue-100">
                      <div className="bg-blue-500 text-white p-2 rounded-full"><UserPlus size={16}/></div>
@@ -663,7 +703,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </Card>
       </div>
 
-      {/* Schedule Preview */}
       <Card title="الجدول الدراسي اليوم">
          <div className="flex gap-4 overflow-x-auto pb-2">
             {schedule.length > 0 ? schedule.map(cls => (
@@ -678,7 +717,68 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     </div>
   );
 
-  // --- Registration Manager Component ---
+  const CaptainsManager = () => {
+      const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
+      const [editingId, setEditingId] = useState(null);
+
+      const handleSave = async (e) => {
+          e.preventDefault();
+          if(editingId) {
+             await captainsCollection.update(editingId, form);
+             setEditingId(null);
+          } else {
+             await captainsCollection.add({ ...form, role: 'captain' });
+          }
+          setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
+          logAction("إدارة الكباتن", editingId ? "تعديل بيانات كابتن" : "إضافة كابتن جديد");
+      };
+
+      const addWithdrawal = async (capId, amount, note) => {
+          const cap = captains.find(c => c.id === capId);
+          const newW = [...(cap.withdrawals || []), { amount, note, date: new Date().toISOString().split('T')[0] }];
+          await captainsCollection.update(capId, { withdrawals: newW });
+          logAction("خصم/سحب", `سحب ${amount} للكابتن ${cap.name}`);
+      };
+
+      return (
+          <div className="space-y-6">
+              <Card title="إدارة الكباتن">
+                  <form onSubmit={handleSave} className="grid gap-4 md:grid-cols-2">
+                      <input className="border p-2 rounded" placeholder="الاسم" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} required/>
+                      <select className="border p-2 rounded" value={form.branch} onChange={e=>setForm({...form, branch:e.target.value})}><option value={BRANCHES.SHAFA}>شفا بدران</option><option value={BRANCHES.ABU_NSEIR}>أبو نصير</option></select>
+                      <input className="border p-2 rounded" placeholder="User" value={form.username} onChange={e=>setForm({...form, username:e.target.value})} required/>
+                      <input className="border p-2 rounded" placeholder="Pass" value={form.password} onChange={e=>setForm({...form, password:e.target.value})} required/>
+                      <input className="border p-2 rounded" type="number" placeholder="الراتب الأساسي" value={form.salary} onChange={e=>setForm({...form, salary:e.target.value})} />
+                      <Button type="submit">{editingId ? 'حفظ التعديل' : 'إضافة كابتن'}</Button>
+                  </form>
+              </Card>
+              <div className="grid gap-4 md:grid-cols-2">
+                  {captains.map(cap => (
+                      <Card key={cap.id} className="border-l-4 border-purple-500">
+                          <div className="flex justify-between flex-wrap gap-2">
+                              <div>
+                                  <h4 className="font-bold">{cap.name}</h4>
+                                  <p className="text-xs text-gray-500">الراتب: {cap.salary} | User: {cap.username} | Pass: {cap.password}</p>
+                                  <div className="text-xs mt-2 text-red-600">
+                                      مسحوبات: {(cap.withdrawals||[]).reduce((a,b)=>a+Number(b.amount),0)} JOD
+                                  </div>
+                              </div>
+                              <div className="flex gap-2 items-start">
+                                  <Button variant="outline" onClick={()=>{
+                                      const amt = prompt("قيمة السحب:");
+                                      if(amt) addWithdrawal(cap.id, amt, "سحب نقدي");
+                                  }} className="text-xs">تسجيل سحب</Button>
+                                  <button onClick={()=>{setEditingId(cap.id); setForm(cap);}} className="text-blue-500"><Edit size={16}/></button>
+                                  <button onClick={()=>captainsCollection.remove(cap.id)} className="text-red-500"><Trash2 size={16}/></button>
+                              </div>
+                          </div>
+                      </Card>
+                  ))}
+              </div>
+          </div>
+      );
+  };
+
   const RegistrationManager = () => {
     const [confirmModal, setConfirmModal] = useState(null); 
     const [formData, setFormData] = useState({});
@@ -716,6 +816,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
         await studentsCollection.add(newStudent); 
         await registrationsCollection.remove(confirmModal.id); 
+        logAction("تسجيل طالب", `تم قبول الطالب ${formData.name}`);
         alert(`تم إضافة الطالب بنجاح!\nUser: ${username}\nPass: ${password}`);
         setConfirmModal(null);
     };
@@ -752,7 +853,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             ))}
          </div>
 
-         {/* Modal to complete info */}
          {confirmModal && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
                 <Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد">
@@ -778,59 +878,29 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     );
   };
 
-  // --- Captains Manager Component (NEW) ---
-  const CaptainsManager = () => {
-    const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '' });
-    
-    const handleAddCaptain = async (e) => {
-        e.preventDefault();
-        if (!form.username || !form.password) return alert("يرجى تعبئة جميع الحقول");
-        
-        await captainsCollection.add({ ...form, role: 'captain' });
-        setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '' });
-        alert("تم إضافة الكابتن بنجاح");
-    };
+  const ActivityLogManager = () => {
+      const { data: logs } = useCollection('activity_logs');
+      const branchLogs = logs.filter(l => l.branch === selectedBranch).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    const handleDelete = async (id) => {
-        if (confirm("هل أنت متأكد من حذف الكابتن؟")) {
-            await captainsCollection.remove(id);
-        }
-    };
-
-    return (
-        <div className="space-y-6">
-            <Card title="إضافة كابتن جديد">
-                <form onSubmit={handleAddCaptain} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label className="block text-xs font-bold mb-1">الاسم</label><input className="w-full border p-2 rounded" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required /></div>
-                        <div><label className="block text-xs font-bold mb-1">الفرع</label><select className="w-full border p-2 rounded" value={form.branch} onChange={e => setForm({...form, branch: e.target.value})}><option value={BRANCHES.SHAFA}>{BRANCHES.SHAFA}</option><option value={BRANCHES.ABU_NSEIR}>{BRANCHES.ABU_NSEIR}</option></select></div>
-                        <div><label className="block text-xs font-bold mb-1">اسم المستخدم</label><input className="w-full border p-2 rounded" value={form.username} onChange={e => setForm({...form, username: e.target.value})} required /></div>
-                        <div><label className="block text-xs font-bold mb-1">كلمة المرور</label><input className="w-full border p-2 rounded" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required /></div>
-                    </div>
-                    <div className="flex justify-end"><Button type="submit">إضافة</Button></div>
-                </form>
-            </Card>
-
-            <Card title="قائمة الكباتن">
-                <div className="grid gap-3">
-                    {captains.map(cap => (
-                        <div key={cap.id} className="flex justify-between items-center p-3 border rounded bg-gray-50">
-                            <div>
-                                <p className="font-bold">{cap.name}</p>
-                                <p className="text-xs text-gray-500">{cap.branch} | User: {cap.username}</p>
-                            </div>
-                            <button onClick={() => handleDelete(cap.id)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
-                        </div>
-                    ))}
-                    {captains.length === 0 && <p className="text-center text-gray-400">لا يوجد كباتن مضافين</p>}
-                </div>
-            </Card>
-        </div>
-    );
+      return (
+          <Card title="سجل النشاطات" className="h-[600px] overflow-y-auto">
+              <ul className="space-y-3">
+                  {branchLogs.map(log => (
+                      <li key={log.id} className="text-sm p-3 bg-gray-50 rounded border-r-2 border-gray-400 flex justify-between">
+                          <div>
+                              <span className="font-bold block text-gray-800">{log.action}</span>
+                              <span className="text-gray-600">{log.details}</span>
+                          </div>
+                          <div className="text-left">
+                              <span className="block text-xs text-gray-400">{new Date(log.timestamp).toLocaleTimeString('ar-JO')}</span>
+                              <span className="text-[10px] bg-gray-200 px-1 rounded">{log.performedBy}</span>
+                          </div>
+                      </li>
+                  ))}
+              </ul>
+          </Card>
+      );
   };
-  
-  // (Rest of Admin Components - Students, Finance, etc. included same as previous full version)
-  // ... I will include them here to ensure FULL FILE completeness ...
 
   const StudentsManager = () => {
     const [search, setSearch] = useState(''); const [showModal, setShowModal] = useState(false); const [editingStudent, setEditingStudent] = useState(null); const [createdCreds, setCreatedCreds] = useState(null);
@@ -845,13 +915,15 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       if (linkFamily === 'new') { finalFamilyId = Math.floor(Date.now() / 1000); finalFamilyName = `عائلة ${newS.name.split(' ').slice(-1)[0]}`; } else { finalFamilyId = parseInt(linkFamily); finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; }
       const joinDateObj = new Date(newS.joinDate || new Date()); const subEndDateObj = new Date(joinDateObj); subEndDateObj.setMonth(subEndDateObj.getMonth() + 1); const subEnd = subEndDateObj.toISOString().split('T')[0];
       const student = { branch: selectedBranch, status: 'active', subEnd: subEnd, notes: [], internalNotes: [], attendance: {}, username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(), ...newS };
-      await studentsCollection.add(student); setCreatedCreds({ name: student.name, username, password }); setShowModal(false); setNewS({ name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0 }); setLinkFamily('new');
+      await studentsCollection.add(student); 
+      logAction("إضافة طالب", `تم إضافة الطالب ${student.name}`);
+      setCreatedCreds({ name: student.name, username, password }); setShowModal(false); setNewS({ name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0 }); setLinkFamily('new');
     };
 
     const openEditModal = (student) => { setEditingStudent(student); setNewS({ name: student.name, phone: student.phone, belt: student.belt, joinDate: student.joinDate, dob: student.dob, address: student.address || '', subEnd: student.subEnd, balance: student.balance }); setLinkFamily(student.familyId); setShowModal(true); };
-    const handleSaveEdit = async (e) => { e.preventDefault(); await studentsCollection.update(editingStudent.id, newS); setShowModal(false); setEditingStudent(null); };
-    const promoteBelt = async (student) => { const currentIdx = BELTS.indexOf(student.belt); if(currentIdx < BELTS.length - 1) { await studentsCollection.update(student.id, { belt: BELTS[currentIdx + 1] }); } };
-    const archiveStudent = async (student) => { if(confirm('أرشفة الطالب؟')) { await archiveCollection.add({ ...student, archiveDate: new Date().toLocaleDateString() }); await studentsCollection.remove(student.id); } };
+    const handleSaveEdit = async (e) => { e.preventDefault(); await studentsCollection.update(editingStudent.id, newS); logAction("تعديل طالب", `تعديل بيانات ${newS.name}`); setShowModal(false); setEditingStudent(null); };
+    const promoteBelt = async (student) => { const currentIdx = BELTS.indexOf(student.belt); if(currentIdx < BELTS.length - 1) { await studentsCollection.update(student.id, { belt: BELTS[currentIdx + 1] }); logAction("ترفيع حزام", `ترفيع الطالب ${student.name} إلى ${BELTS[currentIdx + 1]}`); } };
+    const archiveStudent = async (student) => { if(confirm('أرشفة الطالب؟')) { await archiveCollection.add({ ...student, archiveDate: new Date().toLocaleDateString() }); await studentsCollection.remove(student.id); logAction("أرشفة", `أرشفة الطالب ${student.name}`); } };
     
     return (
       <div className="space-y-6">
@@ -891,7 +963,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
   const InternalNotesManager = () => {
     const [noteTxt, setNoteTxt] = useState(''); const [noteType, setNoteType] = useState('general'); const [targetId, setTargetId] = useState(''); const [filteredStudent, setFilteredStudent] = useState(null); 
-    const addInternalNote = async (e) => { e.preventDefault(); if(!targetId || !noteTxt) return; const student = branchStudents.find(s => s.id === targetId); const newNote = { id: Date.now(), text: noteTxt, type: noteType, date: new Date().toLocaleDateString('ar-JO') }; await studentsCollection.update(targetId, { internalNotes: [...(student.internalNotes || []), newNote] }); setNoteTxt(''); alert("تم حفظ الملاحظة الداخلية بنجاح"); };
+    const addInternalNote = async (e) => { e.preventDefault(); if(!targetId || !noteTxt) return; const student = branchStudents.find(s => s.id === targetId); const newNote = { id: Date.now(), text: noteTxt, type: noteType, date: new Date().toLocaleDateString('ar-JO') }; await studentsCollection.update(targetId, { internalNotes: [...(student.internalNotes || []), newNote] }); setNoteTxt(''); logAction("ملاحظة إدارية", `إضافة ملاحظة للطالب ${student.name}`); alert("تم الحفظ"); };
     const deleteInternalNote = async (sid, nid) => { if(confirm('حذف؟')) { const student = branchStudents.find(s => s.id === sid); await studentsCollection.update(sid, { internalNotes: student.internalNotes.filter(n => n.id !== nid) }); } };
 
     return (
@@ -905,8 +977,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
   const FinanceManager = () => {
     const [viewMode, setViewMode] = useState('income'); const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
-    const handleAddPayment = async (e) => { e.preventDefault(); if(!payForm.studentObjId) return alert('اختر طالباً'); const selectedStudent = branchStudents.find(s => s.id === payForm.studentObjId); if(!selectedStudent) return alert('طالب غير موجود'); const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; const newPay = { id: Date.now().toString(), studentId: selectedStudent.id, name: selectedStudent.name, amount: Number(payForm.amount), reason: finalReason, details: payForm.details, date: new Date().toISOString().split('T')[0], branch: selectedBranch }; await paymentsCollection.add(newPay); setPayForm({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); };
-    const handleAddExpense = async (e) => { e.preventDefault(); await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); setExpForm({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); };
+    const handleAddPayment = async (e) => { e.preventDefault(); if(!payForm.studentObjId) return alert('اختر طالباً'); const selectedStudent = branchStudents.find(s => s.id === payForm.studentObjId); if(!selectedStudent) return alert('طالب غير موجود'); const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; const newPay = { id: Date.now().toString(), studentId: selectedStudent.id, name: selectedStudent.name, amount: Number(payForm.amount), reason: finalReason, details: payForm.details, date: new Date().toISOString().split('T')[0], branch: selectedBranch }; await paymentsCollection.add(newPay); logAction("قبض مالي", `استلام ${payForm.amount} من ${selectedStudent.name}`); setPayForm({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); };
+    const handleAddExpense = async (e) => { e.preventDefault(); await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); logAction("مصروف", `صرف ${expForm.amount} لـ ${expForm.title}`); setExpForm({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); };
     const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
     const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
     const filteredPayments = incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments;
@@ -983,48 +1055,60 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       <div className="space-y-6">
         {selectedStudent && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto" title={`الملف الشامل: ${selectedStudent.name}`}><div className="grid md:grid-cols-2 gap-6"><div><h4 className="font-bold border-b pb-2 mb-2 text-red-600">الملاحظات الإدارية</h4>{studentNotes.length > 0 ? (<ul className="space-y-2 text-sm">{studentNotes.map(n => <li key={n.id} className="bg-red-50 p-2 rounded border border-red-100">{n.text} <span className="text-xs text-gray-400 block">{n.date}</span></li>)}</ul>) : <p className="text-gray-400 text-sm">لا توجد ملاحظات مسجلة.</p>}</div><div><h4 className="font-bold border-b pb-2 mb-2 text-green-600">السجل المالي</h4>{studentPayments.length > 0 ? (<div className="space-y-2 text-sm max-h-60 overflow-y-auto">{studentPayments.map(p => <div key={p.id} className="flex justify-between bg-green-50 p-2 rounded border border-green-100"><span>{p.reason}</span><span className="font-bold">{p.amount} JOD</span></div>)}</div>) : <p className="text-gray-400 text-sm">لا توجد دفعات مسجلة.</p>}</div></div><div className="mt-6 flex justify-end"><Button onClick={() => setSelectedStudent(null)}>إغلاق</Button></div></Card></div>)}
         {editingArchived && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-lg" title="تعديل بيانات الأرشيف"><form onSubmit={saveArchivedEdit} className="space-y-4"><div><label className="text-xs block mb-1">الاسم</label><input className="w-full border p-2 rounded" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} /></div><div><label className="text-xs block mb-1">الهاتف</label><input className="w-full border p-2 rounded" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} /></div><div><label className="text-xs block mb-1">العنوان</label><input className="w-full border p-2 rounded" value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} /></div><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setEditingArchived(null)}>إلغاء</Button><Button type="submit">حفظ التعديلات</Button></div></form></Card></div>)}
-        <Card title="سجل الأرشيف">{archivedStudents.length === 0 ? <p className="text-center py-8 text-gray-400">الأرشيف فارغ</p> : <table className="w-full text-right text-sm"><thead className="bg-gray-50"><tr><th className="p-3">الاسم</th><th className="p-3">تاريخ الأرشفة</th><th className="p-3">خيارات</th></tr></thead><tbody className="divide-y">{archivedStudents.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-3">{s.name}</td><td className="p-3 text-gray-500">{s.archiveDate}</td><td className="p-3 flex gap-2"><Button variant="outline" className="py-1 px-2 text-xs" onClick={() => setSelectedStudent(s)}><FileSearch size={14} className="ml-1"/> الملف المالي</Button><button onClick={() => openEditArchived(s)} className="bg-blue-50 text-blue-600 p-1 rounded border border-blue-200" title="تعديل بيانات"><Edit size={14}/></button><button onClick={async () => { await studentsCollection.add(s); await archiveCollection.remove(s.id); }} className="bg-green-50 text-green-600 p-1 rounded border border-green-200" title="استعادة"><ArrowRight size={14}/></button></td></tr>))}</tbody></table>}</Card>
+        <Card title="سجل الأرشيف">{archivedStudents.length === 0 ? <p className="text-center py-8 text-gray-400">الأرشيف فارغ</p> : <table className="w-full text-right text-sm"><thead className="bg-gray-50"><tr><th className="p-3">الاسم</th><th className="p-3">تاريخ الأرشفة</th><th className="p-3">خيارات</th></tr></thead><tbody className="divide-y">{archivedStudents.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-3">{s.name}</td><td className="p-3 text-gray-500">{s.archiveDate}</td><td className="p-3 flex gap-2"><Button variant="outline" className="py-1 px-2 text-xs" onClick={() => setSelectedStudent(s)}><FileSearch size={14} className="ml-1"/> الملف المالي</Button><button onClick={() => openEditArchived(s)} className="bg-blue-50 text-blue-600 p-1 rounded border border-blue-200" title="تعديل بيانات"><Edit size={14}/></button><button onClick={async () => { await studentsCollection.add(s); await archiveCollection.remove(s.id); logAction("استعادة طالب", `استعادة الطالب ${s.name} من الأرشيف`); }} className="bg-green-50 text-green-600 p-1 rounded border border-green-200" title="استعادة"><ArrowRight size={14}/></button></td></tr>))}</tbody></table>}</Card>
       </div>
     );
   };
 
   return (
     <div className="flex min-h-screen bg-gray-100 text-right font-sans" dir="rtl">
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black text-gray-300 transition-all duration-300 flex flex-col sticky top-0 h-screen shadow-2xl z-40`}>
-        <div className="p-6 flex justify-between border-b border-gray-800">{sidebarOpen && <h2 className="font-black text-yellow-500 text-xl">لوحة التحكم</h2>}<button onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20}/></button></div>
-        <nav className="flex-1 overflow-y-auto py-6 space-y-2 px-3 custom-scrollbar">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={()=>setSidebarOpen(false)}></div>}
+      
+      <aside className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-black text-gray-300 z-50 transition-transform transform ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 shadow-2xl overflow-y-auto`}>
+        <div className="p-6 flex justify-between border-b border-gray-800">
+           <h2 className="font-black text-yellow-500 text-xl">لوحة التحكم</h2>
+           <button onClick={()=>setSidebarOpen(false)} className="md:hidden"><X/></button>
+        </div>
+        <div className="p-4 border-b border-gray-800"><p className="text-white font-bold">{user.name}</p><p className="text-xs text-gray-500">{user.role === 'admin' ? 'مدير عام' : 'كابتن'}</p></div>
+        <nav className="flex-1 py-4 space-y-1">
           {[
             {id:'dashboard',icon:Activity,label:'نظرة عامة'},
-            {id:'registrations',icon:Inbox,label:'طلبات التسجيل', badge: branchRegistrations.length}, // New Item
-            {id:'schedule',icon:Clock,label:'إدارة الجدول'},
-            {id:'students',icon:Users,label:'إدارة الطلاب'},
-            {id:'subs',icon:Calendar,label:'الاشتراكات'},
+            {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
+            {id:'students',icon:Users,label:'الطلاب'},
+            {id:'finance',icon:DollarSign,label:'المالية'},
             {id:'attendance',icon:CheckCircle,label:'الحضور'},
-            {id:'payments',icon:DollarSign,label:'المالية'},
-            {id:'notes',icon:MessageCircle,label:'مراسلات الأهل'},
-            {id:'internal_notes',icon:ClipboardList,label:'سجل المتابعة'},
-            {id:'archive',icon:Archive,label:'الأرشيف'},
-            {id:'captains',icon:Shield,label:'إدارة الكباتن', hidden: user.role !== 'admin'} // Hidden for captains
-          ].filter(item => !item.hidden).map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
-              <div className="relative"><item.icon size={22} />{item.badge > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{item.badge}</span>}</div>{sidebarOpen && <span>{item.label}</span>}
+            {id:'schedule',icon:Clock,label:'الجدول'},
+            {id:'logs',icon:ClipboardList,label:'سجل النشاط'},
+            {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
+            {id:'archive',icon:Archive,label:'الأرشيف'}
+          ].filter(i => !i.role || i.role === user.role).map(item => (
+            <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
+              <div className="relative"><item.icon size={20}/>{item.badge > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{item.badge}</span>}</div><span>{item.label}</span>
             </button>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-800"><button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-red-900/10 rounded-xl"><LogOut size={20} />{sidebarOpen && <span>خروج</span>}</button></div>
+        <div className="p-4"><button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-gray-900 rounded"><LogOut size={20}/> خروج</button></div>
       </aside>
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto w-full">
+
+      <main className="flex-1 p-4 md:p-8 w-full overflow-x-hidden">
+         <div className="md:hidden mb-4 flex justify-between items-center">
+            <button onClick={()=>setSidebarOpen(true)} className="p-2 bg-white rounded shadow"><Menu/></button>
+            <h2 className="font-bold text-gray-800">أكاديمية الشجاع</h2>
+         </div>
+         
          {activeTab === 'dashboard' && <DashboardStats />}
-         {activeTab === 'registrations' && <RegistrationManager />}
-         {activeTab === 'schedule' && <ScheduleManager />}
+         {activeTab === 'captains' && <CaptainsManager />}
+         {activeTab === 'logs' && <ActivityLogManager />}
          {activeTab === 'students' && <StudentsManager />}
+         {activeTab === 'registrations' && <RegistrationManager />}
+         {activeTab === 'finance' && <FinanceManager />}
+         {activeTab === 'schedule' && <ScheduleManager />}
          {activeTab === 'attendance' && <AttendanceManager />}
-         {activeTab === 'payments' && <FinanceManager />}
          {activeTab === 'notes' && <NotesManager />}
          {activeTab === 'internal_notes' && <InternalNotesManager />}
          {activeTab === 'subs' && <SubsManager />}
          {activeTab === 'archive' && <ArchiveManager />}
-         {activeTab === 'captains' && <CaptainsManager />}
       </main>
     </div>
   );
@@ -1037,46 +1121,41 @@ export default function App() {
   
   useEffect(() => { if (user) { if (user.role === 'admin' || user.role === 'captain') setView('admin_dashboard'); else setView('student_portal'); } }, []);
 
-  const studentsCollection = useCollection('students', true); 
-  const paymentsCollection = useCollection('payments', true);
-  const expensesCollection = useCollection('expenses', true);
-  const scheduleCollection = useCollection('schedule', true);
-  const archiveCollection = useCollection('archive', true);
-  const registrationsCollection = useCollection('registrations', true); 
-  const captainsCollection = useCollection('captains', true); 
+  // Collections
+  const studentsCollection = useCollection('students'); 
+  const paymentsCollection = useCollection('payments');
+  const expensesCollection = useCollection('expenses');
+  const scheduleCollection = useCollection('schedule');
+  const archiveCollection = useCollection('archive');
+  const registrationsCollection = useCollection('registrations'); 
+  const captainsCollection = useCollection('captains'); 
 
   const handleLogin = (username, password) => {
-    if (username.startsWith('admin') && password === '123') {
-      const userData = { role: 'admin', name: 'المدير العام', username, branch: username === 'admin1' ? BRANCHES.SHAFA : BRANCHES.ABU_NSEIR };
-      setUser(userData);
-      localStorage.setItem('braveUser', JSON.stringify(userData));
-      setView('admin_dashboard');
-    } else {
-      const studentUser = studentsCollection.data.find(s => s.username === username && s.password === password);
-      if (studentUser) {
+     if (username === 'admin1' && password === '123') {
+        const u = { role: 'admin', name: 'Admin', branch: BRANCHES.SHAFA, username };
+        setUser(u); localStorage.setItem('braveUser', JSON.stringify(u)); setView('admin_dashboard');
+        return;
+     }
+     // Check captains collection
+     const cap = captainsCollection.data.find(c => c.username === username && c.password === password);
+     if(cap) {
+        const u = { role: 'captain', ...cap };
+        setUser(u); localStorage.setItem('braveUser', JSON.stringify(u)); setView('admin_dashboard');
+        return;
+     }
+     // Check students collection
+     const studentUser = studentsCollection.data.find(s => s.username === username && s.password === password);
+     if (studentUser) {
         const userData = { role: 'student', familyId: studentUser.familyId, name: studentUser.familyName, id: studentUser.id };
-        setUser(userData);
-        localStorage.setItem('braveUser', JSON.stringify(userData));
-        setView('student_portal');
-      } else {
-        const captainUser = captainsCollection.data.find(c => c.username === username && c.password === password);
-        if (captainUser) {
-             const userData = { role: 'captain', name: captainUser.name, branch: captainUser.branch, username: captainUser.username };
-             setUser(userData);
-             localStorage.setItem('braveUser', JSON.stringify(userData));
-             setView('admin_dashboard');
-        } else {
-             alert('بيانات خاطئة! جرب admin1/123');
-        }
-      }
-    }
+        setUser(userData); localStorage.setItem('braveUser', JSON.stringify(userData)); setView('student_portal');
+        return;
+     }
+     alert('بيانات خاطئة! جرب admin1/123');
   };
 
   const handleLogout = () => { setUser(null); localStorage.removeItem('braveUser'); setView('home'); };
 
   useEffect(() => { signInAnonymously(auth); }, []);
-
-  if (studentsCollection.loading) return <div>Loading...</div>;
 
   return (
     <>
