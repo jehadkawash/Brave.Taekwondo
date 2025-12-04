@@ -521,20 +521,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
           <Card key={s.id} className="mb-8 border-t-4 border-yellow-500" title={s.name}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6"><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الحزام الحالي</p><p className="font-bold text-xl">{s.belt}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">حالة الاشتراك</p><StatusBadge status={calculateStatus(s.subEnd)}/><p className="text-xs text-gray-400 mt-1">ينتهي: {s.subEnd}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الرصيد المستحق</p><p className={`font-bold text-xl ${s.balance>0?"text-red-600":"text-green-600"}`}>{s.balance} JOD</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الفرع</p><p className="font-bold text-lg">{s.branch}</p></div></div>
             {s.notes && s.notes.length > 0 && (<div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-800 text-sm mb-2">ملاحظات الإدارة:</h4><ul className="list-disc list-inside text-sm text-blue-900">{s.notes.map(n=><li key={n.id}>{n.text} ({n.date})</li>)}</ul></div>)}
-            
-            <div className="border-t pt-6">
-               <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4>
-                  <div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div>
-               </div>
-               <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                 {[...Array(daysInMonth)].map((_,i)=>{
-                   const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
-                   const isP=s.attendance && s.attendance[dateStr]; 
-                   return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>
-                 })}
-               </div>
-            </div>
+            <div className="border-t pt-6"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4><div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div></div><div className="flex flex-wrap gap-2 justify-center md:justify-start">{[...Array(daysInMonth)].map((_,i)=>{const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const isP=s.attendance && s.attendance[dateStr]; return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>})}</div></div>
           </Card>
         ))}
       </div>
@@ -581,7 +568,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     <div className="space-y-8 animate-fade-in">
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
          <div className="relative z-10">
-            <h2 className="text-3xl font-bold mb-2">مرحباً بك يا كابتن! 👋</h2>
+            <h2 className="text-3xl font-bold mb-2">مرحباً بك يا {user.name}! 👋</h2>
             <p className="opacity-90">إليك نظرة سريعة على أداء الأكاديمية اليوم في فرع {selectedBranch}</p>
          </div>
          <div className="relative z-10 bg-white/20 p-4 rounded-xl backdrop-blur-sm text-center">
@@ -1062,16 +1049,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
   return (
     <div className="flex min-h-screen bg-gray-100 text-right font-sans" dir="rtl">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={()=>setSidebarOpen(false)}></div>}
-      
-      <aside className={`fixed md:sticky top-0 right-0 h-screen w-64 bg-black text-gray-300 z-50 transition-transform transform ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:translate-x-0 shadow-2xl overflow-y-auto`}>
-        <div className="p-6 flex justify-between border-b border-gray-800">
-           <h2 className="font-black text-yellow-500 text-xl">لوحة التحكم</h2>
-           <button onClick={()=>setSidebarOpen(false)} className="md:hidden"><X/></button>
-        </div>
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black text-gray-300 transition-all duration-300 flex flex-col sticky top-0 h-screen shadow-2xl z-40`}>
+        <div className="p-6 flex justify-between border-b border-gray-800">{sidebarOpen && <h2 className="font-black text-yellow-500 text-xl">لوحة التحكم</h2>}<button onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20}/></button></div>
         <div className="p-4 border-b border-gray-800"><p className="text-white font-bold">{user.name}</p><p className="text-xs text-gray-500">{user.role === 'admin' ? 'مدير عام' : 'كابتن'}</p></div>
-        <nav className="flex-1 py-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-6 space-y-2 px-3 custom-scrollbar">
           {[
             {id:'dashboard',icon:Activity,label:'نظرة عامة'},
             {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
@@ -1083,14 +1064,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
             {id:'archive',icon:Archive,label:'الأرشيف'}
           ].filter(i => !i.role || i.role === user.role).map(item => (
-            <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
+            <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
               <div className="relative"><item.icon size={20}/>{item.badge > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{item.badge}</span>}</div><span>{item.label}</span>
             </button>
           ))}
         </nav>
-        <div className="p-4"><button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-gray-900 rounded"><LogOut size={20}/> خروج</button></div>
+        <div className="p-4 border-t border-gray-800"><button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-gray-900 rounded"><LogOut size={20}/> خروج</button></div>
       </aside>
-
       <main className="flex-1 p-4 md:p-8 w-full overflow-x-hidden">
          <div className="md:hidden mb-4 flex justify-between items-center">
             <button onClick={()=>setSidebarOpen(true)} className="p-2 bg-white rounded shadow"><Menu/></button>
