@@ -4,13 +4,13 @@ import {
   LogOut, UserPlus, CheckCircle, Activity, Phone, 
   MapPin, Search, FileText, Edit, 
   Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, PieChart, BarChart2, Bell
+  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, limit } from "firebase/firestore";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
 const firebaseConfig = {
@@ -65,32 +65,13 @@ const useCollection = (collectionName) => {
   }, [collectionName]);
 
   const add = async (item) => {
-    try {
-      // Add timestamp for sorting
-      const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
-      return true;
-    } catch (e) {
-      console.error(e);
-      alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت");
-      return false;
-    }
+    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item); } catch (e) { console.error(e); alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت"); }
   };
-
   const update = async (id, updates) => {
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates);
-    } catch (e) {
-      console.error(e);
-    }
+    try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates); } catch (e) { console.error(e); }
   };
-
   const remove = async (id) => {
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
-    } catch (e) {
-      console.error(e);
-    }
+    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id)); } catch (e) { console.error(e); }
   };
 
   return { data, loading, add, update, remove };
@@ -105,13 +86,10 @@ const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
   const today = new Date();
   const end = new Date(dateString);
-  
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
-
   const diffTime = end - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
   if (diffDays < 0) return 'expired';
   if (diffDays <= 7) return 'near_end';
   return 'active';
@@ -281,25 +259,6 @@ const StatusBadge = ({ status }) => {
   const current = map[status] || map.active;
   return <span className={`px-3 py-1 rounded-full text-xs font-bold border ${current.style}`}>{current.text}</span>;
 };
-
-// --- Helper Components for Dashboard Charts ---
-const SimplePieChart = ({ data }) => {
-  // Mockup for a pie chart using CSS gradients
-  // In a real app you might use recharts, but keeping it dependency-free as requested
-  return (
-    <div className="flex items-center justify-center h-40 w-40 rounded-full border-8 border-gray-100 relative overflow-hidden shadow-inner">
-       <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold text-gray-700">{data.total}</span>
-          <span className="text-xs text-gray-500">طالب</span>
-       </div>
-       {/* Visual representation simplified */}
-       <svg viewBox="0 0 36 36" className="w-full h-full absolute transform -rotate-90">
-          <path className="text-yellow-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${data.activePct}, 100`} />
-          <path className="text-red-500" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${data.expiredPct}, 100`} strokeDashoffset={`-${data.activePct}`} />
-       </svg>
-    </div>
-  );
-}
 
 // --- Views ---
 
@@ -557,7 +516,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
   );
 };
 
-const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, handleLogout }) => {
+const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -567,6 +526,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const schedule = scheduleCollection.data;
   const registrations = registrationsCollection.data;
   const archivedStudents = archiveCollection.data;
+  const captains = captainsCollection.data;
 
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
@@ -740,6 +700,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     </div>
   );
 
+  // --- Registration Manager Component ---
   const RegistrationManager = () => {
     const [confirmModal, setConfirmModal] = useState(null); 
     const [formData, setFormData] = useState({});
@@ -836,6 +797,58 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             </div>
          )}
        </div>
+    );
+  };
+
+  // --- Captains Manager Component ---
+  const CaptainsManager = () => {
+    const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '' });
+    
+    const handleAddCaptain = async (e) => {
+        e.preventDefault();
+        if (!form.username || !form.password) return alert("يرجى تعبئة جميع الحقول");
+        
+        // Add to captains collection
+        await captainsCollection.add({ ...form, role: 'captain' });
+        setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '' });
+        alert("تم إضافة الكابتن بنجاح");
+    };
+
+    const handleDelete = async (id) => {
+        if (confirm("هل أنت متأكد من حذف الكابتن؟")) {
+            await captainsCollection.remove(id);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <Card title="إضافة كابتن جديد">
+                <form onSubmit={handleAddCaptain} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="block text-xs font-bold mb-1">الاسم</label><input className="w-full border p-2 rounded" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required /></div>
+                        <div><label className="block text-xs font-bold mb-1">الفرع</label><select className="w-full border p-2 rounded" value={form.branch} onChange={e => setForm({...form, branch: e.target.value})}><option value={BRANCHES.SHAFA}>{BRANCHES.SHAFA}</option><option value={BRANCHES.ABU_NSEIR}>{BRANCHES.ABU_NSEIR}</option></select></div>
+                        <div><label className="block text-xs font-bold mb-1">اسم المستخدم</label><input className="w-full border p-2 rounded" value={form.username} onChange={e => setForm({...form, username: e.target.value})} required /></div>
+                        <div><label className="block text-xs font-bold mb-1">كلمة المرور</label><input className="w-full border p-2 rounded" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required /></div>
+                    </div>
+                    <div className="flex justify-end"><Button type="submit">إضافة</Button></div>
+                </form>
+            </Card>
+
+            <Card title="قائمة الكباتن">
+                <div className="grid gap-3">
+                    {captains.map(cap => (
+                        <div key={cap.id} className="flex justify-between items-center p-3 border rounded bg-gray-50">
+                            <div>
+                                <p className="font-bold">{cap.name}</p>
+                                <p className="text-xs text-gray-500">{cap.branch} | User: {cap.username}</p>
+                            </div>
+                            <button onClick={() => handleDelete(cap.id)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
+                        </div>
+                    ))}
+                    {captains.length === 0 && <p className="text-center text-gray-400">لا يوجد كباتن مضافين</p>}
+                </div>
+            </Card>
+        </div>
     );
   };
   
@@ -1051,6 +1064,7 @@ export default function App() {
   const scheduleCollection = useCollection('schedule', true);
   const archiveCollection = useCollection('archive', true);
   const registrationsCollection = useCollection('registrations', true); // New Collection
+  const captainsCollection = useCollection('captains', true); // New Collection
 
   const handleLogin = (username, password) => {
     if (username.startsWith('admin') && password === '123') {
@@ -1066,7 +1080,14 @@ export default function App() {
         localStorage.setItem('braveUser', JSON.stringify(userData));
         setView('student_portal');
       } else {
-        alert('بيانات خاطئة! جرب admin1/123');
+        const captainUser = captainsCollection.data.find(c => c.username === username && c.password === password);
+        if (captainUser) {
+             setUser({ role: 'captain', name: captainUser.name, branch: captainUser.branch, username: captainUser.username });
+             localStorage.setItem('braveUser', JSON.stringify({ role: 'captain', name: captainUser.name, branch: captainUser.branch, username: captainUser.username }));
+             setView('admin_dashboard');
+        } else {
+             alert('بيانات خاطئة! جرب admin1/123');
+        }
       }
     }
   };
@@ -1085,7 +1106,7 @@ export default function App() {
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} selectedBranch={user.branch} 
-          studentsCollection={studentsCollection} paymentsCollection={paymentsCollection} expensesCollection={expensesCollection} scheduleCollection={scheduleCollection} archiveCollection={archiveCollection} registrationsCollection={registrationsCollection}
+          studentsCollection={studentsCollection} paymentsCollection={paymentsCollection} expensesCollection={expensesCollection} scheduleCollection={scheduleCollection} archiveCollection={archiveCollection} registrationsCollection={registrationsCollection} captainsCollection={captainsCollection}
           handleLogout={handleLogout}
         />
       )}
