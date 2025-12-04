@@ -4,13 +4,13 @@ import {
   LogOut, UserPlus, CheckCircle, Activity, Phone, 
   MapPin, Search, FileText, Edit, 
   Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield
+  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where } from "firebase/firestore";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
 const firebaseConfig = {
@@ -66,9 +66,7 @@ const useCollection = (collectionName) => {
 
   const add = async (item) => {
     try {
-      // Add timestamp for sorting if needed
-      const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), item);
       return true;
     } catch (e) {
       console.error(e);
@@ -101,30 +99,17 @@ const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
 
 // --- Helpers ---
-// تسجيل النشاطات
-const logActivity = async (action, details, branch, user) => {
-  try {
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_logs'), {
-      action,
-      details,
-      branch,
-      performedBy: user.name || 'Admin',
-      role: user.role || 'admin',
-      timestamp: new Date().toISOString()
-    });
-  } catch (e) {
-    console.error("Failed to log activity", e);
-  }
-};
-
 const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
   const today = new Date();
   const end = new Date(dateString);
+  
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
+
   const diffTime = end - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
   if (diffDays < 0) return 'expired';
   if (diffDays <= 7) return 'near_end';
   return 'active';
@@ -276,7 +261,7 @@ const Button = ({ children, onClick, variant = "primary", className = "", type="
 const Card = ({ children, className = "", title, action, noPadding=false }) => (
   <div className={`bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${className}`}>
     {(title || action) && (
-      <div className="px-4 py-3 md:px-6 md:py-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50/50 gap-2">
+      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
         {title && <h3 className="font-bold text-gray-800 text-lg">{title}</h3>}
         {action && <div className="self-end md:self-auto">{action}</div>}
       </div>
@@ -531,15 +516,15 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
 
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const { data: students } = studentsCollection;
-  const { data: payments } = paymentsCollection;
-  const { data: expenses } = expensesCollection;
-  const { data: schedule } = scheduleCollection;
-  const { data: registrations } = registrationsCollection;
-  const { data: archive } = archiveCollection;
-  const { data: captains } = captainsCollection;
+  const students = studentsCollection.data;
+  const payments = paymentsCollection.data;
+  const expenses = expensesCollection.data;
+  const schedule = scheduleCollection.data;
+  const registrations = registrationsCollection.data;
+  const archivedStudents = archiveCollection.data;
+  const captains = captainsCollection.data;
 
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
@@ -1051,7 +1036,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     <div className="flex min-h-screen bg-gray-100 text-right font-sans" dir="rtl">
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black text-gray-300 transition-all duration-300 flex flex-col sticky top-0 h-screen shadow-2xl z-40`}>
         <div className="p-6 flex justify-between border-b border-gray-800">{sidebarOpen && <h2 className="font-black text-yellow-500 text-xl">لوحة التحكم</h2>}<button onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20}/></button></div>
-        <div className="p-4 border-b border-gray-800"><p className="text-white font-bold">{user.name}</p><p className="text-xs text-gray-500">{user.role === 'admin' ? 'مدير عام' : 'كابتن'}</p></div>
         <nav className="flex-1 overflow-y-auto py-6 space-y-2 px-3 custom-scrollbar">
           {[
             {id:'dashboard',icon:Activity,label:'نظرة عامة'},
@@ -1102,13 +1086,13 @@ export default function App() {
   useEffect(() => { if (user) { if (user.role === 'admin' || user.role === 'captain') setView('admin_dashboard'); else setView('student_portal'); } }, []);
 
   // Collections
-  const studentsCollection = useCollection('students'); 
-  const paymentsCollection = useCollection('payments');
-  const expensesCollection = useCollection('expenses');
-  const scheduleCollection = useCollection('schedule');
-  const archiveCollection = useCollection('archive');
-  const registrationsCollection = useCollection('registrations'); 
-  const captainsCollection = useCollection('captains'); 
+  const studentsCollection = useCollection('students', true); 
+  const paymentsCollection = useCollection('payments', true);
+  const expensesCollection = useCollection('expenses', true);
+  const scheduleCollection = useCollection('schedule', true);
+  const archiveCollection = useCollection('archive', true);
+  const registrationsCollection = useCollection('registrations', true); 
+  const captainsCollection = useCollection('captains', true); 
 
   const handleLogin = (username, password) => {
      if (username === 'admin1' && password === '123') {
