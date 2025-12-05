@@ -100,6 +100,15 @@ const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
 
 // --- Helpers ---
+
+// دالة الاسم المختصر (الأول + الأخير)
+const getShortName = (fullName) => {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length <= 2) return fullName; 
+    return `${parts[0]} ${parts[parts.length - 1]}`;
+};
+
 const logActivity = async (action, details, branch, user) => {
   try {
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_logs'), {
@@ -143,6 +152,9 @@ const printReceipt = (payment, branch) => {
   const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
   const logoUrl = window.location.origin + IMAGES.LOGO;
   
+  // دعم الأسماء المتعددة في الطباعة
+  const displayName = payment.names ? payment.names.join(' + ') : payment.name;
+
   receiptWindow.document.write(`
     <html>
       <head>
@@ -172,7 +184,7 @@ const printReceipt = (payment, branch) => {
         <div class="content">
           <div><strong>التاريخ:</strong> ${payment.date}</div>
           <div><strong>رقم السند:</strong> #${payment.id.slice(0,8)}</div>
-          <div><strong>استلمنا من السيد/ة:</strong> ${payment.name}</div>
+          <div><strong>استلمنا من السيد/ة:</strong> ${displayName}</div>
           <div><strong>مبلغ وقدره:</strong> <span class="amount">${payment.amount} JOD</span></div>
           <div><strong>وذلك عن:</strong> ${payment.reason} ${payment.details ? `(${payment.details})` : ''}</div>
         </div>
@@ -246,7 +258,7 @@ const StudentSearch = ({ students, onSelect, placeholder = "بحث عن طالب
                 className="p-2 hover:bg-yellow-50 cursor-pointer text-sm border-b last:border-0 flex justify-between items-center"
                 onClick={() => { setQuery(s.name); onSelect(s); setIsOpen(false); }}
               >
-                <span className="font-bold">{s.name}</span>
+                <span className="font-bold">{getShortName(s.name)}</span>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{s.belt}</span>
               </div>
             )) : <div className="p-2 text-gray-500 text-sm text-center">لا توجد نتائج</div>}
@@ -282,16 +294,6 @@ const Card = ({ children, className = "", title, action, noPadding=false }) => (
     <div className={noPadding ? "" : "p-4 md:p-6"}>{children}</div>
   </div>
 );
-
-const StatusBadge = ({ status }) => {
-  const map = {
-    active: { text: "فعال", style: "bg-green-100 text-green-800 border-green-200" },
-    near_end: { text: "قارب الانتهاء", style: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-    expired: { text: "منتهي", style: "bg-red-100 text-red-800 border-red-200" },
-  };
-  const current = map[status] || map.active;
-  return <span className={`px-2 py-1 rounded-full text-xs font-bold border ${current.style}`}>{current.text}</span>;
-};
 
 // --- Views ---
 
@@ -477,7 +479,15 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
   const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
   const myStudents = students.filter(s => s.familyId === user.familyId);
-  const myPayments = payments.filter(p => myStudents.some(s => s.id === p.studentId));
+  // تحديث بوابة العائلة لتدعم الوصلات المتعددة
+  const myPayments = payments.filter(p => {
+      // إذا كان الوصل يحتوي على قائمة طلاب
+      if (p.studentIds && Array.isArray(p.studentIds)) {
+          return p.studentIds.some(pid => myStudents.some(s => s.id === pid));
+      }
+      // دعم الوصلات القديمة الفردية
+      return myStudents.some(s => s.id === p.studentId);
+  });
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans" dir="rtl">
@@ -485,7 +495,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
              <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 bg-white rounded-full p-1" />
-             <div><h1 className="font-bold text-lg">مرحباً {user.name}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div>
+             <div><h1 className="font-bold text-lg">مرحباً {getShortName(user.name)}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div>
           </div>
           <Button variant="secondary" onClick={handleLogout} className="text-sm"><LogOut size={16}/> خروج</Button>
         </div>
@@ -505,7 +515,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
                  <tbody>{myPayments.map(p=>(
                     <tr key={p.id} className="border-b">
                         <td className="p-3">{p.date}</td>
-                        <td className="p-3 font-bold">{p.name}</td>
+                        <td className="p-3 font-bold">{p.names ? p.names.join(' + ') : getShortName(p.name)}</td>
                         <td className="p-3">{p.reason} {p.details && <span className="block text-xs text-gray-400 mt-1">({p.details})</span>}</td>
                         <td className="p-3 text-green-600 font-bold">{p.amount} JOD</td>
                     </tr>
@@ -516,7 +526,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
         </Card>
 
         {myStudents.map(s => (
-          <Card key={s.id} className="mb-8 border-t-4 border-yellow-500" title={s.name}>
+          <Card key={s.id} className="mb-8 border-t-4 border-yellow-500" title={getShortName(s.name)}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6"><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الحزام الحالي</p><p className="font-bold text-xl">{s.belt}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">حالة الاشتراك</p><StatusBadge status={calculateStatus(s.subEnd)}/><p className="text-xs text-gray-400 mt-1">ينتهي: {s.subEnd}</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الرصيد المستحق</p><p className={`font-bold text-xl ${s.balance>0?"text-red-600":"text-green-600"}`}>{s.balance} JOD</p></div><div className="bg-gray-50 p-4 rounded-xl"><p className="text-gray-500 text-xs mb-1">الفرع</p><p className="font-bold text-lg">{s.branch}</p></div></div>
             {s.notes && s.notes.length > 0 && (<div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100"><h4 className="font-bold text-blue-800 text-sm mb-2">ملاحظات الإدارة:</h4><ul className="list-disc list-inside text-sm text-blue-900">{s.notes.map(n=><li key={n.id}>{n.text} ({n.date})</li>)}</ul></div>)}
             <div className="border-t pt-6"><div className="flex justify-between items-center mb-4"><h4 className="font-bold text-gray-700">سجل الحضور: {monthNames[month]} {year}</h4><div className="flex gap-2"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon size={16}/></Button><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft size={16}/></Button></div></div><div className="flex flex-wrap gap-2 justify-center md:justify-start">{[...Array(daysInMonth)].map((_,i)=>{const d=i+1; const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const isP=s.attendance && s.attendance[dateStr]; return <div key={d} className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold border ${isP?'bg-green-500 text-white':'bg-gray-100 text-gray-400'}`}>{d}</div>})}</div></div>
@@ -588,7 +598,7 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
 
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
          <div className="relative z-10">
-            <h2 className="text-3xl font-bold mb-2">مرحباً بك يا {user.name}! 👋</h2>
+            <h2 className="text-3xl font-bold mb-2">مرحباً بك يا {getShortName(user.name)}! 👋</h2>
             <p className="opacity-90">إليك نظرة سريعة على أداء الأكاديمية اليوم في فرع {selectedBranch}</p>
          </div>
          <div className="relative z-10 bg-white/20 p-4 rounded-xl backdrop-blur-sm text-center">
@@ -647,8 +657,8 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
          <Card title="سجل النشاطات الأخير" className="lg:col-span-2">
             <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                {branchRegistrations.length > 0 && <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg border border-blue-100"><div className="bg-blue-500 text-white p-2 rounded-full"><UserPlus size={16}/></div><div><p className="text-sm font-bold text-gray-800">طلب تسجيل جديد</p><p className="text-xs text-gray-500">وصل {branchRegistrations.length} طلبات</p></div><span className="mr-auto text-xs text-blue-600 font-bold">الآن</span></div>}
-               {branchPayments.slice(-3).reverse().map(pay => (<div key={pay.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-green-100 text-green-600 p-2 rounded-full"><DollarSign size={16}/></div><div><p className="text-sm font-bold text-gray-800">دفعة مالية</p><p className="text-xs text-gray-500">استلام {pay.amount} من {pay.name}</p></div><span className="mr-auto text-xs text-gray-400">{pay.date}</span></div>))}
-               {branchStudents.slice(-2).map(s => (<div key={s.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-yellow-100 text-yellow-600 p-2 rounded-full"><Star size={16}/></div><div><p className="text-sm font-bold text-gray-800">انضمام طالب</p><p className="text-xs text-gray-500">انضم {s.name}</p></div><span className="mr-auto text-xs text-gray-400">{s.joinDate}</span></div>))}
+               {branchPayments.slice(-3).reverse().map(pay => (<div key={pay.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-green-100 text-green-600 p-2 rounded-full"><DollarSign size={16}/></div><div><p className="text-sm font-bold text-gray-800">دفعة مالية</p><p className="text-xs text-gray-500">استلام {pay.amount} من {pay.names ? pay.names.join(' + ') : pay.name}</p></div><span className="mr-auto text-xs text-gray-400">{pay.date}</span></div>))}
+               {branchStudents.slice(-2).map(s => (<div key={s.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-yellow-100 text-yellow-600 p-2 rounded-full"><Star size={16}/></div><div><p className="text-sm font-bold text-gray-800">انضمام طالب</p><p className="text-xs text-gray-500">انضم {getShortName(s.name)}</p></div><span className="mr-auto text-xs text-gray-400">{s.joinDate}</span></div>))}
             </div>
          </Card>
       </div>
@@ -672,12 +682,10 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
         e.preventDefault();
         setIsSaving(true);
         try {
-            // Save to Firebase using the user's email as the document ID
-            const emailKey = user.username; // This is the email (e.g., admin@brave.com)
+            const emailKey = user.username; 
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', emailKey);
             await setDoc(docRef, { name: newName }, { merge: true });
             
-            // Update local state
             const updatedUser = { ...user, name: newName };
             onUpdateUser(updatedUser);
             alert("تم تحديث الاسم بنجاح!");
@@ -771,117 +779,234 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
   const RegistrationManager = () => {
     const [confirmModal, setConfirmModal] = useState(null); const [formData, setFormData] = useState({}); const [linkFamily, setLinkFamily] = useState('new'); const uniqueFamilies = [...new Map(students.map(item => [item.familyId, item.familyName])).entries()];
     const openConfirm = (reg) => { const today = new Date().toISOString().split('T')[0]; const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth()+1); setFormData({ name: reg.name, phone: reg.phone, dob: reg.dob, address: reg.address, belt: 'أبيض', joinDate: today, subEnd: nextMonth.toISOString().split('T')[0], balance: 0 }); setLinkFamily('new'); setConfirmModal(reg); };
+    
     const confirmStudent = async (e) => {
         e.preventDefault(); const { username, password } = generateCredentials();
         let finalFamilyId, finalFamilyName;
-        if (linkFamily === 'new') { finalFamilyId = Math.floor(Date.now() / 1000); finalFamilyName = `عائلة ${formData.name.split(' ').slice(-1)[0]}`; } else { finalFamilyId = parseInt(linkFamily); finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; }
+        
+        if (linkFamily === 'new') { 
+            finalFamilyId = Math.floor(Date.now() / 1000); 
+            // منطق سحب الاسم الأخير
+            const nameParts = formData.name.trim().split(/\s+/);
+            const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : formData.name;
+            finalFamilyName = `عائلة ${lastName}`; 
+        } else { 
+            finalFamilyId = parseInt(linkFamily); 
+            const existingFamily = uniqueFamilies.find(([id, name]) => id === finalFamilyId);
+            finalFamilyName = existingFamily ? existingFamily[1] : "عائلة"; 
+        }
+        
         const newStudent = { branch: selectedBranch, status: 'active', notes: [], internalNotes: [], attendance: {}, username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(), ...formData };
         await studentsCollection.add(newStudent); await registrationsCollection.remove(confirmModal.id); logAction("تسجيل طالب", `تم قبول الطالب ${formData.name}`); alert(`تم إضافة الطالب بنجاح!\nUser: ${username}\nPass: ${password}`); setConfirmModal(null);
     };
+
     return (
        <div className="space-y-6">
          <div className="flex justify-between items-center"><h3 className="font-bold text-xl flex items-center gap-2 text-gray-800"><Inbox className="text-yellow-500"/> طلبات التسجيل الجديدة <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{branchRegistrations.length}</span></h3></div>
          <div className="grid gap-4">{branchRegistrations.length === 0 ? <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200"><Inbox size={48} className="mx-auto text-gray-300 mb-2"/><p className="text-gray-500">لا توجد طلبات جديدة حالياً.</p></div> : branchRegistrations.map(reg => (<Card key={reg.id} className="border-r-4 border-blue-500 hover:shadow-md transition-shadow"><div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><h4 className="font-bold text-lg flex items-center gap-2">{reg.name} <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">جديد</span></h4><div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-1"><span className="flex items-center gap-1"><Phone size={14}/> {reg.phone}</span><span className="flex items-center gap-1"><MapPin size={14}/> {reg.address}</span><span className="flex items-center gap-1"><Calendar size={14}/> {reg.dob}</span></div></div><div className="flex gap-2 w-full md:w-auto"><Button onClick={() => openConfirm(reg)} className="bg-green-600 hover:bg-green-700 text-white text-sm flex-1 md:flex-none">اعتماد كطالب</Button><button onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} className="text-red-500 p-2 hover:bg-red-50 rounded border border-red-200"><Trash2 size={18}/></button></div></div></Card>))}</div>
-         {confirmModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm"><Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد"><form onSubmit={confirmStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs mb-1 font-bold">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.name} readOnly /></div><div><label className="block text-xs mb-1 font-bold">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.phone} readOnly /></div><div><label className="block text-xs mb-1 font-bold">العائلة</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold">الحزام</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div><div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div><div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded focus:ring-2 ring-red-500 outline-none" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div></div><div className="flex justify-end gap-2 mt-4 pt-4 border-t"><Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button><Button type="submit">تأكيد وإضافة</Button></div></form></Card></div>)}
+         {confirmModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm"><Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد"><form onSubmit={confirmStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs mb-1 font-bold">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.name} readOnly /></div><div><label className="block text-xs mb-1 font-bold">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.phone} readOnly /></div>
+         
+         <div className="md:col-span-2 bg-blue-50 p-3 rounded border border-blue-200">
+            <label className="block text-xs mb-1 font-bold text-blue-800">العائلة</label>
+            <select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
+                <option value="new">-- عائلة جديدة (سيتم التسمية تلقائياً) --</option>
+                {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>ضم إلى: {name}</option>)}
+            </select>
+         </div>
+
+         <div><label className="block text-xs mb-1 font-bold">الحزام</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div><div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div><div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded focus:ring-2 ring-red-500 outline-none" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div></div><div className="flex justify-end gap-2 mt-4 pt-4 border-t"><Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button><Button type="submit">تأكيد وإضافة</Button></div></form></Card></div>)}
        </div>
     );
   };
 
-  const ActivityLogManager = () => {
-      const { data: logs } = useCollection('activity_logs');
-      const branchLogs = logs.filter(l => l.branch === selectedBranch).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-      return (
-          <Card title="سجل النشاطات" className="h-[600px] overflow-y-auto"><ul className="space-y-3">{branchLogs.map(log => (<li key={log.id} className="text-sm p-3 bg-gray-50 rounded border-r-2 border-gray-400 flex justify-between"><div><span className="font-bold block text-gray-800">{log.action}</span><span className="text-gray-600">{log.details}</span></div><div className="text-left"><span className="block text-xs text-gray-400">{new Date(log.timestamp).toLocaleTimeString('ar-JO')}</span><span className="text-[10px] bg-gray-200 px-1 rounded">{log.performedBy}</span></div></li>))}</ul></Card>
-      );
-  };
-
   const StudentsManager = () => {
-    const [search, setSearch] = useState(''); const [showModal, setShowModal] = useState(false); const [editingStudent, setEditingStudent] = useState(null); const [createdCreds, setCreatedCreds] = useState(null);
+    const [search, setSearch] = useState(''); 
+    const [showModal, setShowModal] = useState(false); 
+    const [editingStudent, setEditingStudent] = useState(null); 
+    const [createdCreds, setCreatedCreds] = useState(null);
+    
     const [newS, setNewS] = useState({ name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0 });
-    const [linkFamily, setLinkFamily] = useState('new');
-    const uniqueFamilies = [...new Map(students.map(item => [item.familyId, item.familyName])).entries()];
+    const [linkFamily, setLinkFamily] = useState('new'); 
+
+    // استخراج قائمة العائلات الموجودة مسبقاً بشكل ذكي
+    const uniqueFamilies = useMemo(() => {
+        const families = new Map();
+        students.forEach(s => {
+            if(s.familyId && s.familyName) {
+                families.set(s.familyId, s.familyName);
+            }
+        });
+        return Array.from(families.entries()); 
+    }, [students]);
+
     const filtered = branchStudents.filter(s => s.name.includes(search));
 
     const addStudent = async (e) => {
-      e.preventDefault(); const { username, password } = generateCredentials();
+      e.preventDefault(); 
+      const { username, password } = generateCredentials();
+      
       let finalFamilyId, finalFamilyName;
-      if (linkFamily === 'new') { finalFamilyId = Math.floor(Date.now() / 1000); finalFamilyName = `عائلة ${newS.name.split(' ').slice(-1)[0]}`; } else { finalFamilyId = parseInt(linkFamily); finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; }
-      const joinDateObj = new Date(newS.joinDate || new Date()); const subEndDateObj = new Date(joinDateObj); subEndDateObj.setMonth(subEndDateObj.getMonth() + 1); const subEnd = subEndDateObj.toISOString().split('T')[0];
-      const student = { branch: selectedBranch, status: 'active', subEnd: subEnd, notes: [], internalNotes: [], attendance: {}, username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(), ...newS };
-      await studentsCollection.add(student); logAction("إضافة طالب", `تم إضافة الطالب ${student.name}`); setCreatedCreds({ name: student.name, username, password }); setShowModal(false); setNewS({ name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0 }); setLinkFamily('new');
+
+      if (linkFamily === 'new') {
+          finalFamilyId = Math.floor(Date.now() / 1000);
+          const nameParts = newS.name.trim().split(/\s+/);
+          const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : newS.name;
+          finalFamilyName = `عائلة ${lastName}`;
+      } else {
+          finalFamilyId = parseInt(linkFamily);
+          const existingFamily = uniqueFamilies.find(([id, name]) => id === finalFamilyId);
+          finalFamilyName = existingFamily ? existingFamily[1] : "عائلة";
+      }
+
+      const joinDateObj = new Date(newS.joinDate || new Date()); 
+      const subEndDateObj = new Date(joinDateObj); 
+      subEndDateObj.setMonth(subEndDateObj.getMonth() + 1); 
+      const subEnd = subEndDateObj.toISOString().split('T')[0];
+
+      const student = { 
+          branch: selectedBranch, 
+          status: 'active', 
+          subEnd: subEnd, 
+          notes: [], 
+          internalNotes: [], 
+          attendance: {}, 
+          username, 
+          password, 
+          familyId: finalFamilyId, 
+          familyName: finalFamilyName,
+          customOrder: Date.now(), 
+          ...newS 
+      };
+
+      await studentsCollection.add(student); 
+      logAction("إضافة طالب", `تم إضافة الطالب ${student.name} إلى ${finalFamilyName}`); 
+      setCreatedCreds({ name: student.name, username, password, familyName: finalFamilyName }); 
+      setShowModal(false); 
+      setNewS({ name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0 }); 
+      setLinkFamily('new');
     };
 
-    const openEditModal = (student) => { setEditingStudent(student); setNewS({ name: student.name, phone: student.phone, belt: student.belt, joinDate: student.joinDate, dob: student.dob, address: student.address || '', subEnd: student.subEnd, balance: student.balance }); setLinkFamily(student.familyId); setShowModal(true); };
+    const openEditModal = (student) => { 
+        setEditingStudent(student); 
+        setNewS({ name: student.name, phone: student.phone, belt: student.belt, joinDate: student.joinDate, dob: student.dob, address: student.address || '', subEnd: student.subEnd, balance: student.balance }); 
+        setLinkFamily(student.familyId); 
+        setShowModal(true); 
+    };
+
     const handleSaveEdit = async (e) => { e.preventDefault(); await studentsCollection.update(editingStudent.id, newS); logAction("تعديل طالب", `تعديل بيانات ${newS.name}`); setShowModal(false); setEditingStudent(null); };
     const promoteBelt = async (student) => { const currentIdx = BELTS.indexOf(student.belt); if(currentIdx < BELTS.length - 1) { await studentsCollection.update(student.id, { belt: BELTS[currentIdx + 1] }); logAction("ترفيع حزام", `ترفيع الطالب ${student.name} إلى ${BELTS[currentIdx + 1]}`); } };
     const archiveStudent = async (student) => { if(confirm('أرشفة الطالب؟')) { await archiveCollection.add({ ...student, archiveDate: new Date().toLocaleDateString() }); await studentsCollection.remove(student.id); logAction("أرشفة", `أرشفة الطالب ${student.name}`); } };
      
     return (
       <div className="space-y-6">
-        {createdCreds && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-md bg-green-50 border-green-500 border-2 text-center p-8" title="تم إنشاء الحساب بنجاح"><p className="mb-4">الطالب: <strong>{createdCreds.name}</strong></p><div className="bg-white p-4 border rounded mb-4"><p>User: {createdCreds.username}</p><p>Pass: {createdCreds.password}</p></div><Button onClick={() => setCreatedCreds(null)} className="w-full">إغلاق</Button></Card></div>}
+        {createdCreds && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-md bg-green-50 border-green-500 border-2 text-center p-8" title="تم إنشاء الحساب بنجاح"><p className="mb-4">الطالب: <strong>{createdCreds.name}</strong></p><p className="mb-4 text-sm text-gray-600">تم ضمه إلى: <strong>{createdCreds.familyName}</strong></p><div className="bg-white p-4 border rounded mb-4"><p>User: {createdCreds.username}</p><p>Pass: {createdCreds.password}</p></div><Button onClick={() => setCreatedCreds(null)} className="w-full">إغلاق</Button></Card></div>}
         <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm"><div className="w-1/2"><input className="border p-2 rounded w-full" placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div><Button onClick={()=>{setEditingStudent(null); setShowModal(true)}}><UserPlus size={18}/> طالب جديد</Button></div>
-        <Card className="overflow-x-auto border-none shadow-md rounded-xl"><table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-4">الطالب</th><th className="p-4">بيانات الدخول</th><th className="p-4">الهاتف</th><th className="p-4">الحزام</th><th className="p-4">الحالة</th><th className="p-4">إجراءات</th></tr></thead><tbody className="divide-y">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-4 font-bold">{s.name}</td><td className="p-4 text-xs font-mono bg-gray-50 rounded p-2"><div className="flex flex-col gap-1"><span>U: <span className="font-bold select-all">{s.username}</span></span><span>P: <span className="font-bold text-red-500 select-all">{s.password}</span></span></div></td><td className="p-4 flex items-center gap-2"><a href={`tel:${s.phone}`} className="text-gray-900 hover:text-blue-600 transition">{s.phone}</a><button onClick={() => openWhatsApp(s.phone)} className="text-green-600 hover:bg-green-50 p-1 rounded-full"><MessageCircle size={18}/></button></td><td className="p-4">{s.belt}</td><td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-4 flex gap-2"><button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200 transition flex items-center gap-1 font-bold" title="ترفيع"><ArrowUp size={16}/> ترفيع</button><button onClick={() => openEditModal(s)} className="text-blue-600 bg-blue-50 p-2 rounded"><Edit size={16}/></button><button onClick={() => archiveStudent(s)} className="text-red-600 bg-red-50 p-2 rounded"><Archive size={16}/></button></td></tr>))}</tbody></table></Card>
-        {showModal && <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-2xl" title={editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}><form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="md:col-span-2"><label className="block text-xs mb-1">الاسم</label><input required className="w-full border p-2 rounded" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} /></div>{!editingStudent && (<div className="md:col-span-2 bg-blue-50 p-2 rounded border"><label className="block text-xs mb-1">العائلة</label><select className="w-full border p-2 rounded" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>)}<div><label className="block text-xs mb-1">الهاتف</label><input required className="w-full border p-2 rounded" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} /></div><div><label className="block text-xs mb-1">الحزام</label><select className="w-full border p-3 rounded-lg bg-white" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold text-red-600">الرصيد المستحق (JOD)</label><input type="number" className="w-full border p-2 rounded" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} /></div><div><label className="block text-xs mb-1">الميلاد</label><input type="date" className="w-full border p-2 rounded" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} /></div><div><label className="block text-xs mb-1">الالتحاق</label><input type="date" className="w-full border p-2 rounded" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} /></div><div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} /></div><div className="md:col-span-2"><label className="block text-xs mb-1">العنوان</label><input className="w-full border p-2 rounded" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} /></div></div><div className="flex gap-2 justify-end mt-4"><Button variant="ghost" onClick={()=>setShowModal(false)}>إلغاء</Button><Button type="submit">حفظ</Button></div></form></Card></div>}
-      </div>
-    );
-  };
-
-  const AttendanceManager = () => {
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [filterId, setFilterId] = useState(null);
-    const [sortOption, setSortOption] = useState('manual'); 
-    const changeMonth = (inc) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + inc); setCurrentDate(d); };
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-    const sorted = useMemo(() => { let base = [...branchStudents]; if (sortOption === 'name') base.sort((a, b) => a.name.localeCompare(b.name)); else if (sortOption === 'belt') base.sort((a, b) => BELTS.indexOf(b.belt) - BELTS.indexOf(a.belt)); else if (sortOption === 'status') base.sort((a, b) => a.status === 'active' ? -1 : 1); else base.sort((a, b) => (a.customOrder || 0) - (b.customOrder || 0)); return base; }, [branchStudents, sortOption]);
-    const displayedStudents = filterId ? sorted.filter(s => s.id === filterId) : sorted;
-    const toggleCheck = async (sid, day) => { const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`; const student = students.find(s => s.id === sid); const newAtt = { ...(student.attendance || {}) }; if (newAtt[dateStr]) delete newAtt[dateStr]; else newAtt[dateStr] = true; await studentsCollection.update(sid, { attendance: newAtt }); };
-    const moveStudent = async (index, direction) => { if (sortOption !== 'manual') return alert("الرجاء اختيار الترتيب اليدوي أولاً"); const otherIndex = direction === 'up' ? index - 1 : index + 1; if (otherIndex < 0 || otherIndex >= displayedStudents.length) return; const currentStudent = displayedStudents[index]; const otherStudent = displayedStudents[otherIndex]; const currentOrder = currentStudent.customOrder || Date.now(); const otherOrder = otherStudent.customOrder || Date.now() + 1; await studentsCollection.update(currentStudent.id, { customOrder: otherOrder }); await studentsCollection.update(otherStudent.id, { customOrder: currentOrder }); };
-
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm flex-wrap gap-4">
-          <div className="flex items-center gap-4"><Button variant="ghost" onClick={()=>changeMonth(-1)}><ChevronRightIcon/></Button><span className="font-bold">{monthNames[month]} {year}</span><Button variant="ghost" onClick={()=>changeMonth(1)}><ChevronLeft/></Button></div>
-          <div className="flex gap-2"><button onClick={() => setSortOption('manual')} className={`px-3 py-1 text-xs rounded border ${sortOption==='manual'?'bg-black text-white':''}`}>يدوي (ترتيبي)</button><button onClick={() => setSortOption('name')} className={`px-3 py-1 text-xs rounded border ${sortOption==='name'?'bg-black text-white':''}`}>أبجدي</button><button onClick={() => setSortOption('belt')} className={`px-3 py-1 text-xs rounded border ${sortOption==='belt'?'bg-black text-white':''}`}>حزام</button></div>
-          <div className="w-64 relative"><StudentSearch students={branchStudents} onSelect={s => setFilterId(s.id)} onClear={() => setFilterId(null)} placeholder="بحث سريع..." showAllOption={true} /></div>
-        </div>
-        <Card className="overflow-x-auto"><table className="w-full text-xs border-collapse"><thead className="bg-gray-800 text-white sticky top-0 z-20"><tr><th className="p-3 sticky right-0 bg-gray-800 z-30 text-right">الطالب</th><th className="p-3 text-center">ترتيب</th>{[...Array(daysInMonth)].map((_,i)=><th key={i} className="p-2 border-gray-700 text-center">{i+1}</th>)}</tr></thead><tbody>{displayedStudents.map((s, idx) => (<tr key={s.id} className="hover:bg-yellow-50"><td className="p-3 sticky right-0 bg-white font-bold border-l shadow-sm">{s.name}</td><td className="p-3 text-center border flex flex-col gap-1">{sortOption === 'manual' && <><button onClick={()=>moveStudent(idx, 'up')} className="text-gray-500 hover:text-black">⬆️</button><button onClick={()=>moveStudent(idx, 'down')} className="text-gray-500 hover:text-black">⬇️</button></>}</td>{[...Array(daysInMonth)].map((_,i)=>{const d=i+1;const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const checked=!!s.attendance?.[dateStr];return<td key={i} className="border text-center p-0"><input type="checkbox" checked={checked} onChange={()=>toggleCheck(s.id,d)} className="w-4 h-4 accent-green-600 cursor-pointer"/></td>})}</tr>))}</tbody></table></Card>
-      </div>
-    );
-  };
-
-  const InternalNotesManager = () => {
-    const [noteTxt, setNoteTxt] = useState(''); const [noteType, setNoteType] = useState('general'); const [targetId, setTargetId] = useState(''); const [filteredStudent, setFilteredStudent] = useState(null); 
-    const addInternalNote = async (e) => { e.preventDefault(); if(!targetId || !noteTxt) return; const student = branchStudents.find(s => s.id === targetId); const newNote = { id: Date.now(), text: noteTxt, type: noteType, date: new Date().toLocaleDateString('ar-JO') }; await studentsCollection.update(targetId, { internalNotes: [...(student.internalNotes || []), newNote] }); setNoteTxt(''); logAction("ملاحظة إدارية", `إضافة ملاحظة للطالب ${student.name}`); alert("تم الحفظ"); };
-    const deleteInternalNote = async (sid, nid) => { if(confirm('حذف؟')) { const student = branchStudents.find(s => s.id === sid); await studentsCollection.update(sid, { internalNotes: student.internalNotes.filter(n => n.id !== nid) }); } };
-
-    return (
-      <div className="space-y-6">
-         <Card title="تسجيل ملاحظة إدارية (داخلية)"><form onSubmit={addInternalNote} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold mb-1">الطالب</label><StudentSearch students={branchStudents} onSelect={(s) => setTargetId(s.id)} placeholder="ابحث لاختيار طالب..." /></div><div><label className="block text-xs font-bold mb-1">تصنيف الملاحظة</label><select className="w-full border p-2 rounded" value={noteType} onChange={e=>setNoteType(e.target.value)}><option value="finance">💰 ذمم مالية / حساب</option><option value="behavior">⚠️ سلوك وانضباط</option><option value="exam">🆓 فحص مجاني / منحة</option><option value="general">📝 ملاحظة عامة</option></select></div></div><textarea className="w-full border p-2 rounded" rows="3" placeholder="اكتب تفاصيل الملاحظة هنا (لن تظهر للأهل)..." value={noteTxt} onChange={e=>setNoteTxt(e.target.value)} required></textarea><div className="flex justify-end"><Button type="submit" className="bg-gray-800 text-white hover:bg-gray-700">حفظ في السجل الداخلي</Button></div></form></Card>
-         <div className="flex items-center gap-2 mb-4"><div className="w-64"><StudentSearch students={branchStudents} onSelect={(s) => setFilteredStudent(s.id)} onClear={() => setFilteredStudent(null)} placeholder="فلترة الملاحظات حسب الطالب..." showAllOption={true}/></div></div>
-         <div className="grid grid-cols-1 gap-4">{branchStudents.filter(s => (filteredStudent ? s.id === filteredStudent : true) && s.internalNotes && s.internalNotes.length > 0).map(s => (<Card key={s.id} title={s.name} className="border-r-4 border-gray-800"><div className="space-y-2">{s.internalNotes.map((note) => (<div key={note.id} className="p-3 rounded border flex justify-between items-start bg-gray-50"><div><span className="font-bold text-xs bg-gray-200 px-1 rounded ml-2">{note.type}</span><span className="text-sm text-gray-700">{note.text}</span></div><button onClick={() => deleteInternalNote(s.id, note.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button></div>))}</div></Card>))}</div>
+        <Card className="overflow-x-auto border-none shadow-md rounded-xl"><table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-4">الطالب</th><th className="p-4">العائلة</th><th className="p-4">بيانات الدخول</th><th className="p-4">الهاتف</th><th className="p-4">الحزام</th><th className="p-4">الحالة</th><th className="p-4">إجراءات</th></tr></thead><tbody className="divide-y">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-4 font-bold">{s.name}</td><td className="p-4 text-xs bg-blue-50 text-blue-600 rounded px-2">{s.familyName}</td><td className="p-4 text-xs font-mono bg-gray-50 rounded p-2"><div className="flex flex-col gap-1"><span>U: <span className="font-bold select-all">{s.username}</span></span><span>P: <span className="font-bold text-red-500 select-all">{s.password}</span></span></div></td><td className="p-4 flex items-center gap-2"><a href={`tel:${s.phone}`} className="text-gray-900 hover:text-blue-600 transition">{s.phone}</a><button onClick={() => openWhatsApp(s.phone)} className="text-green-600 hover:bg-green-50 p-1 rounded-full"><MessageCircle size={18}/></button></td><td className="p-4">{s.belt}</td><td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-4 flex gap-2"><button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200 transition flex items-center gap-1 font-bold" title="ترفيع"><ArrowUp size={16}/> ترفيع</button><button onClick={() => openEditModal(s)} className="text-blue-600 bg-blue-50 p-2 rounded"><Edit size={16}/></button><button onClick={() => archiveStudent(s)} className="text-red-600 bg-red-50 p-2 rounded"><Archive size={16}/></button></td></tr>))}</tbody></table></Card>
+        
+        {showModal && <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-2xl" title={editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}><form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="md:col-span-2"><label className="block text-xs mb-1">الاسم الرباعي</label><input required className="w-full border p-2 rounded" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: محمد كمال محمد كعوش" /></div>
+        
+        {!editingStudent && (
+            <div className="md:col-span-2 bg-blue-50 p-3 rounded border border-blue-200">
+                <label className="block text-xs mb-1 font-bold text-blue-800">العائلة (لضم الأخوة)</label>
+                <select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
+                    <option value="new">-- عائلة جديدة (سيتم التسمية تلقائياً حسب الاسم الأخير) --</option>
+                    {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>ضم إلى: {name}</option>)}
+                </select>
+                <p className="text-[10px] text-gray-500 mt-1">إذا اخترت "عائلة جديدة"، سيقوم النظام بتسمية العائلة بناءً على الاسم الأخير للطالب.</p>
+            </div>
+        )}
+        
+        <div><label className="block text-xs mb-1">الهاتف</label><input required className="w-full border p-2 rounded" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} /></div><div><label className="block text-xs mb-1">الحزام</label><select className="w-full border p-3 rounded-lg bg-white" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold text-red-600">الرصيد المستحق (JOD)</label><input type="number" className="w-full border p-2 rounded" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} /></div><div><label className="block text-xs mb-1">الميلاد</label><input type="date" className="w-full border p-2 rounded" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} /></div><div><label className="block text-xs mb-1">الالتحاق</label><input type="date" className="w-full border p-2 rounded" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} /></div><div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} /></div><div className="md:col-span-2"><label className="block text-xs mb-1">العنوان</label><input className="w-full border p-2 rounded" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} /></div></div><div className="flex gap-2 justify-end mt-4"><Button variant="ghost" onClick={()=>setShowModal(false)}>إلغاء</Button><Button type="submit">حفظ</Button></div></form></Card></div>}
       </div>
     );
   };
 
   const FinanceManager = () => {
-    const [viewMode, setViewMode] = useState('income'); const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
-    const handleAddPayment = async (e) => { e.preventDefault(); if(!payForm.studentObjId) return alert('اختر طالباً'); const selectedStudent = branchStudents.find(s => s.id === payForm.studentObjId); if(!selectedStudent) return alert('طالب غير موجود'); const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; const newPay = { id: Date.now().toString(), studentId: selectedStudent.id, name: selectedStudent.name, amount: Number(payForm.amount), reason: finalReason, details: payForm.details, date: new Date().toISOString().split('T')[0], branch: selectedBranch }; await paymentsCollection.add(newPay); logAction("قبض مالي", `استلام ${payForm.amount} من ${selectedStudent.name}`); setPayForm({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); };
-    const handleAddExpense = async (e) => { e.preventDefault(); await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); logAction("مصروف", `صرف ${expForm.amount} لـ ${expForm.title}`); setExpForm({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); };
-    const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
-    const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
-    const filteredPayments = incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments;
+    const [viewMode, setViewMode] = useState('income'); 
+    const [payForm, setPayForm] = useState({ amount: '', reason: 'اشتراك شهري', details: '' });
+    // التحديث: دعم دفع متعدد
+    const [selectedStudents, setSelectedStudents] = useState([]); 
+
+    const handleAddPayment = async (e) => { 
+        e.preventDefault(); 
+        if(selectedStudents.length === 0) return alert('اختر طالباً واحداً على الأقل'); 
+        
+        const isMulti = selectedStudents.length > 1;
+        const studentIds = selectedStudents.map(s => s.id);
+        const studentNames = selectedStudents.map(s => getShortName(s.name)); // Save short names for receipt
+        
+        const newPay = { 
+            id: Date.now().toString(), 
+            // For backward compatibility
+            studentId: selectedStudents[0].id, 
+            name: isMulti ? studentNames.join(' + ') : selectedStudents[0].name,
+            // New fields for multi-payment
+            studentIds: studentIds,
+            names: studentNames,
+            amount: Number(payForm.amount), 
+            reason: payForm.reason, 
+            details: payForm.details, 
+            date: new Date().toISOString().split('T')[0], 
+            branch: selectedBranch 
+        };
+        
+        await paymentsCollection.add(newPay); 
+        logAction("قبض مالي", `استلام ${payForm.amount} من ${studentNames.join(' و ')}`); 
+        setPayForm({ amount: '', reason: 'اشتراك شهري', details: '' }); 
+        setSelectedStudents([]);
+    };
+
+    const addStudentToReceipt = (student) => {
+        if (!selectedStudents.find(s => s.id === student.id)) {
+            setSelectedStudents([...selectedStudents, student]);
+        }
+    };
+
+    const removeStudentFromReceipt = (id) => {
+        setSelectedStudents(selectedStudents.filter(s => s.id !== id));
+    };
 
     return (
       <div className="space-y-6">
         <div className="flex gap-4 mb-6"><button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode === 'income' ? 'bg-green-600 text-white' : 'bg-white'}`}>الإيرادات</button><button onClick={() => setViewMode('expense')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode === 'expense' ? 'bg-red-600 text-white' : 'bg-white'}`}>المصاريف</button></div>
         {viewMode === 'income' ? (
           <>
-            <Card title="سند قبض جديد"><form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"><div className="relative"><label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label><StudentSearch students={branchStudents} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." /></div><div><label className="text-xs block mb-1">المبلغ</label><input type="number" className="w-full border p-2 rounded" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required /></div><div><label className="text-xs block mb-1">السبب</label><select className="w-full border p-2 rounded" value={payForm.reason} onChange={e=>setPayForm({...payForm, reason:e.target.value})}><option>اشتراك شهري</option><option>عرض الاشتراك 3 شهور</option><option>رسوم فحص</option><option>أخرى</option></select></div>{payForm.reason === 'أخرى' && <div><label className="text-xs block mb-1">وضح السبب</label><input className="w-full border p-2 rounded" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required /></div>}<div className="md:col-span-2"><label className="text-xs block mb-1">تفاصيل</label><input className="w-full border p-2 rounded" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} /></div><Button type="submit">حفظ وقبض</Button></form></Card>
-            <div className="flex items-center gap-2 mb-2 w-64"><StudentSearch students={branchStudents} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} /></div>
-            <Card><table className="w-full text-sm text-right"><thead className="bg-gray-100"><tr><th className="p-3">#</th><th className="p-3">الطالب</th><th className="p-3">السبب</th><th className="p-3">المبلغ</th><th className="p-3">طباعة</th><th className="p-3">حذف</th></tr></thead><tbody>{filteredPayments.map(p=><tr key={p.id} className="hover:bg-gray-50"><td className="p-3">{p.id.slice(0,8)}</td><td className="p-3 font-bold">{p.name}</td><td className="p-3">{p.reason} <span className="text-xs text-gray-400">{p.details}</span></td><td className="p-3 text-green-600">{p.amount}</td><td className="p-3"><button onClick={()=>printReceipt(p, selectedBranch)}><Printer size={16}/></button></td><td className="p-3"><button onClick={()=>deletePayment(p.id)} className="text-red-500"><Trash2 size={16}/></button></td></tr>)}</tbody></table></Card>
+            <Card title="سند قبض جديد (يمكن اختيار عدة طلاب لوصل واحد)">
+                <div className="mb-4 bg-blue-50 p-3 rounded border border-blue-100">
+                    <label className="text-xs font-bold block mb-2">1. ابحث واختر الطلاب:</label>
+                    <StudentSearch students={branchStudents} onSelect={addStudentToReceipt} placeholder="ابحث عن اسم الطالب لإضافته..." />
+                    
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedStudents.map(s => (
+                            <div key={s.id} className="bg-white border border-blue-300 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-sm">
+                                {getShortName(s.name)}
+                                <button onClick={() => removeStudentFromReceipt(s.id)} className="text-red-500 hover:bg-red-50 rounded-full p-0.5"><X size={14}/></button>
+                            </div>
+                        ))}
+                        {selectedStudents.length === 0 && <span className="text-xs text-gray-400">لم يتم اختيار طلاب بعد</span>}
+                    </div>
+                </div>
+
+                <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="text-xs font-bold">المبلغ الإجمالي (JOD)</label><input type="number" className="w-full border p-2 rounded font-bold text-lg" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required /></div>
+                    <div><label className="text-xs font-bold">السبب</label><select className="w-full border p-2 rounded" value={payForm.reason} onChange={e=>setPayForm({...payForm, reason:e.target.value})}><option>اشتراك شهري</option><option>عرض الاشتراك 3 شهور</option><option>رسوم فحص</option><option>أخرى</option></select></div>
+                    <div className="md:col-span-2"><label className="text-xs">تفاصيل إضافية</label><input className="w-full border p-2 rounded" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} /></div>
+                    <div className="md:col-span-2"><Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white">إصدار سند القبض</Button></div>
+                </form>
+            </Card>
+            
+            <Card title="آخر المقبوضات"><table className="w-full text-sm text-right"><thead className="bg-gray-100"><tr><th className="p-3">#</th><th className="p-3">الطلاب</th><th className="p-3">المبلغ</th><th className="p-3">خيارات</th></tr></thead>
+            <tbody>{paymentsCollection.data.filter(p=>p.branch === selectedBranch).slice(0, 10).map(p=>(
+                <tr key={p.id} className="border-b">
+                    <td className="p-3 text-xs text-gray-500">{p.id.slice(0,5)}</td>
+                    <td className="p-3 font-bold">{p.names ? p.names.join(' + ') : getShortName(p.name)}</td>
+                    <td className="p-3 text-green-600 font-bold">{p.amount}</td>
+                    <td className="p-3 flex gap-2">
+                        <button onClick={()=>printReceipt(p, selectedBranch)} className="text-gray-600"><Printer size={16}/></button>
+                        <button onClick={async ()=>{if(confirm('حذف؟')) await paymentsCollection.remove(p.id)}} className="text-red-500"><Trash2 size={16}/></button>
+                    </td>
+                </tr>
+            ))}</tbody></table></Card>
           </>
         ) : (
           <>
@@ -914,8 +1039,8 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
 
     return (
       <div className="space-y-6">
-        <div className="flex gap-4 h-[300px]"><div className="w-1/3 bg-white rounded border flex flex-col"><div className="p-2 border-b flex justify-between"><span className="font-bold">تحديد</span><button onClick={toggleSelectAll} className="text-xs text-blue-600">{selectAll ? 'إلغاء' : 'الكل'}</button></div><div className="overflow-y-auto p-2">{branchStudents.map(s=><div key={s.id} onClick={()=>toggleTarget(s.id)} className={`p-2 cursor-pointer flex justify-between ${selectedTargets.includes(s.id)?'bg-yellow-100':''}`}><span>{s.name}</span>{selectedTargets.includes(s.id)&&<CheckCircle size={14}/>}</div>)}</div></div><div className="flex-1 flex flex-col gap-4"><Card className="flex-1 flex flex-col"><textarea className="flex-1 w-full border p-2 rounded" value={noteTxt} onChange={e=>setNoteTxt(e.target.value)} placeholder="نص الملاحظة..."></textarea><Button onClick={sendNotes} className="mt-2">إرسال</Button></Card></div></div>
-        <div className="grid gap-4">{branchStudents.filter(s=>s.notes && s.notes.length>0).map(s=><Card key={s.id} title={s.name}>{s.notes.map(n=><div key={n.id} className="flex justify-between border-b p-2 last:border-0"><span>{n.text}</span><button onClick={()=>deleteNote(s.id,n.id)} className="text-red-500"><Trash2 size={14}/></button></div>)}</Card>)}</div>
+        <div className="flex gap-4 h-[300px]"><div className="w-1/3 bg-white rounded border flex flex-col"><div className="p-2 border-b flex justify-between"><span className="font-bold">تحديد</span><button onClick={toggleSelectAll} className="text-xs text-blue-600">{selectAll ? 'إلغاء' : 'الكل'}</button></div><div className="overflow-y-auto p-2">{branchStudents.map(s=><div key={s.id} onClick={()=>toggleTarget(s.id)} className={`p-2 cursor-pointer flex justify-between ${selectedTargets.includes(s.id)?'bg-yellow-100':''}`}><span>{getShortName(s.name)}</span>{selectedTargets.includes(s.id)&&<CheckCircle size={14}/>}</div>)}</div></div><div className="flex-1 flex flex-col gap-4"><Card className="flex-1 flex flex-col"><textarea className="flex-1 w-full border p-2 rounded" value={noteTxt} onChange={e=>setNoteTxt(e.target.value)} placeholder="نص الملاحظة..."></textarea><Button onClick={sendNotes} className="mt-2">إرسال</Button></Card></div></div>
+        <div className="grid gap-4">{branchStudents.filter(s=>s.notes && s.notes.length>0).map(s=><Card key={s.id} title={getShortName(s.name)}>{s.notes.map(n=><div key={n.id} className="flex justify-between border-b p-2 last:border-0"><span>{n.text}</span><button onClick={()=>deleteNote(s.id,n.id)} className="text-red-500"><Trash2 size={14}/></button></div>)}</Card>)}</div>
       </div>
     );
   };
@@ -930,7 +1055,7 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
         <Card>
           <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200 mb-6 flex gap-4 items-end"><div className="flex-1"><label className="block text-xs font-bold mb-1">تجديد سريع لطالب</label><StudentSearch students={branchStudents} onSelect={(s) => setQuickRenewId(s.id)} placeholder="ابحث عن طالب لتجديد اشتراكه..." /></div><Button onClick={() => { if(!quickRenewId) return; const date = prompt("تاريخ الانتهاء الجديد (YYYY-MM-DD):", new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]); if(date) updateSub(quickRenewId, date); }}>تجديد الاشتراك</Button></div>
           <div className="mb-4 w-64"><label className="block text-xs font-bold mb-1">فلترة الجدول</label><StudentSearch students={branchStudents} onSelect={(s) => setFilterId(s.id)} onClear={() => setFilterId(null)} placeholder="بحث في القائمة..." showAllOption={true} /></div>
-          <table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-3">الطالب</th><th className="p-3">الانتهاء</th><th className="p-3">الحالة</th><th className="p-3">تجديد</th></tr></thead><tbody>{displayedStudents.map(s=><tr key={s.id} className="border-b"><td className="p-3 font-bold">{s.name}</td><td className="p-3">{s.subEnd}</td><td className="p-3"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-3"><input type="date" className="border rounded text-xs" onChange={(e)=>updateSub(s.id, e.target.value)}/></td></tr>)}</tbody></table>
+          <table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-3">الطالب</th><th className="p-3">الانتهاء</th><th className="p-3">الحالة</th><th className="p-3">تجديد</th></tr></thead><tbody>{displayedStudents.map(s=><tr key={s.id} className="border-b"><td className="p-3 font-bold">{getShortName(s.name)}</td><td className="p-3">{s.subEnd}</td><td className="p-3"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-3"><input type="date" className="border rounded text-xs" onChange={(e)=>updateSub(s.id, e.target.value)}/></td></tr>)}</tbody></table>
         </Card>
       </div>
     );
@@ -1113,7 +1238,7 @@ export default function App() {
           user={user} 
           selectedBranch={dashboardBranch} 
           onSwitchBranch={user.isSuper ? setDashboardBranch : null}
-          onUpdateUser={handleUpdateUser} // Pass the update handler
+          onUpdateUser={handleUpdateUser} 
           studentsCollection={studentsCollection} 
           paymentsCollection={paymentsCollection} 
           expensesCollection={expensesCollection} 
