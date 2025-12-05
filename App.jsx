@@ -4,14 +4,13 @@ import {
   LogOut, UserPlus, CheckCircle, Activity, Phone, 
   MapPin, Search, FileText, Edit, 
   Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield
+  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield, Settings
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
-// SECURITY UPDATE: Added signInWithEmailAndPassword
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where } from "firebase/firestore";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, onSnapshot, query, orderBy, where } from "firebase/firestore";
 
 // --- Firebase Configuration (Live Keys) ---
 const firebaseConfig = {
@@ -528,7 +527,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
   );
 };
 
-const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
+const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -566,7 +565,6 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollecti
 
   const DashboardStats = () => (
     <div className="space-y-8 animate-fade-in">
-      {/* SECURITY UPDATE: Added Branch Switcher in Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
            <h2 className="text-2xl font-bold text-gray-800">لوحة التحكم</h2>
            {onSwitchBranch ? (
@@ -665,6 +663,58 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollecti
       </Card>
     </div>
   );
+
+  const AdminSettings = () => {
+    const [newName, setNewName] = useState(user.name || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSaveName = async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            // Save to Firebase using the user's email as the document ID
+            const emailKey = user.username; // This is the email (e.g., admin@brave.com)
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', emailKey);
+            await setDoc(docRef, { name: newName }, { merge: true });
+            
+            // Update local state
+            const updatedUser = { ...user, name: newName };
+            onUpdateUser(updatedUser);
+            alert("تم تحديث الاسم بنجاح!");
+        } catch (error) {
+            console.error(error);
+            alert("حدث خطأ أثناء الحفظ. تأكد من صلاحياتك.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Card title="إعدادات الحساب">
+            <div className="max-w-md">
+                <form onSubmit={handleSaveName} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold mb-2">اسم العرض (اللقب الإداري)</label>
+                        <input 
+                            type="text" 
+                            className="w-full border p-3 rounded-lg bg-gray-50"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            placeholder="مثال: المدير العام، الكابتن أحمد..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">سيظهر هذا الاسم في السجلات وأعلى الشاشة.</p>
+                    </div>
+                    <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-xs text-yellow-800 mb-4">
+                        ملاحظة: هذا التغيير خاص بحسابك فقط ({user.username}).
+                    </div>
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                    </Button>
+                </form>
+            </div>
+        </Card>
+    );
+  };
 
   const CaptainsManager = () => {
       const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
@@ -916,7 +966,8 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollecti
             {id:'schedule',icon:Clock,label:'الجدول'},
             {id:'logs',icon:ClipboardList,label:'سجل النشاط'},
             {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
-            {id:'archive',icon:Archive,label:'الأرشيف'}
+            {id:'archive',icon:Archive,label:'الأرشيف'},
+            {id:'settings',icon:Settings,label:'إعدادات الحساب', role: 'admin'}
           ].filter(i => !i.role || i.role === user.role).map(item => (
             <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
               <div className="relative"><item.icon size={20}/>{item.badge > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{item.badge}</span>}</div><span>{item.label}</span>
@@ -943,6 +994,7 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollecti
          {activeTab === 'internal_notes' && <InternalNotesManager />}
          {activeTab === 'subs' && <SubsManager />}
          {activeTab === 'archive' && <ArchiveManager />}
+         {activeTab === 'settings' && <AdminSettings />}
       </main>
     </div>
   );
@@ -952,14 +1004,12 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollecti
 export default function App() {
   const [view, setView] = useState('home'); 
   const [user, setUser] = useState(() => { const saved = localStorage.getItem('braveUser'); return saved ? JSON.parse(saved) : null; });
-  // SECURITY UPDATE: New state for Super Admin switching
   const [dashboardBranch, setDashboardBranch] = useState(BRANCHES.SHAFA);
 
   useEffect(() => { 
     if (user) { 
       if (user.role === 'admin' || user.role === 'captain') {
         setView('admin_dashboard'); 
-        // Ensure dashboard branch syncs with user branch on load
         if(user.branch) setDashboardBranch(user.branch);
       } else {
         setView('student_portal'); 
@@ -977,25 +1027,38 @@ export default function App() {
   const captainsCollection = useCollection('captains'); 
 
   const handleLogin = async (username, password) => {
-    // 1. Define our Admins (SECURITY UPDATE: Mapped to secure emails)
+    // 1. Define our Admins
     const adminAccounts = {
       'admin@brave.com': { role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA }, 
       'shafa@brave.com': { role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA },
       'abunseir@brave.com': { role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR }
     };
 
-    // 2. Check if the input matches one of our admins or the old 'admin1' alias
     if (adminAccounts[username] || username === 'admin1') {
       try {
         const email = adminAccounts[username] ? username : 'admin@brave.com';
         
-        // Login with Firebase (Real Security)
         await signInWithEmailAndPassword(auth, email, password);
         
-        const userDetails = adminAccounts[email];
+        // 1. Get default info from hardcoded list
+        let userDetails = adminAccounts[email];
+
+        // 2. CHECK FIRESTORE FOR CUSTOM NAME
+        try {
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
+            const profileSnap = await getDoc(profileRef);
+            if (profileSnap.exists() && profileSnap.data().name) {
+                // If a custom name exists in DB, override the default
+                userDetails = { ...userDetails, name: profileSnap.data().name };
+            }
+        } catch (err) {
+            console.log("Could not fetch custom profile name, using default.", err);
+        }
         
+        // 3. Set User
+        userDetails = { ...userDetails, username: email }; // Store email as username for reference
         setUser(userDetails);
-        setDashboardBranch(userDetails.branch); // Set initial branch view
+        setDashboardBranch(userDetails.branch);
         localStorage.setItem('braveUser', JSON.stringify(userDetails));
         setView('admin_dashboard');
         return;
@@ -1006,18 +1069,18 @@ export default function App() {
       }
     }
 
-    // 3. Captains Login
+    // Captains
     const cap = captainsCollection.data.find(c => c.username === username && c.password === password);
     if(cap) {
        const u = { role: 'captain', ...cap };
        setUser(u); 
        localStorage.setItem('braveUser', JSON.stringify(u)); 
-       setDashboardBranch(cap.branch); // Captains are locked to their branch
+       setDashboardBranch(cap.branch); 
        setView('admin_dashboard');
        return;
     }
 
-    // 4. Students Login
+    // Students
     const studentUser = studentsCollection.data.find(s => s.username === username && s.password === password);
     if (studentUser) {
       const userData = { role: 'student', familyId: studentUser.familyId, name: studentUser.familyName, id: studentUser.id };
@@ -1032,6 +1095,12 @@ export default function App() {
 
   const handleLogout = () => { setUser(null); localStorage.removeItem('braveUser'); setView('home'); };
 
+  // Handler to update user state dynamically without refreshing
+  const handleUpdateUser = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('braveUser', JSON.stringify(updatedUser));
+  };
+
   useEffect(() => { signInAnonymously(auth); }, []);
 
   return (
@@ -1042,10 +1111,9 @@ export default function App() {
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
-          // SECURITY UPDATE: Pass the dynamic branch state instead of static user branch
           selectedBranch={dashboardBranch} 
-          // SECURITY UPDATE: Only Super Admin gets the switcher function
           onSwitchBranch={user.isSuper ? setDashboardBranch : null}
+          onUpdateUser={handleUpdateUser} // Pass the update handler
           studentsCollection={studentsCollection} 
           paymentsCollection={paymentsCollection} 
           expensesCollection={expensesCollection} 
