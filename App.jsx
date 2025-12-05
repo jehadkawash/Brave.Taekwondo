@@ -4,7 +4,7 @@ import {
   LogOut, UserPlus, CheckCircle, Activity, Phone, 
   MapPin, Search, FileText, Edit, 
   Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield, FileBarChart, Send, Award
+  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield, FileBarChart, Send, Award, Wallet, Coffee
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -101,7 +101,9 @@ const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
 const BELTS = ["أبيض", "أصفر", "أخضر 1", "أخضر 2", "أزرق 1", "أزرق 2", "بني 1", "بني 2", "أحمر 1", "أحمر 2", "أسود"];
 
 // --- Helpers ---
+// تسجيل النشاطات
 const logActivity = async (action, details, branch, user) => {
+  if (!user) return;
   try {
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_logs'), {
       action,
@@ -120,13 +122,10 @@ const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
   const today = new Date();
   const end = new Date(dateString);
-  
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
-
   const diffTime = end - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
   if (diffDays < 0) return 'expired';
   if (diffDays <= 7) return 'near_end';
   return 'active';
@@ -456,11 +455,11 @@ const HomeView = ({ setView, schedule, registrationsCollection }) => {
         </div>
       </section>
 
-      <section id="schedule" className="py-20 container mx-auto px-6">
+      <section id="schedule" className="py-16 container mx-auto px-4">
         <div className="text-center mb-12"><h2 className="text-4xl font-bold text-gray-900 mb-4">جدول الحصص الأسبوعي</h2></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {(schedule && schedule.length > 0 ? schedule : INITIAL_SCHEDULE).map((cls) => (
-            <div key={cls.id} className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-yellow-500">
+            <div key={cls.id} className="bg-white p-5 rounded-xl shadow border-t-4 border-yellow-500">
               <div className="bg-gray-50 w-12 h-12 rounded-full flex items-center justify-center mb-4"><Clock className="text-gray-800" size={24}/></div>
               <h3 className="font-bold text-lg mb-2">{cls.level}</h3>
               <p className="text-gray-600 text-sm mb-4">{cls.branch}</p>
@@ -585,7 +584,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
 
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Data from Collections
   const students = studentsCollection.data;
@@ -716,43 +715,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </Card>
 
          {/* Activity Log */}
-         <Card title="سجل النشاطات الأخير" className="lg:col-span-2">
-            <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-               {/* Mock Activity Log - In real app this would come from a 'logs' collection */}
-               {branchRegistrations.length > 0 && (
-                  <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg border border-blue-100">
-                     <div className="bg-blue-500 text-white p-2 rounded-full"><UserPlus size={16}/></div>
-                     <div>
-                        <p className="text-sm font-bold text-gray-800">طلب تسجيل جديد</p>
-                        <p className="text-xs text-gray-500">وصل {branchRegistrations.length} طلبات تسجيل جديدة بانتظار الموافقة</p>
-                     </div>
-                     <span className="mr-auto text-xs text-blue-600 font-bold">الآن</span>
-                  </div>
-               )}
-               
-               {branchPayments.slice(-3).reverse().map(pay => (
-                  <div key={pay.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition">
-                     <div className="bg-green-100 text-green-600 p-2 rounded-full"><DollarSign size={16}/></div>
-                     <div>
-                        <p className="text-sm font-bold text-gray-800">دفعة مالية جديدة</p>
-                        <p className="text-xs text-gray-500">تم استلام {pay.amount} JOD من الطالب {pay.name}</p>
-                     </div>
-                     <span className="mr-auto text-xs text-gray-400">{pay.date}</span>
-                  </div>
-               ))}
-
-               {branchStudents.slice(-2).map(s => (
-                  <div key={s.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition">
-                     <div className="bg-yellow-100 text-yellow-600 p-2 rounded-full"><Star size={16}/></div>
-                     <div>
-                        <p className="text-sm font-bold text-gray-800">انضمام طالب</p>
-                        <p className="text-xs text-gray-500">انضم {s.name} إلى الأكاديمية</p>
-                     </div>
-                     <span className="mr-auto text-xs text-gray-400">{s.joinDate}</span>
-                  </div>
-               ))}
-            </div>
-         </Card>
+         {user.role === 'admin' && <ActivityLogManager />}
       </div>
 
       {/* Schedule Preview */}
@@ -769,6 +732,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       </Card>
     </div>
   );
+
+  // --- Sub-Components ---
 
   const CaptainsManager = () => {
       const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
@@ -793,6 +758,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
           logAction("خصم/سحب", `سحب ${amount} للكابتن ${cap.name}`);
       };
 
+      const addHoliday = async (capId, date) => {
+          const cap = captains.find(c => c.id === capId);
+          const newH = [...(cap.holidays || []), { date, reason: 'عطلة' }];
+          await captainsCollection.update(capId, { holidays: newH });
+          logAction("إجازة", `تسجيل إجازة للكابتن ${cap.name}`);
+      };
+
       return (
           <div className="space-y-6">
               <Card title="إدارة الكباتن">
@@ -811,18 +783,21 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
                           <div className="flex justify-between flex-wrap gap-2">
                               <div>
                                   <h4 className="font-bold">{cap.name}</h4>
-                                  <p className="text-xs text-gray-500">الراتب: {cap.salary} | User: {cap.username} | Pass: {cap.password}</p>
-                                  <div className="text-xs mt-2 text-red-600">
-                                      مسحوبات: {(cap.withdrawals||[]).reduce((a,b)=>a+Number(b.amount),0)} JOD
+                                  <p className="text-xs text-gray-500">الراتب: {cap.salary} JOD | User: {cap.username}</p>
+                                  <div className="text-xs mt-2 text-red-600 font-bold">
+                                      سحوبات: {(cap.withdrawals||[]).reduce((a,b)=>a+Number(b.amount),0)} JOD
                                   </div>
+                                  <div className="text-xs text-orange-600">عطل: {(cap.holidays||[]).length} يوم</div>
                               </div>
-                              <div className="flex gap-2 items-start">
-                                  <Button variant="outline" onClick={()=>{
-                                      const amt = prompt("قيمة السحب:");
-                                      if(amt) addWithdrawal(cap.id, amt, "سحب نقدي");
-                                  }} className="text-xs">تسجيل سحب</Button>
-                                  <button onClick={()=>{setEditingId(cap.id); setForm(cap);}} className="text-blue-500"><Edit size={16}/></button>
-                                  <button onClick={()=>captainsCollection.remove(cap.id)} className="text-red-500"><Trash2 size={16}/></button>
+                              <div className="flex flex-col gap-1 items-end">
+                                  <div className="flex gap-1">
+                                      <Button variant="outline" onClick={()=>{ const amt = prompt("قيمة السحب:"); if(amt) addWithdrawal(cap.id, amt, "سحب نقدي"); }} className="text-[10px] p-1 h-auto">سحب</Button>
+                                      <Button variant="outline" onClick={()=>{ const d = prompt("التاريخ (YYYY-MM-DD):"); if(d) addHoliday(cap.id, d); }} className="text-[10px] p-1 h-auto">عطلة</Button>
+                                  </div>
+                                  <div className="flex gap-1 mt-1">
+                                      <button onClick={()=>{setEditingId(cap.id); setForm(cap);}} className="text-blue-500"><Edit size={16}/></button>
+                                      <button onClick={()=>captainsCollection.remove(cap.id)} className="text-red-500"><Trash2 size={16}/></button>
+                                  </div>
                               </div>
                           </div>
                       </Card>
@@ -832,128 +807,90 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       );
   };
 
-  const RegistrationManager = () => {
-    const [confirmModal, setConfirmModal] = useState(null); 
-    const [formData, setFormData] = useState({});
-    const [linkFamily, setLinkFamily] = useState('new');
-    const uniqueFamilies = [...new Map(students.map(item => [item.familyId, item.familyName])).entries()];
+  // NEW: Captain's My Finance View
+  const MyFinanceView = () => {
+      // Only visible if user is captain
+      if (user.role !== 'captain') return null;
+      const myData = captains.find(c => c.username === user.username);
+      if (!myData) return <p>لا توجد بيانات مالية.</p>;
 
-    const openConfirm = (reg) => {
-        const today = new Date().toISOString().split('T')[0];
-        const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth()+1);
-        setFormData({
-            name: reg.name, phone: reg.phone, dob: reg.dob, address: reg.address,
-            belt: 'أبيض', joinDate: today, subEnd: nextMonth.toISOString().split('T')[0], balance: 0
-        });
-        setLinkFamily('new');
-        setConfirmModal(reg);
-    };
+      const totalWithdrawals = (myData.withdrawals || []).reduce((a, b) => a + Number(b.amount), 0);
+      const netSalary = Number(myData.salary || 0) - totalWithdrawals;
 
-    const confirmStudent = async (e) => {
-        e.preventDefault();
-        const { username, password } = generateCredentials();
-        let finalFamilyId, finalFamilyName;
-        if (linkFamily === 'new') {
-            finalFamilyId = Math.floor(Date.now() / 1000);
-            finalFamilyName = `عائلة ${formData.name.split(' ').slice(-1)[0]}`;
-        } else {
-            finalFamilyId = parseInt(linkFamily);
-            finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة";
-        }
-
-        const newStudent = {
-            branch: selectedBranch, status: 'active', notes: [], internalNotes: [], attendance: {},
-            username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(),
-            ...formData
-        };
-
-        await studentsCollection.add(newStudent); 
-        await registrationsCollection.remove(confirmModal.id); 
-        logAction("تسجيل طالب", `تم قبول الطالب ${formData.name}`);
-        alert(`تم إضافة الطالب بنجاح!\nUser: ${username}\nPass: ${password}`);
-        setConfirmModal(null);
-    };
-
-    return (
-       <div className="space-y-6">
-         <div className="flex justify-between items-center">
-            <h3 className="font-bold text-xl flex items-center gap-2 text-gray-800"><Inbox className="text-yellow-500"/> طلبات التسجيل الجديدة <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{branchRegistrations.length}</span></h3>
-         </div>
-         
-         <div className="grid gap-4">
-            {branchRegistrations.length === 0 ? 
-               <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                  <Inbox size={48} className="mx-auto text-gray-300 mb-2"/>
-                  <p className="text-gray-500">لا توجد طلبات جديدة حالياً.</p>
-               </div> 
-            : branchRegistrations.map(reg => (
-                <Card key={reg.id} className="border-r-4 border-blue-500 hover:shadow-md transition-shadow">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <h4 className="font-bold text-lg flex items-center gap-2">{reg.name} <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">جديد</span></h4>
-                            <div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-1">
-                               <span className="flex items-center gap-1"><Phone size={14}/> {reg.phone}</span>
-                               <span className="flex items-center gap-1"><MapPin size={14}/> {reg.address}</span>
-                               <span className="flex items-center gap-1"><Calendar size={14}/> {reg.dob}</span>
-                            </div>
-                        </div>
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <Button onClick={() => openConfirm(reg)} className="bg-green-600 hover:bg-green-700 text-white text-sm flex-1 md:flex-none">اعتماد كطالب</Button>
-                            <button onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} className="text-red-500 p-2 hover:bg-red-50 rounded border border-red-200"><Trash2 size={18}/></button>
-                        </div>
-                    </div>
-                </Card>
-            ))}
-         </div>
-
-         {/* Modal to complete info */}
-         {confirmModal && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-                <Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد">
-                    <form onSubmit={confirmStudent} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-xs mb-1 font-bold">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.name} readOnly /></div>
-                            <div><label className="block text-xs mb-1 font-bold">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.phone} readOnly /></div>
-                            <div><label className="block text-xs mb-1 font-bold">العائلة</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>
-                            <div><label className="block text-xs mb-1 font-bold">الحزام</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div>
-                            <div><label className="block text-xs mb-1 font-bold">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div>
-                            <div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div>
-                            <div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded focus:ring-2 ring-red-500 outline-none" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div>
-                        </div>
-                        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                            <Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button>
-                            <Button type="submit">تأكيد وإضافة</Button>
-                        </div>
-                    </form>
-                </Card>
-            </div>
-         )}
-       </div>
-    );
+      return (
+          <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                  <Card className="bg-green-50 border-green-200">
+                      <h3 className="text-sm text-gray-500">الراتب الأساسي</h3>
+                      <p className="text-2xl font-bold text-green-700">{myData.salary || 0} JOD</p>
+                  </Card>
+                  <Card className="bg-red-50 border-red-200">
+                      <h3 className="text-sm text-gray-500">مجموع المسحوبات</h3>
+                      <p className="text-2xl font-bold text-red-700">{totalWithdrawals} JOD</p>
+                  </Card>
+                  <Card className="bg-blue-50 border-blue-200">
+                      <h3 className="text-sm text-gray-500">صافي المستحق</h3>
+                      <p className="text-2xl font-bold text-blue-700">{netSalary} JOD</p>
+                  </Card>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                  <Card title="سجل السحوبات">
+                      {myData.withdrawals?.length > 0 ? (
+                          <ul className="space-y-2 text-sm">
+                              {myData.withdrawals.map((w, i) => (
+                                  <li key={i} className="flex justify-between border-b pb-1">
+                                      <span>{w.note} ({w.date})</span>
+                                      <span className="font-bold text-red-600">{w.amount} JOD</span>
+                                  </li>
+                              ))}
+                          </ul>
+                      ) : <p className="text-gray-400 text-xs">لا يوجد سحوبات</p>}
+                  </Card>
+                  <Card title="سجل الإجازات">
+                      {myData.holidays?.length > 0 ? (
+                          <ul className="space-y-2 text-sm">
+                              {myData.holidays.map((h, i) => (
+                                  <li key={i} className="flex justify-between border-b pb-1">
+                                      <span>{h.reason}</span>
+                                      <span className="font-bold text-orange-600">{h.date}</span>
+                                  </li>
+                              ))}
+                          </ul>
+                      ) : <p className="text-gray-400 text-xs">لا يوجد إجازات</p>}
+                  </Card>
+              </div>
+          </div>
+      );
   };
 
   const ActivityLogManager = () => {
       const { data: logs } = useCollection('activity_logs');
       const branchLogs = logs.filter(l => l.branch === selectedBranch).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-
       return (
           <Card title="سجل النشاطات" className="h-[600px] overflow-y-auto">
               <ul className="space-y-3">
                   {branchLogs.map(log => (
-                      <li key={log.id} className="text-sm p-3 bg-gray-50 rounded border-r-2 border-gray-400 flex justify-between">
+                      <li key={log.id} className="text-sm p-3 bg-gray-50 rounded border-r-4 border-blue-400 flex justify-between items-center">
                           <div>
                               <span className="font-bold block text-gray-800">{log.action}</span>
-                              <span className="text-gray-600">{log.details}</span>
+                              <span className="text-xs text-gray-600">{log.details}</span>
                           </div>
-                          <div className="text-left">
-                              <span className="block text-xs text-gray-400">{new Date(log.timestamp).toLocaleTimeString('ar-JO')}</span>
-                              <span className="text-[10px] bg-gray-200 px-1 rounded">{log.performedBy}</span>
+                          <div className="text-left min-w-fit ml-2">
+                              <span className="block text-[10px] text-gray-400">{new Date(log.timestamp).toLocaleTimeString('ar-JO', {hour: '2-digit', minute:'2-digit'})}</span>
+                              <span className="text-[10px] bg-gray-200 px-2 py-0.5 rounded-full block text-center mt-1">{log.performedBy}</span>
                           </div>
                       </li>
                   ))}
               </ul>
           </Card>
       );
+  };
+
+  const RegistrationManager = () => {
+    const [confirmModal, setConfirmModal] = useState(null); const [formData, setFormData] = useState({}); const [linkFamily, setLinkFamily] = useState('new'); const uniqueFamilies = [...new Map(students.map(item => [item.familyId, item.familyName])).entries()];
+    const openConfirm = (reg) => { const today = new Date().toISOString().split('T')[0]; const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth()+1); setFormData({ name: reg.name, phone: reg.phone, dob: reg.dob, address: reg.address, belt: 'أبيض', joinDate: today, subEnd: nextMonth.toISOString().split('T')[0], balance: 0 }); setLinkFamily('new'); setConfirmModal(reg); };
+    const confirmStudent = async (e) => { e.preventDefault(); const { username, password } = generateCredentials(); let finalFamilyId, finalFamilyName; if (linkFamily === 'new') { finalFamilyId = Math.floor(Date.now() / 1000); finalFamilyName = `عائلة ${formData.name.split(' ').slice(-1)[0]}`; } else { finalFamilyId = parseInt(linkFamily); finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; } const newStudent = { branch: selectedBranch, status: 'active', notes: [], internalNotes: [], attendance: {}, username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(), ...formData }; await studentsCollection.add(newStudent); await registrationsCollection.remove(confirmModal.id); logAction("تسجيل طالب", `تم قبول الطالب ${formData.name}`); alert(`تم إضافة الطالب بنجاح!\nUser: ${username}\nPass: ${password}`); setConfirmModal(null); };
+    return (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="font-bold text-xl flex items-center gap-2 text-gray-800"><Inbox className="text-yellow-500"/> طلبات التسجيل الجديدة <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{branchRegistrations.length}</span></h3></div><div className="grid gap-4">{branchRegistrations.length === 0 ? <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200"><p className="text-gray-500">لا توجد طلبات جديدة حالياً.</p></div> : branchRegistrations.map(reg => (<Card key={reg.id} className="border-r-4 border-blue-500 hover:shadow-md transition-shadow"><div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><h4 className="font-bold text-lg flex items-center gap-2">{reg.name} <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">جديد</span></h4><div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-1"><span className="flex items-center gap-1"><Phone size={14}/> {reg.phone}</span><span className="flex items-center gap-1"><MapPin size={14}/> {reg.address}</span></div></div><div className="flex gap-2 w-full md:w-auto"><Button onClick={() => openConfirm(reg)} className="bg-green-600 hover:bg-green-700 text-white text-sm flex-1 md:flex-none">اعتماد كطالب</Button><button onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} className="text-red-500 p-2 hover:bg-red-50 rounded border border-red-200"><Trash2 size={18}/></button></div></div></Card>))}</div>{confirmModal && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm"><Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد"><form onSubmit={confirmStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs mb-1 font-bold">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.name} readOnly /></div><div><label className="block text-xs mb-1 font-bold">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.phone} readOnly /></div><div><label className="block text-xs mb-1 font-bold">العائلة</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold">الحزام</label><select className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded focus:ring-2 ring-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div><div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div><div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded focus:ring-2 ring-red-500 outline-none" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div></div><div className="flex justify-end gap-2 mt-4 pt-4 border-t"><Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button><Button type="submit">تأكيد وإضافة</Button></div></form></Card></div>)}</div>);
   };
 
   const StudentsManager = () => {
@@ -1120,13 +1057,14 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
         <nav className="flex-1 overflow-y-auto py-6 space-y-2 px-3 custom-scrollbar">
           {[
             {id:'dashboard',icon:Activity,label:'نظرة عامة'},
+            {id:'my_finance',icon:Wallet,label:'ملفي المالي', role: 'captain'},
             {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
             {id:'students',icon:Users,label:'الطلاب'},
             {id:'finance',icon:DollarSign,label:'المالية'},
             {id:'attendance',icon:CheckCircle,label:'الحضور'},
             {id:'schedule',icon:Clock,label:'الجدول'},
-            {id:'logs',icon:ClipboardList,label:'سجل النشاط'},
-            {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
+            {id:'logs',icon:ClipboardList,label:'سجل النشاط', role: 'admin'},
+            {id:'captains',icon:Shield,label:'إدارة الكباتن', role: 'admin'}, 
             {id:'archive',icon:Archive,label:'الأرشيف'}
           ].filter(i => !i.role || i.role === user.role).map(item => (
             <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
@@ -1144,6 +1082,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          
          {activeTab === 'dashboard' && <DashboardStats />}
          {activeTab === 'captains' && <CaptainsManager />}
+         {activeTab === 'my_finance' && <MyFinanceView />}
          {activeTab === 'logs' && <ActivityLogManager />}
          {activeTab === 'students' && <StudentsManager />}
          {activeTab === 'registrations' && <RegistrationManager />}
