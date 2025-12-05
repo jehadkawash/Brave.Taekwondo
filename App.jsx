@@ -9,6 +9,7 @@ import {
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
+// SECURITY UPDATE: Added signInWithEmailAndPassword
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where } from "firebase/firestore";
 
@@ -29,15 +30,15 @@ const db = getFirestore(app);
 
 const appId = 'brave-academy-live-data';
 
-// --- صور النظام ---
+// --- System Images ---
 const IMAGES = {
-  LOGO: "/logo.jpg",           
+  LOGO: "/logo.jpg",            
   HERO_BG: "/hero.jpg",        
   BRANCH_SHAFA: "/shafa.jpg",  
   BRANCH_ABU_NSEIR: "/abunseir.jpg" 
 };
 
-// --- جدول الحصص الافتراضي ---
+// --- Default Schedule ---
 const INITIAL_SCHEDULE = [
   { id: 1, days: "السبت / الاثنين / الأربعاء", time: "4:00 م - 5:00 م", level: "مبتدئين (أبيض - أصفر)", branch: "مشترك" },
   { id: 2, days: "السبت / الاثنين / الأربعاء", time: "5:00 م - 6:30 م", level: "أحزمة ملونة (أخضر - أزرق)", branch: "مشترك" },
@@ -66,7 +67,6 @@ const useCollection = (collectionName) => {
 
   const add = async (item) => {
     try {
-      // Add timestamp
       const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
       return true;
@@ -341,11 +341,11 @@ const HomeView = ({ setView, schedule, registrationsCollection }) => {
         {mobileMenuOpen && (
            <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 flex flex-col gap-4">
              {['الرئيسية', 'من نحن', 'جدول الحصص', 'الفروع'].map((item) => (
-                <button key={item} className="text-right py-2 hover:text-white border-b border-gray-800" onClick={() => {
-                  setMobileMenuOpen(false);
-                  if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
-                  if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
-                }}>{item}</button>
+               <button key={item} className="text-right py-2 hover:text-white border-b border-gray-800" onClick={() => {
+                 setMobileMenuOpen(false);
+                 if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
+                 if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
+               }}>{item}</button>
              ))}
              <Button onClick={() => { setMobileMenuOpen(false); setView('login'); }} className="w-full py-3">بوابة الأعضاء</Button>
            </div>
@@ -528,7 +528,7 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
   );
 };
 
-const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
+const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -557,15 +557,37 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const today = new Date();
   const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const totalAttendance = branchStudents.reduce((acc, s) => {
-     if(!s.attendance) return acc;
-     const count = Object.keys(s.attendance).filter(k => k.startsWith(currentMonthPrefix)).length;
-     return acc + count;
+      if(!s.attendance) return acc;
+      const count = Object.keys(s.attendance).filter(k => k.startsWith(currentMonthPrefix)).length;
+      return acc + count;
   }, 0);
 
   const logAction = (action, details) => logActivity(action, details, selectedBranch, user);
 
   const DashboardStats = () => (
     <div className="space-y-8 animate-fade-in">
+      {/* SECURITY UPDATE: Added Branch Switcher in Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+           <h2 className="text-2xl font-bold text-gray-800">لوحة التحكم</h2>
+           {onSwitchBranch ? (
+             <div className="bg-white p-2 rounded-lg shadow border border-yellow-500 flex items-center gap-2">
+               <span className="text-xs font-bold text-gray-500">عرض بيانات:</span>
+               <select 
+                 className="font-bold text-black outline-none bg-transparent"
+                 value={selectedBranch}
+                 onChange={(e) => onSwitchBranch(e.target.value)}
+               >
+                 <option value={BRANCHES.SHAFA}>فرع شفا بدران</option>
+                 <option value={BRANCHES.ABU_NSEIR}>فرع أبو نصير</option>
+               </select>
+             </div>
+           ) : (
+             <div className="bg-gray-200 px-4 py-2 rounded-lg font-bold text-sm text-gray-600">
+               {selectedBranch} (صلاحيات محدودة)
+             </div>
+           )}
+      </div>
+
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
          <div className="relative z-10">
             <h2 className="text-3xl font-bold mb-2">مرحباً بك يا {user.name}! 👋</h2>
@@ -743,7 +765,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     const handleSaveEdit = async (e) => { e.preventDefault(); await studentsCollection.update(editingStudent.id, newS); logAction("تعديل طالب", `تعديل بيانات ${newS.name}`); setShowModal(false); setEditingStudent(null); };
     const promoteBelt = async (student) => { const currentIdx = BELTS.indexOf(student.belt); if(currentIdx < BELTS.length - 1) { await studentsCollection.update(student.id, { belt: BELTS[currentIdx + 1] }); logAction("ترفيع حزام", `ترفيع الطالب ${student.name} إلى ${BELTS[currentIdx + 1]}`); } };
     const archiveStudent = async (student) => { if(confirm('أرشفة الطالب؟')) { await archiveCollection.add({ ...student, archiveDate: new Date().toLocaleDateString() }); await studentsCollection.remove(student.id); logAction("أرشفة", `أرشفة الطالب ${student.name}`); } };
-    
+     
     return (
       <div className="space-y-6">
         {createdCreds && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-md bg-green-50 border-green-500 border-2 text-center p-8" title="تم إنشاء الحساب بنجاح"><p className="mb-4">الطالب: <strong>{createdCreds.name}</strong></p><div className="bg-white p-4 border rounded mb-4"><p>User: {createdCreds.username}</p><p>Pass: {createdCreds.password}</p></div><Button onClick={() => setCreatedCreds(null)} className="w-full">إغلاق</Button></Card></div>}
@@ -930,8 +952,20 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 export default function App() {
   const [view, setView] = useState('home'); 
   const [user, setUser] = useState(() => { const saved = localStorage.getItem('braveUser'); return saved ? JSON.parse(saved) : null; });
-  
-  useEffect(() => { if (user) { if (user.role === 'admin' || user.role === 'captain') setView('admin_dashboard'); else setView('student_portal'); } }, []);
+  // SECURITY UPDATE: New state for Super Admin switching
+  const [dashboardBranch, setDashboardBranch] = useState(BRANCHES.SHAFA);
+
+  useEffect(() => { 
+    if (user) { 
+      if (user.role === 'admin' || user.role === 'captain') {
+        setView('admin_dashboard'); 
+        // Ensure dashboard branch syncs with user branch on load
+        if(user.branch) setDashboardBranch(user.branch);
+      } else {
+        setView('student_portal'); 
+      }
+    } 
+  }, []);
 
   // Collections
   const studentsCollection = useCollection('students'); 
@@ -942,40 +976,48 @@ export default function App() {
   const registrationsCollection = useCollection('registrations'); 
   const captainsCollection = useCollection('captains'); 
 
-const handleLogin = async (username, password) => {
-    // 1. Check if it is the Admin trying to login
-    // You can keep using 'admin1' as the username if you like, 
-    // but we will use the SECURE email for the actual database login.
-    if (username === 'admin1') { 
+  const handleLogin = async (username, password) => {
+    // 1. Define our Admins (SECURITY UPDATE: Mapped to secure emails)
+    const adminAccounts = {
+      'admin@brave.com': { role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA }, 
+      'shafa@brave.com': { role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA },
+      'abunseir@brave.com': { role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR }
+    };
+
+    // 2. Check if the input matches one of our admins or the old 'admin1' alias
+    if (adminAccounts[username] || username === 'admin1') {
       try {
-        // This must match the email you created in Step 1
-        const secureEmail = "admin@brave.com"; 
+        const email = adminAccounts[username] ? username : 'admin@brave.com';
         
-        // This signs you in as the "Super User" with special write permissions
-        await signInWithEmailAndPassword(auth, secureEmail, password);
+        // Login with Firebase (Real Security)
+        await signInWithEmailAndPassword(auth, email, password);
         
-        const u = { role: 'admin', name: 'Admin', branch: BRANCHES.SHAFA, username };
-        setUser(u); 
-        localStorage.setItem('braveUser', JSON.stringify(u)); 
+        const userDetails = adminAccounts[email];
+        
+        setUser(userDetails);
+        setDashboardBranch(userDetails.branch); // Set initial branch view
+        localStorage.setItem('braveUser', JSON.stringify(userDetails));
         setView('admin_dashboard');
         return;
+
       } catch (error) {
-        alert("كلمة المرور خاطئة أو حدثت مشكلة: " + error.message);
+        alert("خطأ في الدخول: " + error.message);
         return;
       }
     }
 
-    // 2. Captains Login (Stays the same for now)
+    // 3. Captains Login
     const cap = captainsCollection.data.find(c => c.username === username && c.password === password);
     if(cap) {
        const u = { role: 'captain', ...cap };
        setUser(u); 
        localStorage.setItem('braveUser', JSON.stringify(u)); 
+       setDashboardBranch(cap.branch); // Captains are locked to their branch
        setView('admin_dashboard');
        return;
     }
 
-    // 3. Students Login (Stays the same)
+    // 4. Students Login
     const studentUser = studentsCollection.data.find(s => s.username === username && s.password === password);
     if (studentUser) {
       const userData = { role: 'student', familyId: studentUser.familyId, name: studentUser.familyName, id: studentUser.id };
@@ -999,8 +1041,18 @@ const handleLogin = async (username, password) => {
       {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} payments={paymentsCollection.data} handleLogout={handleLogout} />}
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
-          user={user} selectedBranch={user.branch} 
-          studentsCollection={studentsCollection} paymentsCollection={paymentsCollection} expensesCollection={expensesCollection} scheduleCollection={scheduleCollection} archiveCollection={archiveCollection} registrationsCollection={registrationsCollection} captainsCollection={captainsCollection}
+          user={user} 
+          // SECURITY UPDATE: Pass the dynamic branch state instead of static user branch
+          selectedBranch={dashboardBranch} 
+          // SECURITY UPDATE: Only Super Admin gets the switcher function
+          onSwitchBranch={user.isSuper ? setDashboardBranch : null}
+          studentsCollection={studentsCollection} 
+          paymentsCollection={paymentsCollection} 
+          expensesCollection={expensesCollection} 
+          scheduleCollection={scheduleCollection} 
+          archiveCollection={archiveCollection} 
+          registrationsCollection={registrationsCollection} 
+          captainsCollection={captainsCollection}
           handleLogout={handleLogout}
         />
       )}
