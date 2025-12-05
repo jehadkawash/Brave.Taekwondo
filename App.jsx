@@ -4,7 +4,7 @@ import {
   LogOut, UserPlus, CheckCircle, Activity, Phone, 
   MapPin, Search, FileText, Edit, 
   Trash2, Archive, ArrowRight, ArrowUp, ArrowDown, AlertTriangle, ChevronLeft, ChevronRight as ChevronRightIcon,
-  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield
+  Lock, UserCheck, Star, Clock, Facebook, Instagram, Youtube, Printer, MessageCircle, TrendingUp, TrendingDown, Plus, ClipboardList, ShieldAlert, FileSearch, ArrowDownAZ, Filter, Inbox, Shield, FileBarChart, Send, Award
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -66,7 +66,7 @@ const useCollection = (collectionName) => {
 
   const add = async (item) => {
     try {
-      // Add timestamp
+      // Add timestamp for sorting if needed
       const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
       return true;
@@ -120,10 +120,13 @@ const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
   const today = new Date();
   const end = new Date(dateString);
+  
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
+
   const diffTime = end - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
   if (diffDays < 0) return 'expired';
   if (diffDays <= 7) return 'near_end';
   return 'active';
@@ -132,8 +135,8 @@ const calculateStatus = (dateString) => {
 const generateCredentials = () => {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
   const username = `student${randomNum}`;
-  let password = "";
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; 
+  let password = "";
   for (let i = 0; i < 8; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -198,8 +201,76 @@ const openWhatsApp = (phone) => {
   window.open(url, '_blank');
 };
 
+// Smart WhatsApp Function
+const openSmartWhatsApp = (phone, type, data) => {
+  if (!phone) return;
+  let cleanPhone = phone.replace(/\D/g, ''); 
+  if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
+  const number = `962${cleanPhone}`;
+  
+  let message = "";
+  if (type === 'reminder') {
+    message = `مرحباً ولي أمر البطل/ة ${data.name}،\nنود تذكيركم بلطف أن اشتراك التايكوندو ينتهي بتاريخ ${data.subEnd} ورصيد الحساب الحالي ${data.balance} دينار.\nنشكر اهتمامكم ونرجو التجديد لضمان استمرار التدريب.\n- إدارة أكاديمية الشجاع`;
+  } else if (type === 'congrats') {
+    message = `ألف مبروك للبطل/ة ${data.name}!\nتم ترفيعه/ا رسمياً إلى الحزام ${data.belt}.\nفخورون جداً بهذا الإنجاز ونتمنى له/ا المزيد من التقدم.\n- أكاديمية الشجاع للتايكوندو 🥋`;
+  } else {
+    message = `مرحباً، بخصوص البطل/ة ${data.name}...`;
+  }
+
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+};
+
 const openLocation = (url) => {
   window.open(url, '_blank');
+};
+
+// دالة توليد التقرير الشهري
+const generateMonthlyReport = (branchName, students, payments, expenses) => {
+    const reportWindow = window.open('', 'REPORT', 'height=800,width=1000');
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    
+    // Filter data for current month
+    const monthPayments = payments.filter(p => new Date(p.date).getMonth() + 1 === currentMonth);
+    const monthExpenses = expenses.filter(e => new Date(e.date).getMonth() + 1 === currentMonth);
+    
+    const totalIncome = monthPayments.reduce((a, b) => a + b.amount, 0);
+    const totalExpense = monthExpenses.reduce((a, b) => a + b.amount, 0);
+    const netProfit = totalIncome - totalExpense;
+    
+    // Students with debts
+    const deptStudents = students.filter(s => s.balance > 0);
+
+    reportWindow.document.write(`
+      <html><head><title>تقرير شهري - ${branchName}</title><style>body{font-family:sans-serif;direction:rtl;padding:40px;} h1,h2{text-align:center;color:#333} table{width:100%;border-collapse:collapse;margin-top:20px} th,td{border:1px solid #ddd;padding:8px;text-align:right} th{background-color:#f2f2f2} .box{border:1px solid #ccc;padding:15px;margin:10px 0;border-radius:5px;background:#fafafa} .green{color:green} .red{color:red}</style></head>
+      <body>
+        <h1>تقرير الأداء الشهري</h1>
+        <h2>${branchName} - شهر ${currentMonth}/${currentYear}</h2>
+        
+        <div class="box">
+            <h3>📊 الملخص المالي</h3>
+            <p>إجمالي الإيرادات: <span class="green"><b>${totalIncome} JOD</b></span></p>
+            <p>إجمالي المصاريف: <span class="red"><b>${totalExpense} JOD</b></span></p>
+            <hr/>
+            <p>صافي الربح: <b>${netProfit} JOD</b></p>
+        </div>
+
+        <div class="box">
+            <h3>⚠️ طلاب عليهم ذمم مالية (${deptStudents.length})</h3>
+            <table>
+                <thead><tr><th>اسم الطالب</th><th>المبلغ المستحق</th><th>رقم الهاتف</th></tr></thead>
+                <tbody>
+                    ${deptStudents.map(s => `<tr><td>${s.name}</td><td class="red">${s.balance} JOD</td><td>${s.phone}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <p style="text-align:center;margin-top:50px;font-size:12px">تم استخراج التقرير آلياً من نظام أكاديمية الشجاع</p>
+      </body></html>
+    `);
+    reportWindow.document.close();
 };
 
 // --- UI Components ---
@@ -367,37 +438,21 @@ const HomeView = ({ setView, schedule, registrationsCollection }) => {
         </div>
       </div>
       
-      <section id="branches" className="py-20 bg-gray-100">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16"><h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2><p className="text-gray-500">اختر الفرع الأقرب إليك وابدأ رحلتك</p></div>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
-              <div className="h-64 bg-gray-800 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
-                  <img src={IMAGES.BRANCH_SHAFA} alt="Shafa Badran" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                  <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع شفا بدران</h3></div>
-              </div>
-              <div className="p-8 space-y-4">
-                <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">شفا بدران - شارع رفعت شموط</p><p className="text-gray-500 text-sm">بجانب مشاتل ربيع الأردن</p></div></div>
-                <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0795629606" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9562 9606</a></div></div>
-                <div className="flex items-center gap-4"><Clock className="text-yellow-600" /><p className="text-gray-600 text-sm">يومياً من 3:00 م - 9:00 م (ما عدا الجمعة)</p></div>
-                <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')}>موقعنا على الخريطة</Button>
-              </div>
+      <section id="branches" className="py-16 bg-gray-100">
+        <div className="container mx-auto px-4">
+            <div className="text-center mb-12"><h2 className="text-3xl font-bold text-gray-900 mb-2">فروعنا</h2><p className="text-gray-500">اختر الفرع الأقرب إليك وابدأ رحلتك</p></div>
+            <div className="grid md:grid-cols-2 gap-6">
+                {[{name: "فرع شفا بدران", img: IMAGES.BRANCH_SHAFA, loc: "شفا بدران - شارع رفعت شموط", map: "https://share.google/PGRNQACVSiOhXkmbj", tel: "0795629606"}, {name: "فرع أبو نصير", img: IMAGES.BRANCH_ABU_NSEIR, loc: "أبو نصير - دوار البحرية", map: "https://share.google/6rSHFxa03RG6n9WH0", tel: "0790368603"}].map((b, i) => (
+                    <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg group">
+                        <div className="h-56 relative overflow-hidden"><img src={b.img} className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-110"/><div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4"><h3 className="text-xl font-bold text-white">{b.name}</h3></div></div>
+                        <div className="p-6 space-y-3">
+                            <div className="flex items-start gap-3"><MapPin className="text-yellow-600 flex-shrink-0"/> <span className="text-gray-700 text-sm">{b.loc}</span></div>
+                            <div className="flex items-center gap-3"><Phone className="text-yellow-600 flex-shrink-0"/> <div className="flex gap-2"><a href={`tel:${b.tel}`} className="font-bold">{b.tel}</a><button onClick={() => openWhatsApp(b.tel)} className="text-green-600"><MessageCircle/></button></div></div>
+                            <Button variant="outline" className="w-full mt-2" onClick={() => openLocation(b.map)}>موقعنا على الخريطة</Button>
+                        </div>
+                    </div>
+                ))}
             </div>
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition group">
-              <div className="h-64 bg-gray-800 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition z-10"></div>
-                  <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                  <div className="absolute bottom-4 right-4 text-white z-20"><h3 className="text-2xl font-bold">فرع أبو نصير</h3></div>
-              </div>
-              <div className="p-8 space-y-4">
-                <div className="flex items-start gap-4"><MapPin className="text-yellow-600 mt-1" /><div><p className="font-bold text-gray-900">أبو نصير - دوار البحرية</p><p className="text-gray-500 text-sm">مجمع الفرا</p></div></div>
-                <div className="flex items-center gap-4"><Phone className="text-yellow-600" /><div className="flex items-center gap-2"><a href="tel:0790368603" className="font-bold text-gray-900 hover:text-yellow-600 transition" dir="ltr">07 9036 8603</a></div></div>
-                <div className="flex items-center gap-4"><Clock className="text-yellow-600" /><p className="text-gray-600 text-sm">يومياً من 3:00 م - 9:00 م (ما عدا الجمعة)</p></div>
-                <Button variant="outline" className="w-full mt-4" onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')}>موقعنا على الخريطة</Button>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -418,7 +473,7 @@ const HomeView = ({ setView, schedule, registrationsCollection }) => {
         </div>
       </section>
 
-      <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-yellow-500"><div className="container mx-auto px-6 text-center text-sm text-gray-500"><p>© 2023 جميع الحقوق محفوظة لأكاديمية الشجاع للتايكوندو.</p></div></footer>
+      <footer className="bg-black text-white py-6 text-center text-sm"><p>© 2025 أكاديمية الشجاع للتايكوندو</p></div></footer>
 
       {/* Modal Registration Form */}
       {showRegModal && (
@@ -532,6 +587,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Data from Collections
   const students = studentsCollection.data;
   const payments = paymentsCollection.data;
   const expenses = expensesCollection.data;
@@ -549,10 +605,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const totalExpense = branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalIncome - totalExpense;
 
+  // حساب الإحصائيات للرسم البياني
   const activeStudentsCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'active').length;
   const nearEndCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
   const expiredCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'expired').length;
   const totalStudents = branchStudents.length;
+
+  // حساب نسبة الحضور (تقريبي لهذا الشهر)
   const today = new Date();
   const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const totalAttendance = branchStudents.reduce((acc, s) => {
@@ -563,8 +622,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
   const logAction = (action, details) => logActivity(action, details, selectedBranch, user);
 
+  // --- Dashboard Creative View ---
   const DashboardStats = () => (
     <div className="space-y-8 animate-fade-in">
+      {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
          <div className="relative z-10">
             <h2 className="text-3xl font-bold mb-2">مرحباً بك يا {user.name}! 👋</h2>
@@ -579,6 +640,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </div>
       </div>
 
+      {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
          <Card className="border-l-4 border-blue-500 hover:shadow-lg transition-all">
             <div className="flex justify-between items-start">
@@ -629,7 +691,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </Card>
       </div>
 
+      {/* Charts & Activity Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+         {/* Subscription Pie Chart (CSS Only) */}
          <Card title="توزيع الاشتراكات" className="lg:col-span-1">
             <div className="flex items-center justify-center py-6">
                <div className="relative w-48 h-48 rounded-full bg-gray-100 border-8 border-white shadow-inner flex items-center justify-center"
@@ -651,8 +715,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             </div>
          </Card>
 
+         {/* Activity Log */}
          <Card title="سجل النشاطات الأخير" className="lg:col-span-2">
             <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+               {/* Mock Activity Log - In real app this would come from a 'logs' collection */}
                {branchRegistrations.length > 0 && (
                   <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg border border-blue-100">
                      <div className="bg-blue-500 text-white p-2 rounded-full"><UserPlus size={16}/></div>
@@ -689,6 +755,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          </Card>
       </div>
 
+      {/* Schedule Preview */}
       <Card title="الجدول الدراسي اليوم">
          <div className="flex gap-4 overflow-x-auto pb-2">
             {schedule.length > 0 ? schedule.map(cls => (
@@ -839,6 +906,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             ))}
          </div>
 
+         {/* Modal to complete info */}
          {confirmModal && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
                 <Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد">
@@ -863,9 +931,30 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
        </div>
     );
   };
-  
-  // (Rest of Admin Components - Students, Finance, etc. included same as previous full version)
-  // ... I will include them here to ensure FULL FILE completeness ...
+
+  const ActivityLogManager = () => {
+      const { data: logs } = useCollection('activity_logs');
+      const branchLogs = logs.filter(l => l.branch === selectedBranch).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      return (
+          <Card title="سجل النشاطات" className="h-[600px] overflow-y-auto">
+              <ul className="space-y-3">
+                  {branchLogs.map(log => (
+                      <li key={log.id} className="text-sm p-3 bg-gray-50 rounded border-r-2 border-gray-400 flex justify-between">
+                          <div>
+                              <span className="font-bold block text-gray-800">{log.action}</span>
+                              <span className="text-gray-600">{log.details}</span>
+                          </div>
+                          <div className="text-left">
+                              <span className="block text-xs text-gray-400">{new Date(log.timestamp).toLocaleTimeString('ar-JO')}</span>
+                              <span className="text-[10px] bg-gray-200 px-1 rounded">{log.performedBy}</span>
+                          </div>
+                      </li>
+                  ))}
+              </ul>
+          </Card>
+      );
+  };
 
   const StudentsManager = () => {
     const [search, setSearch] = useState(''); const [showModal, setShowModal] = useState(false); const [editingStudent, setEditingStudent] = useState(null); const [createdCreds, setCreatedCreds] = useState(null);
@@ -892,7 +981,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       <div className="space-y-6">
         {createdCreds && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-md bg-green-50 border-green-500 border-2 text-center p-8" title="تم إنشاء الحساب بنجاح"><p className="mb-4">الطالب: <strong>{createdCreds.name}</strong></p><div className="bg-white p-4 border rounded mb-4"><p>User: {createdCreds.username}</p><p>Pass: {createdCreds.password}</p></div><Button onClick={() => setCreatedCreds(null)} className="w-full">إغلاق</Button></Card></div>}
         <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm"><div className="w-1/2"><input className="border p-2 rounded w-full" placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div><Button onClick={()=>{setEditingStudent(null); setShowModal(true)}}><UserPlus size={18}/> طالب جديد</Button></div>
-        <Card className="overflow-x-auto border-none shadow-md rounded-xl"><table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-4">الطالب</th><th className="p-4">بيانات الدخول</th><th className="p-4">الهاتف</th><th className="p-4">الحزام</th><th className="p-4">الحالة</th><th className="p-4">إجراءات</th></tr></thead><tbody className="divide-y">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-4 font-bold">{s.name}</td><td className="p-4 text-xs font-mono bg-gray-50 rounded p-2"><div className="flex flex-col gap-1"><span>U: <span className="font-bold select-all">{s.username}</span></span><span>P: <span className="font-bold text-red-500 select-all">{s.password}</span></span></div></td><td className="p-4 flex items-center gap-2"><a href={`tel:${s.phone}`} className="text-gray-900 hover:text-blue-600 transition">{s.phone}</a><button onClick={() => openWhatsApp(s.phone)} className="text-green-600 hover:bg-green-50 p-1 rounded-full"><MessageCircle size={18}/></button></td><td className="p-4">{s.belt}</td><td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-4 flex gap-2"><button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200 transition flex items-center gap-1 font-bold" title="ترفيع"><ArrowUp size={16}/> ترفيع</button><button onClick={() => openEditModal(s)} className="text-blue-600 bg-blue-50 p-2 rounded"><Edit size={16}/></button><button onClick={() => archiveStudent(s)} className="text-red-600 bg-red-50 p-2 rounded"><Archive size={16}/></button></td></tr>))}</tbody></table></Card>
+        <Card className="overflow-x-auto border-none shadow-md rounded-xl"><table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-4">الطالب</th><th className="p-4">بيانات الدخول</th><th className="p-4">الهاتف</th><th className="p-4">الحزام</th><th className="p-4">الحالة</th><th className="p-4">إجراءات</th></tr></thead><tbody className="divide-y">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-4 font-bold">{s.name}</td><td className="p-4 text-xs font-mono bg-gray-50 rounded p-2"><div className="flex flex-col gap-1"><span>U: <span className="font-bold select-all">{s.username}</span></span><span>P: <span className="font-bold text-red-500 select-all">{s.password}</span></span></div></td><td className="p-4 flex items-center gap-2"><a href={`tel:${s.phone}`} className="text-gray-900 hover:text-blue-600 transition">{s.phone}</a><button onClick={() => openWhatsApp(s.phone, 'general', s)} className="text-green-600 hover:bg-green-50 p-1 rounded-full"><MessageCircle size={18}/></button></td><td className="p-4">{s.belt}</td><td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-4 flex gap-2"><button onClick={() => openSmartWhatsApp(s.phone, 'congrats', s)} className="bg-yellow-100 text-yellow-700 p-2 rounded-lg hover:bg-yellow-200" title="تهنئة"><Award size={16}/></button><button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200 transition flex items-center gap-1 font-bold" title="ترفيع"><ArrowUp size={16}/> ترفيع</button><button onClick={() => openEditModal(s)} className="text-blue-600 bg-blue-50 p-2 rounded"><Edit size={16}/></button><button onClick={() => archiveStudent(s)} className="text-red-600 bg-red-50 p-2 rounded"><Archive size={16}/></button></td></tr>))}</tbody></table></Card>
         {showModal && <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-2xl" title={editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}><form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="md:col-span-2"><label className="block text-xs mb-1">الاسم</label><input required className="w-full border p-2 rounded" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} /></div>{!editingStudent && (<div className="md:col-span-2 bg-blue-50 p-2 rounded border"><label className="block text-xs mb-1">العائلة</label><select className="w-full border p-2 rounded" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}><option value="new">عائلة جديدة</option>{uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></div>)}<div><label className="block text-xs mb-1">الهاتف</label><input required className="w-full border p-2 rounded" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} /></div><div><label className="block text-xs mb-1">الحزام</label><select className="w-full border p-3 rounded-lg bg-white" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>{BELTS.map(b=><option key={b}>{b}</option>)}</select></div><div><label className="block text-xs mb-1 font-bold text-red-600">الرصيد المستحق (JOD)</label><input type="number" className="w-full border p-2 rounded" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} /></div><div><label className="block text-xs mb-1">الميلاد</label><input type="date" className="w-full border p-2 rounded" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} /></div><div><label className="block text-xs mb-1">الالتحاق</label><input type="date" className="w-full border p-2 rounded" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} /></div><div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} /></div><div className="md:col-span-2"><label className="block text-xs mb-1">العنوان</label><input className="w-full border p-2 rounded" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} /></div></div><div className="flex gap-2 justify-end mt-4"><Button variant="ghost" onClick={()=>setShowModal(false)}>إلغاء</Button><Button type="submit">حفظ</Button></div></form></Card></div>}
       </div>
     );
@@ -1092,7 +1181,7 @@ export default function App() {
         setUser(u); localStorage.setItem('braveUser', JSON.stringify(u)); setView('admin_dashboard');
         return;
      }
-     if (username === 'admin2' && password === '123') { // Fixed: Added logic for admin2
+     if (username === 'admin2' && password === '123') {
         const u = { role: 'admin', name: 'Admin', branch: BRANCHES.ABU_NSEIR, username };
         setUser(u); localStorage.setItem('braveUser', JSON.stringify(u)); setView('admin_dashboard');
         return;
@@ -1111,7 +1200,8 @@ export default function App() {
         setUser(userData); localStorage.setItem('braveUser', JSON.stringify(userData)); setView('student_portal');
         return;
      }
-alert('Something Wrong, Please make sure of the username and Pass < Or Contact whatsapp for help: +962795974777 ');  };
+     alert('بيانات خاطئة! جرب admin1/123');
+  };
 
   const handleLogout = () => { setUser(null); localStorage.removeItem('braveUser'); setView('home'); };
 
