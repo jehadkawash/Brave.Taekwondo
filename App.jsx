@@ -943,7 +943,7 @@ export default function App() {
   const captainsCollection = useCollection('captains'); 
 
   const handleLogin = (username, password) => {
-     if (username === 'admin1' && password === '123') {
+     if (username === 'admin1' && password === '222') {
         const u = { role: 'admin', name: 'Admin', branch: BRANCHES.SHAFA, username };
         setUser(u); localStorage.setItem('braveUser', JSON.stringify(u)); setView('admin_dashboard');
         return;
