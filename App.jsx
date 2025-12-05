@@ -1111,8 +1111,7 @@ export default function App() {
         setUser(userData); localStorage.setItem('braveUser', JSON.stringify(userData)); setView('student_portal');
         return;
      }
-     alert('بيانات خاطئة! جرب admin1/123');
-  };
+alert('Something Wrong, Please make sure of the username and Pass < Or Contact whatsapp for help: +962795974777 ');  };
 
   const handleLogout = () => { setUser(null); localStorage.removeItem('braveUser'); setView('home'); };
 
