@@ -258,6 +258,7 @@ const StudentSearch = ({ students, onSelect, placeholder = "بحث عن طالب
                 className="p-2 hover:bg-yellow-50 cursor-pointer text-sm border-b last:border-0 flex justify-between items-center"
                 onClick={() => { setQuery(s.name); onSelect(s); setIsOpen(false); }}
               >
+                {/* عرض الاسم المختصر في البحث */}
                 <span className="font-bold">{getShortName(s.name)}</span>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{s.belt}</span>
               </div>
@@ -657,7 +658,7 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
          <Card title="سجل النشاطات الأخير" className="lg:col-span-2">
             <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                {branchRegistrations.length > 0 && <div className="flex gap-3 items-start p-3 bg-blue-50 rounded-lg border border-blue-100"><div className="bg-blue-500 text-white p-2 rounded-full"><UserPlus size={16}/></div><div><p className="text-sm font-bold text-gray-800">طلب تسجيل جديد</p><p className="text-xs text-gray-500">وصل {branchRegistrations.length} طلبات</p></div><span className="mr-auto text-xs text-blue-600 font-bold">الآن</span></div>}
-               {branchPayments.slice(-3).reverse().map(pay => (<div key={pay.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-green-100 text-green-600 p-2 rounded-full"><DollarSign size={16}/></div><div><p className="text-sm font-bold text-gray-800">دفعة مالية</p><p className="text-xs text-gray-500">استلام {pay.amount} من {pay.names ? pay.names.join(' + ') : pay.name}</p></div><span className="mr-auto text-xs text-gray-400">{pay.date}</span></div>))}
+               {branchPayments.slice(-3).reverse().map(pay => (<div key={pay.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-green-100 text-green-600 p-2 rounded-full"><DollarSign size={16}/></div><div><p className="text-sm font-bold text-gray-800">دفعة مالية</p><p className="text-xs text-gray-500">استلام {pay.amount} من {pay.names ? pay.names.join(' + ') : getShortName(pay.name)}</p></div><span className="mr-auto text-xs text-gray-400">{pay.date}</span></div>))}
                {branchStudents.slice(-2).map(s => (<div key={s.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition"><div className="bg-yellow-100 text-yellow-600 p-2 rounded-full"><Star size={16}/></div><div><p className="text-sm font-bold text-gray-800">انضمام طالب</p><p className="text-xs text-gray-500">انضم {getShortName(s.name)}</p></div><span className="mr-auto text-xs text-gray-400">{s.joinDate}</span></div>))}
             </div>
          </Card>
@@ -786,7 +787,7 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
         
         if (linkFamily === 'new') { 
             finalFamilyId = Math.floor(Date.now() / 1000); 
-            // منطق سحب الاسم الأخير
+            // منطق سحب الاسم الأخير للعائلة
             const nameParts = formData.name.trim().split(/\s+/);
             const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : formData.name;
             finalFamilyName = `عائلة ${lastName}`; 
@@ -849,6 +850,7 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
 
       if (linkFamily === 'new') {
           finalFamilyId = Math.floor(Date.now() / 1000);
+          // سحب الاسم الأخير تلقائياً للعائلة
           const nameParts = newS.name.trim().split(/\s+/);
           const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : newS.name;
           finalFamilyName = `عائلة ${lastName}`;
@@ -901,6 +903,8 @@ const AdminDashboard = ({ user, selectedBranch, onSwitchBranch, onUpdateUser, st
       <div className="space-y-6">
         {createdCreds && <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"><Card className="w-full max-w-md bg-green-50 border-green-500 border-2 text-center p-8" title="تم إنشاء الحساب بنجاح"><p className="mb-4">الطالب: <strong>{createdCreds.name}</strong></p><p className="mb-4 text-sm text-gray-600">تم ضمه إلى: <strong>{createdCreds.familyName}</strong></p><div className="bg-white p-4 border rounded mb-4"><p>User: {createdCreds.username}</p><p>Pass: {createdCreds.password}</p></div><Button onClick={() => setCreatedCreds(null)} className="w-full">إغلاق</Button></Card></div>}
         <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm"><div className="w-1/2"><input className="border p-2 rounded w-full" placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div><Button onClick={()=>{setEditingStudent(null); setShowModal(true)}}><UserPlus size={18}/> طالب جديد</Button></div>
+        
+        {/* جدول الطلاب - يظهر الاسم الكامل كما هو مطلوب */}
         <Card className="overflow-x-auto border-none shadow-md rounded-xl"><table className="w-full text-sm text-right"><thead className="bg-gray-50"><tr><th className="p-4">الطالب</th><th className="p-4">العائلة</th><th className="p-4">بيانات الدخول</th><th className="p-4">الهاتف</th><th className="p-4">الحزام</th><th className="p-4">الحالة</th><th className="p-4">إجراءات</th></tr></thead><tbody className="divide-y">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50"><td className="p-4 font-bold">{s.name}</td><td className="p-4 text-xs bg-blue-50 text-blue-600 rounded px-2">{s.familyName}</td><td className="p-4 text-xs font-mono bg-gray-50 rounded p-2"><div className="flex flex-col gap-1"><span>U: <span className="font-bold select-all">{s.username}</span></span><span>P: <span className="font-bold text-red-500 select-all">{s.password}</span></span></div></td><td className="p-4 flex items-center gap-2"><a href={`tel:${s.phone}`} className="text-gray-900 hover:text-blue-600 transition">{s.phone}</a><button onClick={() => openWhatsApp(s.phone)} className="text-green-600 hover:bg-green-50 p-1 rounded-full"><MessageCircle size={18}/></button></td><td className="p-4">{s.belt}</td><td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td><td className="p-4 flex gap-2"><button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-200 transition flex items-center gap-1 font-bold" title="ترفيع"><ArrowUp size={16}/> ترفيع</button><button onClick={() => openEditModal(s)} className="text-blue-600 bg-blue-50 p-2 rounded"><Edit size={16}/></button><button onClick={() => archiveStudent(s)} className="text-red-600 bg-red-50 p-2 rounded"><Archive size={16}/></button></td></tr>))}</tbody></table></Card>
         
         {showModal && <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-2xl" title={editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}><form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="md:col-span-2"><label className="block text-xs mb-1">الاسم الرباعي</label><input required className="w-full border p-2 rounded" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: محمد كمال محمد كعوش" /></div>
