@@ -1,12 +1,33 @@
-// src/views/LoginView.js
+// src/views/LoginView.jsx
 import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Button, Card } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from '../lib/firebase'; // تأكد أن المسار صحيح
 
-const LoginView = ({ setView, handleLogin, loginError }) => {
-  const [u, setU] = useState(''); 
-  const [p, setP] = useState('');
+const LoginView = ({ setView }) => {
+  const [email, setEmail] = useState(''); 
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const handleFirebaseLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      // هذا السطر هو الذي يتصل بفايربيس ويتحقق من المستخدم
+      await signInWithEmailAndPassword(auth, email, password);
+      // ملاحظة: لن نقوم بـ setView هنا، لأن App.js سيستمع للتغيير تلقائياً
+    } catch (err) {
+      console.error(err);
+      setError("البيانات غير صحيحة أو لا تملك صلاحية");
+    } finally {
+      setLoading(false);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 relative overflow-hidden" dir="rtl">
@@ -17,11 +38,27 @@ const LoginView = ({ setView, handleLogin, loginError }) => {
             </div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">تسجيل الدخول</h2>
         </div>
-        {loginError && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">{loginError}</div>}
-        <form className="space-y-5" onSubmit={(e)=>{e.preventDefault(); handleLogin(u,p)}}>
-          <input className="w-full border p-3 rounded-lg" placeholder="اسم المستخدم" value={u} onChange={e=>setU(e.target.value)} />
-          <input className="w-full border p-3 rounded-lg" type="password" placeholder="كلمة المرور" value={p} onChange={e=>setP(e.target.value)} />
-          <Button type="submit" className="w-full py-3 text-lg shadow-lg shadow-yellow-500/30">دخول</Button>
+        {error && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">{error}</div>}
+        <form className="space-y-5" onSubmit={handleFirebaseLogin}>
+          <input 
+            className="w-full border p-3 rounded-lg" 
+            placeholder="البريد الإلكتروني (مثال: admin@brave.com)" 
+            value={email} 
+            onChange={e=>setEmail(e.target.value)} 
+            type="email"
+            required
+          />
+          <input 
+            className="w-full border p-3 rounded-lg" 
+            type="password" 
+            placeholder="كلمة المرور" 
+            value={password} 
+            onChange={e=>setPassword(e.target.value)} 
+            required
+          />
+          <Button type="submit" className="w-full py-3 text-lg shadow-lg shadow-yellow-500/30">
+            {loading ? "جاري التحقق..." : "دخول"}
+          </Button>
         </form>
         <div className="mt-8 text-center border-t pt-4">
             <button onClick={()=>setView('home')} className="text-gray-500 hover:text-gray-800 text-sm font-medium flex items-center justify-center gap-2 w-full">
