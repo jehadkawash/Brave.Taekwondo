@@ -1,9 +1,17 @@
 // src/views/AdminDashboard.js
 import React, { useState, useMemo } from 'react';
 import { Users, Calendar, DollarSign, Menu, LogOut, Activity, Archive, Inbox, Shield, CheckCircle, Clock, ClipboardList } from 'lucide-react';
-import { collection, addDoc } from "firebase/firestore";
+import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-import { DashboardStats } from './dashboard/DashboardStats'; // Import component
+
+// Import all managers
+import { DashboardStats } from './dashboard/DashboardStats';
+import StudentsManager from './dashboard/StudentsManager';
+import FinanceManager from './dashboard/FinanceManager';
+import AttendanceManager from './dashboard/AttendanceManager';
+import RegistrationsManager from './dashboard/RegistrationsManager';
+import ScheduleManager from './dashboard/ScheduleManager';
+import CaptainsManager from './dashboard/CaptainsManager';
 
 // Constants
 const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
@@ -21,6 +29,22 @@ const calculateStatus = (dateString) => {
   return 'active';
 };
 
+// Helper for logging
+const logActivity = async (action, details, branch, user) => {
+  try {
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_logs'), {
+      action,
+      details,
+      branch,
+      performedBy: user.name || 'Admin',
+      role: user.role || 'admin',
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error("Failed to log activity", e);
+  }
+};
+
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -30,6 +54,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const payments = paymentsCollection.data;
   const expenses = expensesCollection.data;
   const registrations = registrationsCollection.data;
+  const schedule = scheduleCollection.data;
+  const captains = captainsCollection.data;
 
   // Filter Data by Branch
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
@@ -46,7 +72,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const expiredCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'expired').length;
   const totalStudents = branchStudents.length;
 
-  // Attendance Calculation (Simplified)
+  // Attendance Calculation
   const today = new Date();
   const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const totalAttendance = branchStudents.reduce((acc, s) => {
@@ -54,6 +80,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
      const count = Object.keys(s.attendance).filter(k => k.startsWith(currentMonthPrefix)).length;
      return acc + count;
   }, 0);
+
+  // Wrapper for logging
+  const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
 
   // Navigation Items
   const navItems = [
@@ -63,9 +92,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     {id:'finance',icon:DollarSign,label:'المالية'},
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
     {id:'schedule',icon:Clock,label:'الجدول'},
-    {id:'logs',icon:ClipboardList,label:'سجل النشاط'},
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
-    {id:'archive',icon:Archive,label:'الأرشيف'}
   ];
 
   return (
@@ -98,29 +125,33 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             <h2 className="font-bold text-gray-800">أكاديمية الشجاع</h2>
          </div>
          
-         {/* Here we inject the clean components */}
          {activeTab === 'dashboard' && <DashboardStats 
-             user={user} 
-             selectedBranch={selectedBranch}
-             branchStudents={branchStudents}
-             netProfit={netProfit}
-             totalAttendance={totalAttendance}
-             expiredCount={expiredCount}
-             activeStudentsCount={activeStudentsCount}
-             nearEndCount={nearEndCount}
-             totalStudents={totalStudents}
-             branchRegistrations={branchRegistrations}
-             branchPayments={branchPayments}
+             user={user} selectedBranch={selectedBranch} branchStudents={branchStudents} netProfit={netProfit} totalAttendance={totalAttendance} expiredCount={expiredCount} activeStudentsCount={activeStudentsCount} nearEndCount={nearEndCount} totalStudents={totalStudents} branchRegistrations={branchRegistrations} branchPayments={branchPayments}
          />}
-         
-         {/* ملاحظة هامة جداً:
-            يجب عليك نقل بقية المكونات (StudentsManager, FinanceManager...) 
-            إلى ملفات منفصلة داخل مجلد views/dashboard/ واستدعاؤها هنا بنفس طريقة DashboardStats
-            للحفاظ على نظافة الكود وعدم حدوث تداخل في الذاكرة.
-         */}
-         
-         {activeTab === 'students' && <div className="p-4 bg-white rounded shadow">هنا يجب استدعاء StudentsManager من ملف منفصل</div>}
-         {activeTab === 'finance' && <div className="p-4 bg-white rounded shadow">هنا يجب استدعاء FinanceManager من ملف منفصل</div>}
+
+         {activeTab === 'students' && <StudentsManager 
+             students={branchStudents} studentsCollection={studentsCollection} archiveCollection={archiveCollection} selectedBranch={selectedBranch} logActivity={handleLog}
+         />}
+
+         {activeTab === 'finance' && <FinanceManager 
+             students={branchStudents} payments={branchPayments} expenses={branchExpenses} paymentsCollection={paymentsCollection} expensesCollection={expensesCollection} selectedBranch={selectedBranch} logActivity={handleLog}
+         />}
+
+         {activeTab === 'attendance' && <AttendanceManager 
+             students={branchStudents} studentsCollection={studentsCollection}
+         />}
+
+         {activeTab === 'registrations' && <RegistrationsManager 
+             registrations={branchRegistrations} students={students} registrationsCollection={registrationsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={handleLog}
+         />}
+
+         {activeTab === 'schedule' && <ScheduleManager 
+             schedule={schedule} scheduleCollection={scheduleCollection}
+         />}
+
+         {activeTab === 'captains' && <CaptainsManager 
+             captains={captains} captainsCollection={captainsCollection}
+         />}
       </main>
     </div>
   );
