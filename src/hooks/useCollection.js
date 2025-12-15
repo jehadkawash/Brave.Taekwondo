@@ -28,7 +28,7 @@ export const useCollection = (collectionName) => {
       return true;
     } catch (e) {
       console.error(e);
-      alert("خطأ في الحفظ، تأكد من الاتصال بالإنترنت");
+      alert("خطأ في الحفظ، تأكد من الاتصال wrong info entered ");
       return false;
     }
   };

@@ -1,7 +1,8 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from "firebase/auth"; 
-import { auth } from './lib/firebase';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from "firebase/auth"; 
+import { getDoc, doc } from "firebase/firestore"; // نحتاج هذه لجلب اسم الأدمن المخصص
+import { auth, db } from './lib/firebase';
 import { useCollection } from './hooks/useCollection';
 
 // Import Views
@@ -11,9 +12,12 @@ import StudentPortal from './views/StudentPortal';
 import AdminDashboard from './views/AdminDashboard';
 import { BRANCHES } from './lib/constants';
 
+const appId = 'brave-academy-live-data'; // تأكد أن هذا المتغير موجود أو مستورد
+
 export default function App() {
   const [view, setView] = useState('home'); 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => { const saved = localStorage.getItem('braveUser'); return saved ? JSON.parse(saved) : null; });
+  const [dashboardBranch, setDashboardBranch] = useState(BRANCHES.SHAFA); // للتحكم بالفرع المعروض للأدمن
   const [loadingAuth, setLoadingAuth] = useState(true);
   
   // Collections Hooks
@@ -25,32 +29,85 @@ export default function App() {
   const registrationsCollection = useCollection('registrations'); 
   const captainsCollection = useCollection('captains'); 
 
-  // هذا الكود يستمع لأي تغيير في حالة تسجيل الدخول تلقائياً
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // تحديد الصلاحيات بناءً على الإيميل
-        let userData = null;
-        const email = firebaseUser.email;
+  // --- 1. المنطق الهجين لتسجيل الدخول (الطلاب + الكباتن + الأدمن) ---
+  const handleLogin = async (username, password) => {
+    // A. البحث في سجلات الطلاب أولاً
+    const studentUser = studentsCollection.data.find(s => s.username === username && s.password === password);
+    if (studentUser) {
+      const userData = { role: 'student', familyId: studentUser.familyId, name: studentUser.familyName, id: studentUser.id };
+      setUser(userData); 
+      localStorage.setItem('braveUser', JSON.stringify(userData)); 
+      setView('student_portal');
+      return;
+    }
 
+    // B. البحث في سجلات الكباتن ثانياً
+    const cap = captainsCollection.data.find(c => c.username === username && c.password === password);
+    if(cap) {
+       const u = { role: 'captain', ...cap };
+       setUser(u); 
+       localStorage.setItem('braveUser', JSON.stringify(u)); 
+       setDashboardBranch(cap.branch); 
+       setView('admin_dashboard');
+       return;
+    }
+
+    // C. محاولة دخول الأدمن (Firebase Auth)
+    if (username.includes('@') || username === 'admin1') {
+      try {
+        // تحديد الإيميل الصحيح
+        let email = username;
+        if (username === 'admin1') email = 'admin@brave.com';
+        
+        await signInWithEmailAndPassword(auth, email, password);
+        // ملاحظة: لن نقوم بـ setUser هنا يدوياً، لأن useEffect بالأسفل سيلتقط التغيير تلقائياً
+        return;
+
+      } catch (error) {
+        console.error("Firebase Auth Error:", error);
+      }
+    }
+    
+    alert('بيانات الدخول خاطئة! تأكد من اسم المستخدم وكلمة المرور.');
+  };
+
+  // --- 2. مراقبة حالة فايربيس (للأدمن فقط) ---
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const email = firebaseUser.email;
+        let userData = { email };
+
+        // تحديد الصلاحيات والفرع
         if (email === 'admin@brave.com') {
-          userData = { role: 'admin', name: 'Admin', branch: BRANCHES.SHAFA, email }; // Super Admin
+          userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
         } else if (email === 'shafa@brave.com') {
-          userData = { role: 'admin', name: 'Shafa Admin', branch: BRANCHES.SHAFA, email };
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
         } else if (email === 'abunseir@brave.com') {
-          userData = { role: 'admin', name: 'Abu Nseir Admin', branch: BRANCHES.ABU_NSEIR, email };
-        } else {
-          // يمكن هنا إضافة منطق دخول الطلاب لاحقاً
-          userData = { role: 'student', email }; 
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR };
         }
 
+        // محاولة جلب الاسم المخصص من قاعدة البيانات (اختياري)
+        try {
+            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
+            const profileSnap = await getDoc(profileRef);
+            if (profileSnap.exists() && profileSnap.data().name) {
+                userData.name = profileSnap.data().name;
+            }
+        } catch (err) { console.log("Profile fetch warning"); }
+
         setUser(userData);
-        if (userData && userData.role === 'admin') setView('admin_dashboard');
-        else if (userData) setView('student_portal');
+        setDashboardBranch(userData.branch);
+        localStorage.setItem('braveUser', JSON.stringify(userData));
+        setView('admin_dashboard');
         
       } else {
-        setUser(null);
-        // لا نغير الـ view هنا قسراً لنسمح للمستخدم بالتصفح كزائر
+        // إذا قام فايربيس بتسجيل الخروج، نتأكد هل المستخدم كان طالباً؟
+        // إذا لم يكن هناك مستخدم محفوظ في LocalStorage، نقوم بتصفير الحالة
+        const saved = localStorage.getItem('braveUser');
+        if (!saved) {
+            setUser(null);
+        }
       }
       setLoadingAuth(false);
     });
@@ -59,22 +116,28 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await signOut(auth); // خروج من فايربيس
+    localStorage.removeItem('braveUser'); // مسح التخزين المحلي
     setUser(null);
     setView('home');
   };
 
-  if (loadingAuth) return <div className="flex h-screen items-center justify-center">جاري التحميل...</div>;
+  if (loadingAuth && !user) return <div className="flex h-screen items-center justify-center font-bold text-xl">جاري تحميل النظام...</div>;
 
   return (
     <>
       {view === 'home' && <HomeView setView={setView} schedule={scheduleCollection.data} registrationsCollection={registrationsCollection} />}
-      {view === 'login' && <LoginView setView={setView} />}
+      
+      {/* هنا التعديل المهم: تمرير handleLogin */}
+      {view === 'login' && <LoginView setView={setView} handleLogin={handleLogin} />}
+      
       {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} payments={paymentsCollection.data} handleLogout={handleLogout} />}
+      
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
-          selectedBranch={user.branch} 
+          selectedBranch={dashboardBranch} 
+          onSwitchBranch={user.isSuper ? setDashboardBranch : null} // السماح للمدير العام فقط بالتبديل
           studentsCollection={studentsCollection} 
           paymentsCollection={paymentsCollection} 
           expensesCollection={expensesCollection} 
