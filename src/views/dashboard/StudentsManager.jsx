@@ -1,6 +1,6 @@
 // src/views/dashboard/StudentsManager.js
 import React, { useState, useMemo } from 'react';
-import { UserPlus, Edit, Trash2, Archive, ArrowUp, MessageCircle, X, Save, User, Phone, MapPin, Calendar, CreditCard } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Archive, ArrowUp, MessageCircle, X, Save, User, Phone, MapPin, CreditCard, Calendar, Users } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants';
 
@@ -48,9 +48,9 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     const { username, password } = generateCredentials();
     let finalFamilyId, finalFamilyName;
     
+    // --- منطق اسم العائلة الذكي ---
     if (linkFamily === 'new') { 
         finalFamilyId = Math.floor(Date.now() / 1000); 
-        // تحسين بسيط لاستخراج اسم العائلة بشكل أدق
         const nameParts = newS.name.trim().split(/\s+/);
         const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : newS.name;
         finalFamilyName = `عائلة ${lastName}`; 
@@ -67,10 +67,9 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     const student = { branch: selectedBranch, status: 'active', subEnd: subEnd, notes: [], internalNotes: [], attendance: {}, username, password, familyId: finalFamilyId, familyName: finalFamilyName, customOrder: Date.now(), ...newS };
     await studentsCollection.add(student); 
     
-    // Log Activity if function is provided
     if(logActivity) logActivity("إضافة طالب", `تم إضافة الطالب ${student.name}`);
     
-    setCreatedCreds({ name: student.name, username, password }); 
+    setCreatedCreds({ name: student.name, username, password, familyName: finalFamilyName }); 
     closeModal();
   };
 
@@ -103,7 +102,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
-  // Archive Logic (Preserved as requested)
   const archiveStudent = async (student) => { 
       if(window.confirm(`هل أنت متأكد من أرشفة الطالب ${student.name}؟\nسيتم نقله إلى سجل الأرشيف.`)) { 
           await archiveCollection.add({ 
@@ -126,11 +124,12 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
    
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Modal: Account Created Credentials */}
+      {/* Modal: بيانات الحساب الجديد */}
       {createdCreds && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
               <Card className="w-full max-w-md bg-green-50 border-green-500 border-2 text-center p-8" title="تم إنشاء الحساب بنجاح">
-                  <p className="mb-4">الطالب: <strong>{createdCreds.name}</strong></p>
+                  <p className="mb-2">الطالب: <strong>{createdCreds.name}</strong></p>
+                  <p className="mb-4 text-sm text-gray-600">تم ضمه إلى: <strong>{createdCreds.familyName}</strong></p>
                   <div className="bg-white p-4 border rounded-xl mb-6 shadow-sm">
                       <p className="text-gray-500 text-xs mb-1">اسم المستخدم</p>
                       <p className="font-mono font-bold text-lg mb-2 select-all">{createdCreds.username}</p>
@@ -142,7 +141,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           </div>
       )}
       
-      {/* Search and Add Button */}
+      {/* شريط البحث وزر الإضافة */}
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <div className="relative w-1/2 md:w-1/3">
               <input className="w-full border p-2 pr-10 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none" placeholder="بحث عن طالب..." value={search} onChange={e=>setSearch(e.target.value)} />
@@ -152,7 +151,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           </Button>
       </div>
 
-      {/* Students Table */}
+      {/* جدول الطلاب */}
       <Card className="overflow-x-auto border-none shadow-md rounded-xl" noPadding>
           <table className="w-full text-sm text-right">
               <thead className="bg-gray-50 text-gray-700 font-bold">
@@ -200,96 +199,162 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           {filtered.length === 0 && <p className="text-center text-gray-400 py-8">لا يوجد طلاب مطابقين للبحث</p>}
       </Card>
 
-      {/* --- NEW & IMPROVED MODAL --- */}
+      {/* --- التصميم الجديد والواسع للنافذة (MODAL) --- */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-fade-in my-8">
-                {/* Header */}
-                <div className="bg-gray-50 px-8 py-5 border-b flex justify-between items-center">
+            {/* جعلنا العرض 4xl ليكون أوسع ومريحاً أكثر */}
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-fade-in my-4">
+                
+                {/* رأس النافذة */}
+                <div className="bg-gray-50 px-8 py-5 border-b flex justify-between items-center sticky top-0 z-10">
                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                         {editingStudent ? <Edit className="text-blue-500"/> : <UserPlus className="text-green-500"/>}
                         {editingStudent ? "تعديل بيانات الطالب" : "إضافة طالب جديد"}
                     </h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition"><X size={24}/></button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition p-1 bg-white rounded-full border shadow-sm"><X size={20}/></button>
                 </div>
 
-                {/* Form Body */}
-                <form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* جسم النموذج */}
+                <form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="p-8 bg-white">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         
-                        {/* Section 1: Personal Data */}
-                        <div className="md:col-span-2">
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2 mb-4">البيانات الشخصية</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="md:col-span-2 relative">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">الاسم الرباعي</label>
-                                    <User className="absolute right-3 top-9 text-gray-400" size={18}/>
-                                    <input required className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: محمد كمال..." />
-                                </div>
-
-                                {!editingStudent && (
-                                    <div className="md:col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                        <label className="block text-sm font-bold text-blue-800 mb-1">العائلة (لضم الأخوة)</label>
-                                        <select className="w-full border border-blue-200 p-2 rounded-lg bg-white focus:ring-2 focus:ring-blue-300" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
-                                            <option value="new">-- عائلة جديدة (تسمية تلقائية) --</option>
-                                            {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>ضم إلى: {name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
-
+                        {/* العمود الأول: البيانات الشخصية */}
+                        <div className="space-y-6">
+                            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+                                <User size={16}/> البيانات الشخصية
+                            </h4>
+                            
+                            {/* الاسم الكامل */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">الاسم الرباعي</label>
                                 <div className="relative">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">رقم الهاتف</label>
-                                    <Phone className="absolute right-3 top-9 text-gray-400" size={18}/>
-                                    <input required className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} />
+                                    <input 
+                                        required 
+                                        className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 focus:outline-none transition-all" 
+                                        value={newS.name} 
+                                        onChange={e=>setNewS({...newS, name:e.target.value})} 
+                                        placeholder="مثال: محمد كمال محمد..." 
+                                    />
+                                    <User className="absolute right-3 top-3.5 text-gray-400" size={20}/>
                                 </div>
+                            </div>
 
+                            {/* العائلة */}
+                            {!editingStudent && (
+                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                    <label className="block text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
+                                        <Users size={16}/> العائلة (لضم الأخوة)
+                                    </label>
+                                    <select 
+                                        className="w-full border border-blue-200 p-3 rounded-lg bg-white focus:ring-2 focus:ring-blue-300 outline-none" 
+                                        value={linkFamily} 
+                                        onChange={e => setLinkFamily(e.target.value)}
+                                    >
+                                        <option value="new">-- عائلة جديدة (تسمية تلقائية حسب الاسم الأخير) --</option>
+                                        {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>ضم إلى: {name}</option>)}
+                                    </select>
+                                    <p className="text-xs text-blue-600 mt-2">سيقوم النظام بتسمية العائلة تلقائياً في حال اخترت "عائلة جديدة".</p>
+                                </div>
+                            )}
+
+                            {/* الهاتف والعنوان */}
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">تاريخ الميلاد</label>
-                                    <input type="date" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} />
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">رقم الهاتف</label>
+                                    <div className="relative">
+                                        <input 
+                                            required 
+                                            className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 outline-none dir-ltr text-right" 
+                                            value={newS.phone} 
+                                            onChange={e=>setNewS({...newS, phone:e.target.value})} 
+                                        />
+                                        <Phone className="absolute right-3 top-3.5 text-gray-400" size={20}/>
+                                    </div>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">العنوان</label>
+                                    <div className="relative">
+                                        <input 
+                                            className="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 outline-none" 
+                                            value={newS.address} 
+                                            onChange={e=>setNewS({...newS, address:e.target.value})} 
+                                        />
+                                        <MapPin className="absolute right-3 top-3.5 text-gray-400" size={20}/>
+                                    </div>
+                                </div>
+                            </div>
 
-                                <div className="md:col-span-2 relative">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">العنوان</label>
-                                    <MapPin className="absolute right-3 top-9 text-gray-400" size={18}/>
-                                    <input className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} />
-                                </div>
+                            {/* تاريخ الميلاد */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ الميلاد</label>
+                                <input 
+                                    type="date" 
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 outline-none" 
+                                    value={newS.dob} 
+                                    onChange={e=>setNewS({...newS, dob:e.target.value})} 
+                                />
                             </div>
                         </div>
 
-                        {/* Section 2: Subscription Data */}
-                        <div className="md:col-span-2 mt-2">
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-2 mb-4">بيانات الاشتراك</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* العمود الثاني: بيانات الاشتراك والمالية */}
+                        <div className="space-y-6">
+                            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+                                <CreditCard size={16}/> بيانات الاشتراك
+                            </h4>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">الحزام</label>
-                                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">الحزام</label>
+                                    <select 
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-yellow-400 outline-none" 
+                                        value={newS.belt} 
+                                        onChange={e=>setNewS({...newS, belt:e.target.value})}
+                                    >
                                         {BELTS.map(b=><option key={b}>{b}</option>)}
                                     </select>
                                 </div>
-
-                                <div className="bg-red-50 p-3 rounded-lg border border-red-200 relative">
-                                    <label className="block text-sm font-bold text-red-800 mb-1">الرصيد المستحق (ذمم)</label>
-                                    <CreditCard className="absolute left-3 top-9 text-red-300" size={18}/>
-                                    <input type="number" className="w-full pl-10 pr-4 py-2 border border-red-300 rounded-lg text-red-700 font-bold focus:ring-2 focus:ring-red-400 focus:outline-none" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} />
-                                </div>
-
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">تاريخ الالتحاق</label>
-                                    <input type="date" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} />
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ الالتحاق</label>
+                                    <input 
+                                        type="date" 
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 outline-none" 
+                                        value={newS.joinDate} 
+                                        onChange={e=>setNewS({...newS, joinDate:e.target.value})} 
+                                    />
                                 </div>
+                            </div>
 
-                                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                                    <label className="block text-sm font-bold text-green-800 mb-1">نهاية الاشتراك</label>
-                                    <input type="date" className="w-full px-4 py-2 border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-green-400 focus:outline-none" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} />
+                            {/* قسم المالية المميز */}
+                            <div className="bg-red-50 p-5 rounded-xl border-2 border-red-100">
+                                <label className="block text-sm font-bold text-red-800 mb-2">الرصيد المستحق (ذمم)</label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        className="w-full pl-12 pr-4 py-3 border border-red-200 rounded-xl text-red-600 font-bold text-lg focus:ring-2 focus:ring-red-400 outline-none" 
+                                        value={newS.balance} 
+                                        onChange={e=>setNewS({...newS, balance:e.target.value})} 
+                                    />
+                                    <span className="absolute left-4 top-3.5 text-red-400 font-bold text-sm">JOD</span>
                                 </div>
+                                <p className="text-xs text-red-500 mt-2">* المبلغ الذي يدين به الطالب للأكاديمية حالياً.</p>
+                            </div>
+
+                            <div className="bg-green-50 p-5 rounded-xl border-2 border-green-100">
+                                <label className="block text-sm font-bold text-green-800 mb-2">تاريخ نهاية الاشتراك</label>
+                                <input 
+                                    type="date" 
+                                    className="w-full px-4 py-3 border border-green-200 rounded-xl bg-white text-green-700 font-bold focus:ring-2 focus:ring-green-400 outline-none" 
+                                    value={newS.subEnd} 
+                                    onChange={e=>setNewS({...newS, subEnd:e.target.value})} 
+                                />
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-100">
-                        <Button variant="ghost" onClick={closeModal} className="px-6 hover:bg-gray-100 text-gray-600">إلغاء</Button>
-                        <Button type="submit" className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 shadow-md flex items-center gap-2">
-                            <Save size={18}/> {editingStudent ? "حفظ التعديلات" : "إضافة الطالب"}
+                    <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
+                        <Button variant="ghost" onClick={closeModal} className="px-6 hover:bg-gray-100 text-gray-600 h-12">إلغاء</Button>
+                        <Button type="submit" className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 h-12 shadow-lg flex items-center gap-2 font-bold text-lg">
+                            <Save size={20}/> {editingStudent ? "حفظ التعديلات" : "إضافة الطالب"}
                         </Button>
                     </div>
                 </form>
