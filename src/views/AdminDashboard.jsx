@@ -7,6 +7,7 @@ import { db, appId } from '../lib/firebase';
 // Import all managers
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
+import ArchiveManager from './dashboard/ArchiveManager';
 import FinanceManager from './dashboard/FinanceManager';
 import AttendanceManager from './dashboard/AttendanceManager';
 import RegistrationsManager from './dashboard/RegistrationsManager';
@@ -92,6 +93,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
     {id:'finance',icon:DollarSign,label:'المالية'},
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
     {id:'schedule',icon:Clock,label:'الجدول'},
+    {id:'archive',icon:Archive,label:'الأرشيف'},
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
   ];
 
@@ -151,6 +153,12 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
          {activeTab === 'captains' && <CaptainsManager 
              captains={captains} captainsCollection={captainsCollection}
+         />}
+         {activeTab === 'archive' && <ArchiveManager 
+             archiveCollection={archiveCollection}
+             studentsCollection={studentsCollection}
+             payments={payments} // We pass the full payments list to find history
+             logActivity={handleLog}
          />}
       </main>
     </div>

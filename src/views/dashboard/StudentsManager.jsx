@@ -86,12 +86,20 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
-  const archiveStudent = async (student) => { 
-      if(confirm('أرشفة الطالب؟')) { 
-          await archiveCollection.add({ ...student, archiveDate: new Date().toLocaleDateString() }); 
-          await studentsCollection.remove(student.id); 
-      } 
-  };
+  // هذا التعديل يضمن نقل الرصيد والبيانات المالية للأرشيف
+    const archiveStudent = async (student) => { 
+        if(confirm(`هل أنت متأكد من أرشفة الطالب ${student.name}؟\nسيتم نقله إلى سجل الأرشيف.`)) { 
+            // 1. نسخ الطالب للأرشيف مع تاريخ اليوم
+            await archiveCollection.add({ 
+                ...student, 
+                archivedAt: new Date().toISOString().split('T')[0], // تاريخ الأرشفة
+                originalId: student.id // نحتفظ بالرقم القديم عشان نجيب الوصلات تبعته
+            }); 
+            // 2. حذفه من القائمة النشطة
+            await studentsCollection.remove(student.id); 
+            logAction("أرشفة", `أرشفة الطالب ${student.name} ورصيده ${student.balance} دينار`); 
+        } 
+    };
 
   const openWhatsApp = (phone) => {
     if (!phone) return;
