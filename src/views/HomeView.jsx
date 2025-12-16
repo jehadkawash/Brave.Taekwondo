@@ -24,7 +24,7 @@ const HomeView = ({ setView, schedule }) => {
     if (!newsItems || newsItems.length === 0) return;
     const interval = setInterval(() => {
         setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length);
-    }, 8000); // كل 8 ثواني يقلب الخبر
+    }, 8000); 
     return () => clearInterval(interval);
   }, [newsItems]);
   // -------------------------
@@ -54,7 +54,15 @@ const HomeView = ({ setView, schedule }) => {
   const openWhatsApp = () => window.open('https://wa.me/962795629606', '_blank');
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-right relative" dir="rtl">
+    // ✨✨ هنا التغيير الرئيسي: خلفية مقلمة أصفر وأبيض ✨✨
+    <div 
+      className="min-h-screen font-sans text-right relative" 
+      dir="rtl"
+      style={{
+        // هذا السطر يصنع خطوطاً طولية: أبيض عريض (80px) ثم أصفر فاتح (40px)
+        backgroundImage: 'repeating-linear-gradient(90deg, #FFFFFF 0px, #FFFFFF 80px, #FEF9C3 80px, #FEF9C3 120px)'
+      }}
+    >
       {/* Header */}
       <header className="bg-black text-yellow-500 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
@@ -88,8 +96,8 @@ const HomeView = ({ setView, schedule }) => {
         )}
       </header>
 
-      {/* Hero Section (الواجهة الأصلية ثابتة دائماً) */}
-      <div className="relative bg-gray-900 text-white h-[600px] flex items-center">
+      {/* Hero Section */}
+      <div className="relative bg-gray-900 text-white h-[600px] flex items-center shadow-xl">
         <div className="absolute inset-0 bg-black/60 z-10"></div>
         <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
         <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
@@ -103,36 +111,33 @@ const HomeView = ({ setView, schedule }) => {
         </div>
       </div>
 
-      {/* News Section (صندوق الأخبار المتحرك في الوسط) */}
+      {/* News Section */}
       {newsItems && newsItems.length > 0 && (
-        <section className="py-16 bg-white relative">
+        <section className="py-16 relative">
            <div className="container mx-auto px-6">
               <div className="text-center mb-10">
-                 <h2 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
+                 {/* خلفية بيضاء صغيرة للعنوان عشان يكون واضح فوق الخطوط */}
+                 <h2 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2 bg-white/80 inline-block px-6 py-2 rounded-full shadow-sm backdrop-blur-sm">
                     <Megaphone className="text-yellow-500"/>
                     أحدث الأخبار والإعلانات
                  </h2>
               </div>
               
-              {/* News Box Container */}
-              <div className="relative w-full max-w-4xl mx-auto h-[400px] rounded-3xl overflow-hidden shadow-2xl bg-gray-100 border-4 border-yellow-500/20">
+              <div className="relative w-full max-w-4xl mx-auto h-[400px] rounded-3xl overflow-hidden shadow-2xl bg-white border-4 border-yellow-500/20">
                   {newsItems.map((item, index) => (
                       <div 
                         key={item.id}
                         className={`absolute inset-0 transition-all duration-700 ease-in-out transform ${index === currentNewsIndex ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}
                       >
-                          {/* Image */}
                           <div className="absolute inset-0 h-full w-full">
                              {item.image ? (
                                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                              ) : (
                                  <div className="w-full h-full bg-gray-200 flex items-center justify-center"><Megaphone size={64} className="text-gray-400"/></div>
                              )}
-                             {/* Gradient Overlay for Text Readability */}
                              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
                           </div>
 
-                          {/* Content */}
                           <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
                               <span className="bg-yellow-500 text-black px-3 py-1 rounded text-xs font-bold mb-3 inline-block shadow-sm">{item.branch}</span>
                               <h3 className="text-2xl md:text-3xl font-bold mb-2">{item.title}</h3>
@@ -141,7 +146,6 @@ const HomeView = ({ setView, schedule }) => {
                       </div>
                   ))}
 
-                  {/* Controls */}
                   <div className="absolute bottom-4 left-4 z-20 flex gap-2">
                       <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition"><ChevronRight size={20}/></button>
                       <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition"><ChevronLeft size={20}/></button>
@@ -152,15 +156,15 @@ const HomeView = ({ setView, schedule }) => {
       )}
       
       {/* Branches Section */}
-      <section id="branches" className="py-20 bg-gray-50">
+      <section id="branches" className="py-20">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2>
-            <div className="w-24 h-1 bg-yellow-500 mx-auto rounded"></div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white/80 inline-block px-8 py-2 rounded-full shadow-sm backdrop-blur-sm">فروعنا</h2>
+            <div className="w-24 h-1 bg-yellow-500 mx-auto rounded mt-2"></div>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             {/* Shafa Branch */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group border border-gray-100">
               <div className="h-64 bg-gray-800 relative overflow-hidden">
                   <img src={IMAGES.BRANCH_SHAFA} alt="Shafa Badran" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -173,7 +177,7 @@ const HomeView = ({ setView, schedule }) => {
               </div>
             </div>
             {/* Abu Nseir Branch */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group border border-gray-100">
               <div className="h-64 bg-gray-800 relative overflow-hidden">
                   <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -190,24 +194,24 @@ const HomeView = ({ setView, schedule }) => {
       </section>
 
       {/* Why Choose Us Section */}
-      <section className="py-20 bg-white relative overflow-hidden">
+      <section className="py-20 relative overflow-hidden">
          <div className="container mx-auto px-6 relative z-10">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">لماذا أكاديمية الشجاع؟</h2>
-              <p className="text-gray-500 max-w-2xl mx-auto">نحن لا ندرب التايكوندو فحسب، نحن نبني شخصيات قيادية قوية.</p>
+              <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white/80 inline-block px-8 py-2 rounded-full shadow-sm backdrop-blur-sm">لماذا أكاديمية الشجاع؟</h2>
+              <p className="text-gray-600 font-medium max-w-2xl mx-auto bg-white/60 p-2 rounded-lg">نحن لا ندرب التايكوندو فحسب، نحن نبني شخصيات قيادية قوية.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-8 text-center">
-                <div className="p-6 rounded-2xl bg-gray-50 hover:bg-yellow-50 transition duration-300 border border-transparent hover:border-yellow-200">
+                <div className="p-6 rounded-2xl bg-white shadow-lg hover:bg-yellow-50 transition duration-300 border-2 border-yellow-100">
                     <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><Trophy size={32}/></div>
                     <h3 className="text-xl font-bold mb-3">صناعة الأبطال</h3>
                     <p className="text-gray-600 text-sm leading-relaxed">سجل حافل بالإنجازات المحلية والدولية، ومنهج تدريبي يهدف للوصول باللاعبين لمنصات التتويج.</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-gray-50 hover:bg-yellow-50 transition duration-300 border border-transparent hover:border-yellow-200">
+                <div className="p-6 rounded-2xl bg-white shadow-lg hover:bg-yellow-50 transition duration-300 border-2 border-yellow-100">
                     <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><Users size={32}/></div>
                     <h3 className="text-xl font-bold mb-3">كادر تدريبي محترف</h3>
                     <p className="text-gray-600 text-sm leading-relaxed">نخبة من المدربين المعتمدين ذوي الخبرة العالية في التعامل مع مختلف الفئات العمرية.</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-gray-50 hover:bg-yellow-50 transition duration-300 border border-transparent hover:border-yellow-200">
+                <div className="p-6 rounded-2xl bg-white shadow-lg hover:bg-yellow-50 transition duration-300 border-2 border-yellow-100">
                     <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><Shield size={32}/></div>
                     <h3 className="text-xl font-bold mb-3">بيئة آمنة وتربوية</h3>
                     <p className="text-gray-600 text-sm leading-relaxed">نحرص على توفير بيئة تدريبية آمنة تعزز القيم الأخلاقية، الانضباط، والثقة بالنفس.</p>
@@ -217,10 +221,10 @@ const HomeView = ({ setView, schedule }) => {
       </section>
 
       {/* Schedule Section */}
-      <section id="schedule" className="py-20 bg-gray-50 container mx-auto px-6">
+      <section id="schedule" className="py-20 container mx-auto px-6">
         <div className="text-center mb-12">
-           <h2 className="text-4xl font-bold text-gray-900 mb-4">جدول الحصص الأسبوعي</h2>
-           <div className="w-24 h-1 bg-yellow-500 mx-auto rounded"></div>
+           <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white/80 inline-block px-8 py-2 rounded-full shadow-sm backdrop-blur-sm">جدول الحصص الأسبوعي</h2>
+           <div className="w-24 h-1 bg-yellow-500 mx-auto rounded mt-2"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {(schedule && schedule.length > 0 ? schedule : INITIAL_SCHEDULE).map((cls) => (
@@ -238,7 +242,7 @@ const HomeView = ({ setView, schedule }) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-black text-white pt-16 pb-24 md:pb-8 border-t-4 border-yellow-500">
+      <footer className="bg-black text-white pt-16 pb-24 md:pb-8 border-t-4 border-yellow-500 relative z-10">
         <div className="container mx-auto px-6 text-center text-sm text-gray-500">
             <div className="flex justify-center items-center gap-2 mb-4 opacity-50">
                 <img src={IMAGES.LOGO} alt="Logo" className="w-8 h-8 rounded-full grayscale" />
@@ -251,7 +255,7 @@ const HomeView = ({ setView, schedule }) => {
       {/* Floating WhatsApp Button */}
       <button 
         onClick={openWhatsApp}
-        className="fixed bottom-6 right-6 z-50 bg-green-500 text-white p-4 rounded-full shadow-2xl hover:bg-green-600 transition-transform hover:scale-110 flex items-center justify-center animate-bounce-slow"
+        className="fixed bottom-6 right-6 z-50 bg-green-500 text-white p-4 rounded-full shadow-2xl hover:bg-green-600 transition-transform hover:scale-110 flex items-center justify-center animate-bounce-slow border-2 border-white"
         title="تواصل معنا عبر واتساب"
       >
         <MessageCircle size={32} />
