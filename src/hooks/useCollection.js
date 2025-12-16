@@ -3,24 +3,26 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 
+// ضفنا _queryConstraints عشان نقدر نفلتر البيانات
 export const useCollection = (collectionName, _queryConstraints = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // نستخدم useRef لتجنب الدخول في حلقة لا نهائية (Infinite Loop) بسبب المصفوفة
-  const queryConstraints = useRef(_queryConstraints).current;
+  // الحل السحري: نستخدم JSON.stringify عشان نتأكد هل الشروط تغيرت فعلاً ولا لأ
+  // هيك بنمنع التكرار (Loop) وبنحافظ على التحديث الفوري
+  const queryConstraintsDep = JSON.stringify(_queryConstraints);
 
   useEffect(() => {
     let ref = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
     let q;
 
-    // إذا تم تمرير شروط بحث، نستخدمها. وإلا نجلب الكل
-    if (queryConstraints && queryConstraints.length > 0) {
-       q = query(ref, ...queryConstraints);
+    if (_queryConstraints && _queryConstraints.length > 0) {
+       q = query(ref, ..._queryConstraints);
     } else {
        q = query(ref);
     }
 
+    // onSnapshot: هي المسؤولة عن التحديث الفوري (Real-time)
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setData(items);
@@ -31,7 +33,9 @@ export const useCollection = (collectionName, _queryConstraints = []) => {
     });
 
     return () => unsubscribe();
-  }, [collectionName, queryConstraints]);
+    
+    // هون السر: الـ useEffect رح يشتغل بس لما يتغير اسم الكولكشن أو تتغير الشروط فعلياً
+  }, [collectionName, queryConstraintsDep]);
 
   const add = async (item) => {
     try {
