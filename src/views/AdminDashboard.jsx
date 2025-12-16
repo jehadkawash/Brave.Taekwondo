@@ -4,6 +4,7 @@ import { Users, Calendar, DollarSign, Menu, LogOut, Activity, Archive, Inbox, Sh
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { Megaphone } from 'lucide-react'; // استيراد أيقونة
+import { useCollection } from '../hooks/useCollection';
 // Import all managers
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
