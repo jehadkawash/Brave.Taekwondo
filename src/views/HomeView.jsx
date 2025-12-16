@@ -54,13 +54,13 @@ const HomeView = ({ setView, schedule }) => {
   const openWhatsApp = () => window.open('https://wa.me/962795629606', '_blank');
 
   return (
-    // ✨✨ هنا التغيير الرئيسي: خلفية مقلمة أصفر وأبيض ✨✨
+    // ✨✨ التعديل هنا: خطوط أعرض (150px) ولون أصفر أقوى (#FDE047) ✨✨
     <div 
       className="min-h-screen font-sans text-right relative" 
       dir="rtl"
       style={{
-        // هذا السطر يصنع خطوطاً طولية: أبيض عريض (80px) ثم أصفر فاتح (40px)
-        backgroundImage: 'repeating-linear-gradient(90deg, #FFFFFF 0px, #FFFFFF 80px, #FEF9C3 80px, #FEF9C3 120px)'
+        // أبيض 150 بكسل، ثم أصفر قوي 150 بكسل (المجموع 300 بكسل للتكرار)
+        backgroundImage: 'repeating-linear-gradient(90deg, #FFFFFF 0px, #FFFFFF 150px, #FDE047 150px, #FDE047 300px)'
       }}
     >
       {/* Header */}
@@ -97,7 +97,7 @@ const HomeView = ({ setView, schedule }) => {
       </header>
 
       {/* Hero Section */}
-      <div className="relative bg-gray-900 text-white h-[600px] flex items-center shadow-xl">
+      <div className="relative bg-gray-900 text-white h-[600px] flex items-center shadow-xl border-b-4 border-yellow-500">
         <div className="absolute inset-0 bg-black/60 z-10"></div>
         <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
         <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
@@ -116,14 +116,13 @@ const HomeView = ({ setView, schedule }) => {
         <section className="py-16 relative">
            <div className="container mx-auto px-6">
               <div className="text-center mb-10">
-                 {/* خلفية بيضاء صغيرة للعنوان عشان يكون واضح فوق الخطوط */}
-                 <h2 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2 bg-white/80 inline-block px-6 py-2 rounded-full shadow-sm backdrop-blur-sm">
-                    <Megaphone className="text-yellow-500"/>
+                 <h2 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2 bg-white px-8 py-3 rounded-full shadow-lg border-2 border-yellow-400 inline-block">
+                    <Megaphone className="text-yellow-600"/>
                     أحدث الأخبار والإعلانات
                  </h2>
               </div>
               
-              <div className="relative w-full max-w-4xl mx-auto h-[400px] rounded-3xl overflow-hidden shadow-2xl bg-white border-4 border-yellow-500/20">
+              <div className="relative w-full max-w-4xl mx-auto h-[400px] rounded-3xl overflow-hidden shadow-2xl bg-white border-4 border-yellow-500">
                   {newsItems.map((item, index) => (
                       <div 
                         key={item.id}
@@ -159,12 +158,12 @@ const HomeView = ({ setView, schedule }) => {
       <section id="branches" className="py-20">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white/80 inline-block px-8 py-2 rounded-full shadow-sm backdrop-blur-sm">فروعنا</h2>
-            <div className="w-24 h-1 bg-yellow-500 mx-auto rounded mt-2"></div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white px-8 py-2 rounded-full shadow-lg border-2 border-yellow-400 inline-block">فروعنا</h2>
+            <div className="w-24 h-1 bg-black mx-auto rounded mt-2"></div>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             {/* Shafa Branch */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group border border-gray-100">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl hover:scale-[1.02] transition-all duration-300 group border-2 border-yellow-400">
               <div className="h-64 bg-gray-800 relative overflow-hidden">
                   <img src={IMAGES.BRANCH_SHAFA} alt="Shafa Badran" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -177,7 +176,7 @@ const HomeView = ({ setView, schedule }) => {
               </div>
             </div>
             {/* Abu Nseir Branch */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group border border-gray-100">
+            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl hover:scale-[1.02] transition-all duration-300 group border-2 border-yellow-400">
               <div className="h-64 bg-gray-800 relative overflow-hidden">
                   <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -197,24 +196,24 @@ const HomeView = ({ setView, schedule }) => {
       <section className="py-20 relative overflow-hidden">
          <div className="container mx-auto px-6 relative z-10">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white/80 inline-block px-8 py-2 rounded-full shadow-sm backdrop-blur-sm">لماذا أكاديمية الشجاع؟</h2>
-              <p className="text-gray-600 font-medium max-w-2xl mx-auto bg-white/60 p-2 rounded-lg">نحن لا ندرب التايكوندو فحسب، نحن نبني شخصيات قيادية قوية.</p>
+              <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white px-8 py-2 rounded-full shadow-lg border-2 border-yellow-400 inline-block">لماذا أكاديمية الشجاع؟</h2>
+              <p className="text-gray-900 font-bold max-w-2xl mx-auto bg-white/90 p-3 rounded-lg border border-yellow-400 shadow">نحن لا ندرب التايكوندو فحسب، نحن نبني شخصيات قيادية قوية.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-8 text-center">
-                <div className="p-6 rounded-2xl bg-white shadow-lg hover:bg-yellow-50 transition duration-300 border-2 border-yellow-100">
-                    <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><Trophy size={32}/></div>
+                <div className="p-6 rounded-2xl bg-white shadow-xl hover:-translate-y-2 transition duration-300 border-2 border-yellow-400">
+                    <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-yellow-400"><Trophy size={32}/></div>
                     <h3 className="text-xl font-bold mb-3">صناعة الأبطال</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">سجل حافل بالإنجازات المحلية والدولية، ومنهج تدريبي يهدف للوصول باللاعبين لمنصات التتويج.</p>
+                    <p className="text-gray-600 text-sm leading-relaxed font-semibold">سجل حافل بالإنجازات المحلية والدولية، ومنهج تدريبي يهدف للوصول باللاعبين لمنصات التتويج.</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-white shadow-lg hover:bg-yellow-50 transition duration-300 border-2 border-yellow-100">
-                    <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><Users size={32}/></div>
+                <div className="p-6 rounded-2xl bg-white shadow-xl hover:-translate-y-2 transition duration-300 border-2 border-yellow-400">
+                    <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-yellow-400"><Users size={32}/></div>
                     <h3 className="text-xl font-bold mb-3">كادر تدريبي محترف</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">نخبة من المدربين المعتمدين ذوي الخبرة العالية في التعامل مع مختلف الفئات العمرية.</p>
+                    <p className="text-gray-600 text-sm leading-relaxed font-semibold">نخبة من المدربين المعتمدين ذوي الخبرة العالية في التعامل مع مختلف الفئات العمرية.</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-white shadow-lg hover:bg-yellow-50 transition duration-300 border-2 border-yellow-100">
-                    <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><Shield size={32}/></div>
+                <div className="p-6 rounded-2xl bg-white shadow-xl hover:-translate-y-2 transition duration-300 border-2 border-yellow-400">
+                    <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-yellow-400"><Shield size={32}/></div>
                     <h3 className="text-xl font-bold mb-3">بيئة آمنة وتربوية</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">نحرص على توفير بيئة تدريبية آمنة تعزز القيم الأخلاقية، الانضباط، والثقة بالنفس.</p>
+                    <p className="text-gray-600 text-sm leading-relaxed font-semibold">نحرص على توفير بيئة تدريبية آمنة تعزز القيم الأخلاقية، الانضباط، والثقة بالنفس.</p>
                 </div>
             </div>
          </div>
@@ -223,18 +222,18 @@ const HomeView = ({ setView, schedule }) => {
       {/* Schedule Section */}
       <section id="schedule" className="py-20 container mx-auto px-6">
         <div className="text-center mb-12">
-           <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white/80 inline-block px-8 py-2 rounded-full shadow-sm backdrop-blur-sm">جدول الحصص الأسبوعي</h2>
-           <div className="w-24 h-1 bg-yellow-500 mx-auto rounded mt-2"></div>
+           <h2 className="text-4xl font-bold text-gray-900 mb-4 bg-white px-8 py-2 rounded-full shadow-lg border-2 border-yellow-400 inline-block">جدول الحصص الأسبوعي</h2>
+           <div className="w-24 h-1 bg-black mx-auto rounded mt-2"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {(schedule && schedule.length > 0 ? schedule : INITIAL_SCHEDULE).map((cls) => (
-            <div key={cls.id} className="bg-white rounded-2xl p-6 shadow-lg border-t-4 border-yellow-500 hover:-translate-y-2 transition-transform duration-300">
-              <div className="bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center mb-4"><Clock className="text-gray-800" size={24}/></div>
+            <div key={cls.id} className="bg-white rounded-2xl p-6 shadow-xl border-t-8 border-yellow-500 hover:-translate-y-2 transition-transform duration-300">
+              <div className="bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center mb-4 border border-gray-300"><Clock className="text-gray-800" size={24}/></div>
               <h3 className="font-bold text-lg mb-2">{cls.level}</h3>
-              <p className="text-gray-600 text-sm mb-4">{cls.branch}</p>
+              <p className="text-gray-600 text-sm mb-4 font-semibold">{cls.branch}</p>
               <div className="space-y-3 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 text-sm text-gray-500"><Calendar size={16} className="text-yellow-500"/><span>{cls.days}</span></div>
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-800"><Activity size={16} className="text-yellow-500"/><span>{cls.time}</span></div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 font-bold"><Calendar size={16} className="text-yellow-600"/><span>{cls.days}</span></div>
+                <div className="flex items-center gap-2 text-sm font-black text-gray-900"><Activity size={16} className="text-yellow-600"/><span>{cls.time}</span></div>
               </div>
             </div>
           ))}
@@ -242,7 +241,7 @@ const HomeView = ({ setView, schedule }) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-black text-white pt-16 pb-24 md:pb-8 border-t-4 border-yellow-500 relative z-10">
+      <footer className="bg-black text-white pt-16 pb-24 md:pb-8 border-t-4 border-yellow-500 relative z-10 shadow-2xl">
         <div className="container mx-auto px-6 text-center text-sm text-gray-500">
             <div className="flex justify-center items-center gap-2 mb-4 opacity-50">
                 <img src={IMAGES.LOGO} alt="Logo" className="w-8 h-8 rounded-full grayscale" />
@@ -264,7 +263,7 @@ const HomeView = ({ setView, schedule }) => {
       {/* Modal Registration Form */}
       {showRegModal && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-lg animate-fade-in" title="طلب تسجيل جديد">
+          <Card className="w-full max-w-lg animate-fade-in border-4 border-yellow-500" title="طلب تسجيل جديد">
              <form onSubmit={handleRegister} className="space-y-4">
                <div><label className="block text-xs font-bold mb-1">اسم الطالب الرباعي</label><input required className="w-full border p-2 rounded focus:ring-2 focus:ring-yellow-500 outline-none" value={regForm.name} onChange={e=>setRegForm({...regForm, name:e.target.value})}/></div>
                <div><label className="block text-xs font-bold mb-1">تاريخ الميلاد</label><input type="date" required className="w-full border p-2 rounded focus:ring-2 focus:ring-yellow-500 outline-none" value={regForm.dob} onChange={e=>setRegForm({...regForm, dob:e.target.value})}/></div>
