@@ -1,6 +1,6 @@
 // src/views/HomeView.jsx
 import React, { useState, useEffect } from 'react';
-import { Menu, X, MapPin, Phone, Clock, Calendar, Activity, Trophy, Shield, Users, MessageCircle, Megaphone, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Menu, X, MapPin, Phone, Clock, Calendar, Activity, Trophy, Shield, Users, MessageCircle, Megaphone, ChevronRight, ChevronLeft, Navigation } from 'lucide-react';
 import { Button, Card } from '../components/UIComponents';
 import { IMAGES, BRANCHES, INITIAL_SCHEDULE } from '../lib/constants';
 import { useCollection } from '../hooks/useCollection'; 
@@ -97,9 +97,7 @@ const HomeView = ({ setView, schedule }) => {
 
       {/* Hero Section */}
       <div className="relative bg-gray-900 text-white h-[600px] flex items-center shadow-2xl overflow-hidden">
-        {/* Abstract shapes in hero background */}
         <div className="absolute top-0 right-0 w-1/2 h-full bg-yellow-500/10 -skew-x-12 transform origin-top translate-x-20"></div>
-        
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent z-10"></div>
         <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
         
@@ -122,13 +120,11 @@ const HomeView = ({ setView, schedule }) => {
         <section className="relative -mt-16 z-30 mb-20">
            <div className="container mx-auto px-6">
               <div className="relative w-full max-w-5xl mx-auto h-[450px] bg-white rounded-2xl overflow-hidden shadow-2xl border-t-8 border-yellow-500 flex flex-col md:flex-row">
-                  {/* News Content Slider */}
                   {newsItems.map((item, index) => (
                       <div 
                         key={item.id}
                         className={`absolute inset-0 flex flex-col md:flex-row transition-all duration-700 ease-in-out ${index === currentNewsIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                       >
-                          {/* Image Side */}
                           <div className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden">
                              {item.image ? (
                                  <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-[10000ms] ease-linear transform scale-100 hover:scale-110" />
@@ -139,8 +135,6 @@ const HomeView = ({ setView, schedule }) => {
                                  {item.branch}
                              </div>
                           </div>
-
-                          {/* Text Side */}
                           <div className="w-full md:w-1/2 h-1/2 md:h-full bg-white p-8 flex flex-col justify-center text-right relative">
                               <div className="flex items-center gap-2 text-yellow-600 font-bold mb-2 text-sm uppercase tracking-wide">
                                   <Activity size={16}/>
@@ -148,8 +142,6 @@ const HomeView = ({ setView, schedule }) => {
                               </div>
                               <h3 className="text-2xl md:text-4xl font-black text-gray-900 mb-4 leading-tight">{item.title}</h3>
                               <p className="text-gray-600 leading-relaxed text-sm md:text-base">{item.desc}</p>
-                              
-                              {/* Controls */}
                               <div className="flex gap-2 mt-8">
                                   <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-black hover:text-white transition-colors"><ChevronRight size={20}/></button>
                                   <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-black hover:text-white transition-colors"><ChevronLeft size={20}/></button>
@@ -162,98 +154,104 @@ const HomeView = ({ setView, schedule }) => {
         </section>
       )}
       
-      {/* Branches Section */}
-      <section id="branches" className="py-20 bg-gray-50">
+      {/* Branches Section (NEW MODERN DESIGN) */}
+      <section id="branches" className="py-24 bg-white">
         <div className="container mx-auto px-6">
           <div className="flex flex-col items-center mb-16">
-            <h2 className="text-4xl font-black text-gray-900 mb-2">فروع الأكاديمية</h2>
-            <div className="w-20 h-1.5 bg-yellow-500 rounded-full"></div>
-            <p className="text-gray-500 mt-4 max-w-lg text-center">ننتشر في مواقع استراتيجية لخدمتكم بأحدث التجهيزات الرياضية</p>
+            <h2 className="text-5xl font-black text-gray-900 mb-4 tracking-tight">فروعنا</h2>
+            <div className="w-24 h-2 bg-yellow-500 rounded-full"></div>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-10">
-            {/* Shafa Branch Card */}
-            <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2 border border-gray-100">
-              <div className="h-64 relative overflow-hidden">
-                  <img src={IMAGES.BRANCH_SHAFA} alt="Shafa" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
-                  <div className="absolute bottom-0 left-0 bg-yellow-500 text-black px-6 py-2 font-bold rounded-tr-xl">الفرع الرئيسي</div>
+          <div className="grid md:grid-cols-2 gap-8">
+            
+            {/* Shafa Badran - Modern Card */}
+            <div className="group relative h-[500px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl cursor-default">
+              {/* Background Image */}
+              <img src={IMAGES.BRANCH_SHAFA} alt="Shafa" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+              {/* Overlay Gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 transition-opacity duration-300"></div>
+              
+              {/* Content */}
+              <div className="absolute inset-0 p-8 md:p-12 flex flex-col justify-end">
+                 <div className="transform transition-transform duration-500 translate-y-4 group-hover:translate-y-0">
+                    <div className="flex justify-between items-end mb-4">
+                       <div>
+                          <span className="inline-block bg-yellow-500 text-black text-xs font-black px-3 py-1 rounded-full mb-3 shadow-lg">الفرع الرئيسي</span>
+                          <h3 className="text-4xl md:text-5xl font-black text-white leading-none mb-2">شفا بدران</h3>
+                          <div className="flex items-start gap-2 text-gray-300 text-sm md:text-base font-medium max-w-sm">
+                             <MapPin className="text-yellow-500 mt-1 shrink-0" size={18}/>
+                             <p>شارع رفعت شموط - بجانب مشاتل ربيع الاردن</p>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* Action Buttons (Glassmorphism) */}
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                       <button onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')} className="flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white font-bold py-4 rounded-2xl hover:bg-white hover:text-black transition-all duration-300">
+                          <Navigation size={20}/>
+                          <span>الموقع</span>
+                       </button>
+                       <button onClick={() => window.open('https://wa.me/962795629606', '_blank')} className="flex items-center justify-center gap-2 bg-[#25D366]/90 backdrop-blur-md text-white font-bold py-4 rounded-2xl hover:bg-[#25D366] transition-all duration-300 shadow-lg shadow-green-900/20">
+                          <MessageCircle size={20}/>
+                          <span>واتساب</span>
+                       </button>
+                    </div>
+                    {/* Call Button Full Width */}
+                    <a href="tel:0795629606" className="mt-3 flex items-center justify-center gap-2 bg-black/60 backdrop-blur-md border border-white/10 text-white font-bold py-4 rounded-2xl hover:bg-yellow-500 hover:text-black transition-all duration-300">
+                       <Phone size={20}/>
+                       <span dir="ltr">07 9562 9606</span>
+                    </a>
+                 </div>
               </div>
-              <div className="p-8 space-y-6">
-                
-                {/* العنوان */}
-                <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><MapPin size={24}/></div>
-                    <div>
-                        <h4 className="font-bold text-gray-900 text-lg">شفا بدران</h4>
-                        <p className="text-gray-600 mt-1">شارع رفعت شموط</p>
-                        <button onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')} className="text-sm text-yellow-600 font-bold mt-2 hover:underline">عرض الموقع على الخريطة</button>
-                    </div>
-                </div>
+            </div>
 
-                {/* رقم الهاتف واتساب */}
-                <div className="flex items-start gap-4 pt-4 border-t border-gray-100">
-                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><Phone size={24}/></div>
-                    <div>
-                        <h4 className="font-bold text-gray-900 text-lg mb-2">للتواصل والاستفسار</h4>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <a href="tel:0795629606" className="font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors" dir="ltr">07 9562 9606</a>
-                            <a href="https://wa.me/962795629606" target="_blank" className="flex items-center gap-2 bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#20bd5a] transition-all shadow-sm font-bold text-sm">
-                                <MessageCircle size={18}/> واتساب
-                            </a>
-                        </div>
+            {/* Abu Nseir - Modern Card */}
+            <div className="group relative h-[500px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl cursor-default">
+              {/* Background Image */}
+              <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+              {/* Overlay Gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-90 transition-opacity duration-300"></div>
+              
+              {/* Content */}
+              <div className="absolute inset-0 p-8 md:p-12 flex flex-col justify-end">
+                 <div className="transform transition-transform duration-500 translate-y-4 group-hover:translate-y-0">
+                    <div className="flex justify-between items-end mb-4">
+                       <div>
+                          <span className="inline-block bg-gray-800 text-white text-xs font-black px-3 py-1 rounded-full mb-3 shadow-lg border border-gray-600">فرع 2</span>
+                          <h3 className="text-4xl md:text-5xl font-black text-white leading-none mb-2">أبو نصير</h3>
+                          <div className="flex items-start gap-2 text-gray-300 text-sm md:text-base font-medium max-w-sm">
+                             <MapPin className="text-yellow-500 mt-1 shrink-0" size={18}/>
+                             <p>دوار البحرية - مجمع الفرا</p>
+                          </div>
+                       </div>
                     </div>
-                </div>
 
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                       <button onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')} className="flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white font-bold py-4 rounded-2xl hover:bg-white hover:text-black transition-all duration-300">
+                          <Navigation size={20}/>
+                          <span>الموقع</span>
+                       </button>
+                       <button onClick={() => window.open('https://wa.me/962790368603', '_blank')} className="flex items-center justify-center gap-2 bg-[#25D366]/90 backdrop-blur-md text-white font-bold py-4 rounded-2xl hover:bg-[#25D366] transition-all duration-300 shadow-lg shadow-green-900/20">
+                          <MessageCircle size={20}/>
+                          <span>واتساب</span>
+                       </button>
+                    </div>
+                    {/* Call Button Full Width */}
+                    <a href="tel:0790368603" className="mt-3 flex items-center justify-center gap-2 bg-black/60 backdrop-blur-md border border-white/10 text-white font-bold py-4 rounded-2xl hover:bg-yellow-500 hover:text-black transition-all duration-300">
+                       <Phone size={20}/>
+                       <span dir="ltr">07 9036 8603</span>
+                    </a>
+                 </div>
               </div>
             </div>
 
-            {/* Abu Nseir Branch Card */}
-            <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2 border border-gray-100">
-              <div className="h-64 relative overflow-hidden">
-                  <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
-              </div>
-              <div className="p-8 space-y-6">
-                
-                {/* العنوان */}
-                <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><MapPin size={24}/></div>
-                    <div>
-                        <h4 className="font-bold text-gray-900 text-lg">أبو نصير</h4>
-                        <p className="text-gray-600 mt-1">دوار البحرية</p>
-                        <button onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')} className="text-sm text-yellow-600 font-bold mt-2 hover:underline">عرض الموقع على الخريطة</button>
-                    </div>
-                </div>
-
-                {/* رقم الهاتف واتساب */}
-                <div className="flex items-start gap-4 pt-4 border-t border-gray-100">
-                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><Phone size={24}/></div>
-                    <div>
-                        <h4 className="font-bold text-gray-900 text-lg mb-2">للتواصل والاستفسار</h4>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <a href="tel:0790368603" className="font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors" dir="ltr">07 9036 8603</a>
-                            <a href="https://wa.me/962790368603" target="_blank" className="flex items-center gap-2 bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#20bd5a] transition-all shadow-sm font-bold text-sm">
-                                <MessageCircle size={18}/> واتساب
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Why Choose Us Section */}
-      <section className="py-24 relative overflow-hidden bg-white">
-         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div className="absolute top-20 right-0 w-96 h-96 bg-yellow-50 rounded-full blur-3xl opacity-60"></div>
-            <div className="absolute bottom-20 left-0 w-72 h-72 bg-gray-50 rounded-full blur-3xl opacity-60"></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-transparent via-transparent to-yellow-50/30"></div>
-         </div>
-
+      <section className="py-24 relative overflow-hidden bg-gray-50">
          <div className="container mx-auto px-6 relative z-10">
             <div className="flex flex-col items-center mb-16 text-center">
               <span className="text-yellow-500 font-bold tracking-widest text-sm uppercase mb-2">لماذا نحن؟</span>
