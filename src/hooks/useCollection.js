@@ -1,15 +1,26 @@
 // src/hooks/useCollection.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 
-export const useCollection = (collectionName) => {
+export const useCollection = (collectionName, _queryConstraints = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // نستخدم useRef لتجنب الدخول في حلقة لا نهائية (Infinite Loop) بسبب المصفوفة
+  const queryConstraints = useRef(_queryConstraints).current;
+
   useEffect(() => {
-    const path = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
-    const q = query(path);
+    let ref = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+    let q;
+
+    // إذا تم تمرير شروط بحث، نستخدمها. وإلا نجلب الكل
+    if (queryConstraints && queryConstraints.length > 0) {
+       q = query(ref, ...queryConstraints);
+    } else {
+       q = query(ref);
+    }
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setData(items);
@@ -18,8 +29,9 @@ export const useCollection = (collectionName) => {
       console.error(`Error fetching ${collectionName}:`, error);
       setLoading(false);
     });
+
     return () => unsubscribe();
-  }, [collectionName]);
+  }, [collectionName, queryConstraints]);
 
   const add = async (item) => {
     try {
@@ -28,7 +40,7 @@ export const useCollection = (collectionName) => {
       return true;
     } catch (e) {
       console.error(e);
-      alert("خطأ في الحفظ، تأكد من الاتصال wrong info entered ");
+      alert("خطأ في الحفظ، تأكد من الاتصال");
       return false;
     }
   };
