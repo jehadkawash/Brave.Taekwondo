@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Users, Calendar, DollarSign, Menu, LogOut, Activity, Archive, Inbox, Shield, CheckCircle, Clock, ClipboardList } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-
+import { Megaphone } from 'lucide-react'; // استيراد أيقونة
 // Import all managers
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
@@ -13,6 +13,7 @@ import AttendanceManager from './dashboard/AttendanceManager';
 import RegistrationsManager from './dashboard/RegistrationsManager';
 import ScheduleManager from './dashboard/ScheduleManager';
 import CaptainsManager from './dashboard/CaptainsManager';
+import NewsManager from './dashboard/NewsManager';
 
 // Constants
 const BRANCHES = { SHAFA: 'شفا بدران', ABU_NSEIR: 'أبو نصير' };
@@ -85,9 +86,15 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   // Wrapper for logging
   const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
 
+
+  // مع باقي الـ Hooks
+const newsCollection = useCollection('news'); // جلب بيانات الأخبار
+
+
   // Navigation Items
   const navItems = [
     {id:'dashboard',icon:Activity,label:'نظرة عامة'},
+    {id:'news',icon:Megaphone,label:'الأخبار والعروض'}, // <-- الإضافة هنا
     {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
     {id:'students',icon:Users,label:'الطلاب'},
     {id:'finance',icon:DollarSign,label:'المالية'},
@@ -160,6 +167,11 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
              payments={payments} // We pass the full payments list to find history
              logActivity={handleLog}
          />}
+         {activeTab === 'news' && <NewsManager 
+    news={newsCollection.data} 
+    newsCollection={newsCollection} 
+    selectedBranch={selectedBranch} 
+/>}
       </main>
     </div>
   );

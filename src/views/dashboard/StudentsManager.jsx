@@ -97,7 +97,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
             }); 
             // 2. حذفه من القائمة النشطة
             await studentsCollection.remove(student.id); 
-            logAction("أرشفة", `أرشفة الطالب ${student.name} ورصيده ${student.balance} دينار`); 
+            logActivity("أرشفة", `أرشفة الطالب ${student.name} ورصيده ${student.balance} دينار`); 
         } 
     };
 
