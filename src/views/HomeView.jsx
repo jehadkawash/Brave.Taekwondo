@@ -149,7 +149,7 @@ const HomeView = ({ setView, schedule }) => {
                               <h3 className="text-2xl md:text-4xl font-black text-gray-900 mb-4 leading-tight">{item.title}</h3>
                               <p className="text-gray-600 leading-relaxed text-sm md:text-base">{item.desc}</p>
                               
-                              {/* Controls within text area */}
+                              {/* Controls */}
                               <div className="flex gap-2 mt-8">
                                   <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-black hover:text-white transition-colors"><ChevronRight size={20}/></button>
                                   <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-black hover:text-white transition-colors"><ChevronLeft size={20}/></button>
@@ -173,48 +173,84 @@ const HomeView = ({ setView, schedule }) => {
           
           <div className="grid md:grid-cols-2 gap-10">
             {/* Shafa Branch Card */}
-            <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2">
-              <div className="h-72 relative overflow-hidden">
+            <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2 border border-gray-100">
+              <div className="h-64 relative overflow-hidden">
                   <img src={IMAGES.BRANCH_SHAFA} alt="Shafa" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
                   <div className="absolute bottom-0 left-0 bg-yellow-500 text-black px-6 py-2 font-bold rounded-tr-xl">الفرع الرئيسي</div>
               </div>
-              <div className="p-8 border-t-4 border-yellow-500">
-                <h3 className="text-2xl font-black text-gray-900 mb-4">فرع شفا بدران</h3>
-                <div className="space-y-4 text-gray-600">
-                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-yellow-600"><MapPin size={18}/></div><span className="font-bold">شارع رفعت شموط</span></div>
-                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-yellow-600"><Phone size={18}/></div><a href="tel:0795629606" className="font-bold hover:text-black transition">07 9562 9606</a></div>
+              <div className="p-8 space-y-6">
+                
+                {/* العنوان */}
+                <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><MapPin size={24}/></div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-lg">شفا بدران</h4>
+                        <p className="text-gray-600 mt-1">شارع رفعت شموط</p>
+                        <button onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')} className="text-sm text-yellow-600 font-bold mt-2 hover:underline">عرض الموقع على الخريطة</button>
+                    </div>
                 </div>
-                <Button variant="secondary" className="w-full mt-8 bg-gray-900 text-white hover:bg-black" onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')}>موقعنا على الخريطة</Button>
+
+                {/* رقم الهاتف واتساب */}
+                <div className="flex items-start gap-4 pt-4 border-t border-gray-100">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><Phone size={24}/></div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-lg mb-2">للتواصل والاستفسار</h4>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <a href="tel:0795629606" className="font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors" dir="ltr">07 9562 9606</a>
+                            <a href="https://wa.me/962795629606" target="_blank" className="flex items-center gap-2 bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#20bd5a] transition-all shadow-sm font-bold text-sm">
+                                <MessageCircle size={18}/> واتساب
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
               </div>
             </div>
 
             {/* Abu Nseir Branch Card */}
-            <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2">
-              <div className="h-72 relative overflow-hidden">
+            <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group hover:-translate-y-2 border border-gray-100">
+              <div className="h-64 relative overflow-hidden">
                   <img src={IMAGES.BRANCH_ABU_NSEIR} alt="Abu Nseir" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
               </div>
-              <div className="p-8 border-t-4 border-yellow-500">
-                <h3 className="text-2xl font-black text-gray-900 mb-4">فرع أبو نصير</h3>
-                <div className="space-y-4 text-gray-600">
-                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-yellow-600"><MapPin size={18}/></div><span className="font-bold">دوار البحرية</span></div>
-                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-yellow-600"><Phone size={18}/></div><a href="tel:0790368603" className="font-bold hover:text-black transition">07 9036 8603</a></div>
+              <div className="p-8 space-y-6">
+                
+                {/* العنوان */}
+                <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><MapPin size={24}/></div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-lg">أبو نصير</h4>
+                        <p className="text-gray-600 mt-1">دوار البحرية</p>
+                        <button onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')} className="text-sm text-yellow-600 font-bold mt-2 hover:underline">عرض الموقع على الخريطة</button>
+                    </div>
                 </div>
-                <Button variant="secondary" className="w-full mt-8 bg-gray-900 text-white hover:bg-black" onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')}>موقعنا على الخريطة</Button>
+
+                {/* رقم الهاتف واتساب */}
+                <div className="flex items-start gap-4 pt-4 border-t border-gray-100">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-yellow-600 shrink-0"><Phone size={24}/></div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-lg mb-2">للتواصل والاستفسار</h4>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <a href="tel:0790368603" className="font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors" dir="ltr">07 9036 8603</a>
+                            <a href="https://wa.me/962790368603" target="_blank" className="flex items-center gap-2 bg-[#25D366] text-white px-4 py-2 rounded-lg hover:bg-[#20bd5a] transition-all shadow-sm font-bold text-sm">
+                                <MessageCircle size={18}/> واتساب
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Why Choose Us Section (With Abstract Background) */}
+      {/* Why Choose Us Section */}
       <section className="py-24 relative overflow-hidden bg-white">
-         {/* Background Shapes */}
          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
             <div className="absolute top-20 right-0 w-96 h-96 bg-yellow-50 rounded-full blur-3xl opacity-60"></div>
             <div className="absolute bottom-20 left-0 w-72 h-72 bg-gray-50 rounded-full blur-3xl opacity-60"></div>
-            {/* Slanted Line */}
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-transparent via-transparent to-yellow-50/30"></div>
          </div>
 
@@ -246,7 +282,6 @@ const HomeView = ({ setView, schedule }) => {
 
       {/* Schedule Section */}
       <section id="schedule" className="py-20 bg-gray-900 text-white relative">
-        {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(#FDE047 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
         
         <div className="container mx-auto px-6 relative z-10">
