@@ -3,12 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, MapPin, Phone, Clock, Calendar, Activity, Trophy, Shield, Users, MessageCircle, Megaphone, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button, Card } from '../components/UIComponents';
 import { IMAGES, BRANCHES, INITIAL_SCHEDULE } from '../lib/constants';
-import { useCollection } from '../hooks/useCollection'; // لاستيراد الأخبار
+import { useCollection } from '../hooks/useCollection'; 
 
-// --- استيرادات فايربيس المباشرة ---
+// --- استيرادات فايربيس ---
 import { collection, addDoc } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-// ---------------------------------
+// -------------------------
 
 const HomeView = ({ setView, schedule }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -16,18 +16,18 @@ const HomeView = ({ setView, schedule }) => {
   const [regForm, setRegForm] = useState({ name: '', phone: '', dob: '', address: '', branch: BRANCHES.SHAFA });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- منطق شريط الأخبار (News Ticker) ---
-  const { data: newsItems } = useCollection('news'); // جلب الأخبار من قاعدة البيانات
+  // --- منطق شريط الأخبار ---
+  const { data: newsItems } = useCollection('news');
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
 
   useEffect(() => {
     if (!newsItems || newsItems.length === 0) return;
     const interval = setInterval(() => {
         setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length);
-    }, 10000); // 10 ثواني
+    }, 8000); // كل 8 ثواني يقلب الخبر
     return () => clearInterval(interval);
   }, [newsItems]);
-  // ---------------------------------------
+  // -------------------------
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -88,76 +88,71 @@ const HomeView = ({ setView, schedule }) => {
         )}
       </header>
 
-      {/* News Ticker Section (NEW) */}
-      {newsItems && newsItems.length > 0 && (
-        <div className="bg-gray-900 text-white overflow-hidden relative group h-[400px] md:h-[500px]">
-           {/* Slider Container */}
-           <div className="relative w-full h-full">
-              {newsItems.map((item, index) => (
-                  <div 
-                    key={item.id}
-                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentNewsIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-                  >
-                      {/* Image Background with Overlay */}
-                      <div className="absolute inset-0">
-                         {item.image ? (
-                             <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                         ) : (
-                             <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Megaphone size={64} className="text-gray-600"/></div>
-                         )}
-                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                      </div>
-
-                      {/* Text Content */}
-                      <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 text-white z-20">
-                          <div className="container mx-auto">
-                              <span className="bg-yellow-500 text-black px-3 py-1 rounded text-xs font-bold mb-3 inline-block animate-fade-in shadow-lg">{item.branch}</span>
-                              <h2 className="text-3xl md:text-5xl font-black mb-4 drop-shadow-lg leading-tight">{item.title}</h2>
-                              <p className="text-lg md:text-xl text-gray-200 max-w-2xl drop-shadow-md">{item.desc}</p>
-                          </div>
-                      </div>
-                  </div>
-              ))}
-           </div>
-
-           {/* Controls */}
-           <div className="absolute bottom-8 right-8 z-30 flex gap-2">
-              <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="bg-white/20 hover:bg-white/40 text-white p-2 rounded-full backdrop-blur-sm transition"><ChevronRight size={24}/></button>
-              <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="bg-white/20 hover:bg-white/40 text-white p-2 rounded-full backdrop-blur-sm transition"><ChevronLeft size={24}/></button>
-           </div>
-           
-           {/* Dots Indicators */}
-           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-2">
-               {newsItems.map((_, idx) => (
-                   <button 
-                     key={idx} 
-                     onClick={() => setCurrentNewsIndex(idx)}
-                     className={`h-2 rounded-full transition-all duration-300 ${idx === currentNewsIndex ? 'bg-yellow-500 w-8' : 'bg-white/50 w-2 hover:bg-white'}`}
-                   />
-               ))}
-           </div>
-        </div>
-      )}
-
-      {/* Hero Section (Only show if no news, otherwise the news acts as hero) */}
-      {(!newsItems || newsItems.length === 0) && (
-        <div className="relative bg-gray-900 text-white h-[500px] flex items-center">
-          <div className="absolute inset-0 bg-black/60 z-10"></div>
-          <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
-            <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm animate-pulse">التسجيل مفتوح الآن</span>
-            <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
-              اصنع قوتك ..<br/><span className="text-yellow-500">ابنِ مستقبلك</span>
-            </h2>
-            <div className="flex gap-4">
-              <Button onClick={() => setShowRegModal(true)} className="px-8 py-4 text-lg shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 transition-all">ابدأ رحلتك معنا</Button>
-            </div>
+      {/* Hero Section (الواجهة الأصلية ثابتة دائماً) */}
+      <div className="relative bg-gray-900 text-white h-[600px] flex items-center">
+        <div className="absolute inset-0 bg-black/60 z-10"></div>
+        <img src={IMAGES.HERO_BG} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="container mx-auto px-6 relative z-20 flex flex-col items-start">
+          <span className="bg-yellow-500 text-black font-bold px-3 py-1 rounded mb-4 text-sm animate-pulse">التسجيل مفتوح الآن</span>
+          <h2 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
+            اصنع قوتك ..<br/><span className="text-yellow-500">ابنِ مستقبلك</span>
+          </h2>
+          <div className="flex gap-4">
+            <Button onClick={() => setShowRegModal(true)} className="px-8 py-4 text-lg shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 transition-all">ابدأ رحلتك معنا</Button>
           </div>
         </div>
+      </div>
+
+      {/* News Section (صندوق الأخبار المتحرك في الوسط) */}
+      {newsItems && newsItems.length > 0 && (
+        <section className="py-16 bg-white relative">
+           <div className="container mx-auto px-6">
+              <div className="text-center mb-10">
+                 <h2 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
+                    <Megaphone className="text-yellow-500"/>
+                    أحدث الأخبار والإعلانات
+                 </h2>
+              </div>
+              
+              {/* News Box Container */}
+              <div className="relative w-full max-w-4xl mx-auto h-[400px] rounded-3xl overflow-hidden shadow-2xl bg-gray-100 border-4 border-yellow-500/20">
+                  {newsItems.map((item, index) => (
+                      <div 
+                        key={item.id}
+                        className={`absolute inset-0 transition-all duration-700 ease-in-out transform ${index === currentNewsIndex ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}
+                      >
+                          {/* Image */}
+                          <div className="absolute inset-0 h-full w-full">
+                             {item.image ? (
+                                 <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                             ) : (
+                                 <div className="w-full h-full bg-gray-200 flex items-center justify-center"><Megaphone size={64} className="text-gray-400"/></div>
+                             )}
+                             {/* Gradient Overlay for Text Readability */}
+                             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+                              <span className="bg-yellow-500 text-black px-3 py-1 rounded text-xs font-bold mb-3 inline-block shadow-sm">{item.branch}</span>
+                              <h3 className="text-2xl md:text-3xl font-bold mb-2">{item.title}</h3>
+                              <p className="text-gray-200 line-clamp-2">{item.desc}</p>
+                          </div>
+                      </div>
+                  ))}
+
+                  {/* Controls */}
+                  <div className="absolute bottom-4 left-4 z-20 flex gap-2">
+                      <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition"><ChevronRight size={20}/></button>
+                      <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition"><ChevronLeft size={20}/></button>
+                  </div>
+              </div>
+           </div>
+        </section>
       )}
       
       {/* Branches Section */}
-      <section id="branches" className="py-20 bg-gray-100">
+      <section id="branches" className="py-20 bg-gray-50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">فروعنا</h2>
