@@ -40,7 +40,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // 1. جلب البيانات بأمان (Default to empty array to prevent crashes)
+  // 1. جلب البيانات
   const students = studentsCollection?.data || [];
   const payments = paymentsCollection?.data || [];
   const expenses = expensesCollection?.data || [];
@@ -48,12 +48,16 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const schedule = scheduleCollection?.data || [];
   const captains = captainsCollection?.data || [];
 
-  // 2. جلب المجموعات والأخبار (جديد)
+  // 2. جلب الكولكشنز الإضافية (مجموعات، أخبار، أسباب الدفع)
   const groupsCollection = useCollection('groups');
   const groupsData = groupsCollection?.data || [];
   
   const newsCollection = useCollection('news');
   const newsData = newsCollection?.data || [];
+
+  // --- (جديد) جلب أسباب الدفع المالية ---
+  const financeReasonsCollection = useCollection('finance_reasons');
+  const financeReasonsData = financeReasonsCollection?.data || [];
 
   // 3. فلترة البيانات حسب الفرع
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
@@ -61,8 +65,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
   
-  // فلترة المجموعات الخاصة بالفرع
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
+  
+  // --- (جديد) فلترة أسباب الدفع حسب الفرع ---
+  const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
 
   // الحسابات
   const totalIncome = branchPayments.reduce((acc, curr) => acc + curr.amount, 0);
@@ -124,7 +130,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          
          {activeTab === 'dashboard' && <DashboardStats user={user} selectedBranch={selectedBranch} branchStudents={branchStudents} netProfit={netProfit} totalAttendance={totalAttendance} expiredCount={expiredCount} activeStudentsCount={activeStudentsCount} nearEndCount={nearEndCount} totalStudents={totalStudents} branchRegistrations={branchRegistrations} branchPayments={branchPayments} />}
 
-         {/* تمرير المجموعات للطلاب */}
          {activeTab === 'students' && <StudentsManager 
              students={branchStudents} 
              groups={branchGroups} 
@@ -134,9 +139,22 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
              logActivity={handleLog}
          />}
 
-         {activeTab === 'finance' && <FinanceManager students={branchStudents} payments={branchPayments} expenses={branchExpenses} paymentsCollection={paymentsCollection} expensesCollection={expensesCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
+         {/* --- (تعديل) تمرير أسباب الدفع للمالية --- */}
+         {activeTab === 'finance' && <FinanceManager 
+             students={branchStudents} 
+             payments={branchPayments} 
+             expenses={branchExpenses} 
+             paymentsCollection={paymentsCollection} 
+             expensesCollection={expensesCollection} 
+             
+             // نمرر البيانات الجديدة هنا
+             financeReasons={branchFinanceReasons}
+             financeReasonsCollection={financeReasonsCollection}
 
-         {/* تمرير المجموعات للحضور */}
+             selectedBranch={selectedBranch} 
+             logActivity={handleLog} 
+         />}
+
          {activeTab === 'attendance' && <AttendanceManager 
              students={branchStudents} 
              groups={branchGroups} 

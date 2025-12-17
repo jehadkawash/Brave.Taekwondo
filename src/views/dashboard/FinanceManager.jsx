@@ -1,18 +1,93 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState } from 'react';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
+import { addDoc, deleteDoc, doc } from "firebase/firestore"; // استيراد دوال فايربيس
+import { db } from '../../lib/firebase';
 
-export default function FinanceManager({ students, payments, expenses, paymentsCollection, expensesCollection, selectedBranch, logActivity }) {
+// --- مكون النافذة المنبثقة لإدارة الأسباب ---
+const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
+    const [newReason, setNewReason] = useState("");
+    if (!isOpen) return null;
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                        <Settings size={20} className="text-gray-600"/> إدارة بنود الدفع
+                    </h3>
+                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-red-500"/></button>
+                </div>
+                
+                {/* إضافة سبب جديد */}
+                <div className="flex gap-2 mb-6">
+                    <input 
+                        className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-green-500 outline-none"
+                        placeholder="اسم البند الجديد..."
+                        value={newReason}
+                        onChange={(e) => setNewReason(e.target.value)}
+                    />
+                    <button 
+                        onClick={() => { if(newReason) { onAdd(newReason); setNewReason(""); } }}
+                        className="bg-green-600 text-white p-3 rounded-xl hover:bg-green-700"
+                    >
+                        <Plus size={20}/>
+                    </button>
+                </div>
+
+                {/* قائمة الأسباب الحالية */}
+                <div className="space-y-2 max-h-60 overflow-y-auto mb-4 custom-scrollbar">
+                    {reasons.map((r, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <span className="font-bold text-gray-700">{r.title}</span>
+                            <button onClick={() => onDelete(r)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors">
+                                <Trash2 size={18}/>
+                            </button>
+                        </div>
+                    ))}
+                    {reasons.length === 0 && <p className="text-center text-gray-400 text-sm">لا يوجد بنود مضافة، استخدم القائمة لإضافة بنود</p>}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+export default function FinanceManager({ 
+    students, payments, expenses, 
+    paymentsCollection, expensesCollection, 
+    selectedBranch, logActivity,
+    financeReasons = [], financeReasonsCollection // استقبال البروبس الجديدة
+}) {
   const [viewMode, setViewMode] = useState('income'); 
-  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); 
+  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '' }); 
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
+  const [showReasonsModal, setShowReasonsModal] = useState(false); // حالة إظهار المودال
 
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
   const filteredPayments = incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments;
+
+  // --- دوال إدارة الأسباب (Firebase) ---
+  const handleAddReason = async (title) => {
+      // التحقق من التكرار
+      if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
+      
+      await financeReasonsCollection.add({
+          title: title,
+          branch: selectedBranch,
+          createdAt: new Date().toISOString()
+      });
+  };
+
+  const handleDeleteReason = async (reasonObj) => {
+      if (!confirm(`حذف البند "${reasonObj.title}"؟`)) return;
+      await financeReasonsCollection.remove(reasonObj.id);
+  };
 
   const handleAddPayment = async (e) => { 
     e.preventDefault(); 
@@ -20,12 +95,18 @@ export default function FinanceManager({ students, payments, expenses, paymentsC
     const selectedStudent = students.find(s => s.id === payForm.studentObjId); 
     if(!selectedStudent) return alert('طالب غير موجود'); 
     
+    // إذا لم يتم اختيار سبب (مثلاً القائمة فارغة)، نستخدم "أخرى" كافتراضي أو نطلب من المستخدم الاختيار
+    if (!payForm.reason && financeReasons.length > 0) {
+        return alert("الرجاء اختيار سبب الدفع");
+    }
+
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
+    
     const newPay = { id: Date.now().toString(), studentId: selectedStudent.id, name: selectedStudent.name, amount: Number(payForm.amount), reason: finalReason, details: payForm.details, date: new Date().toISOString().split('T')[0], branch: selectedBranch }; 
     
     await paymentsCollection.add(newPay); 
     logActivity("قبض مالي", `استلام ${payForm.amount} من ${selectedStudent.name}`); 
-    setPayForm({ sid: '', amount: '', reason: 'اشتراك شهري', customReason: '', details: '' }); 
+    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '' }); 
   };
 
   const handleAddExpense = async (e) => { 
@@ -50,6 +131,15 @@ export default function FinanceManager({ students, payments, expenses, paymentsC
   return (
     <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
       
+      {/* نافذة إدارة الأسباب */}
+      <ReasonsModal 
+        isOpen={showReasonsModal} 
+        onClose={() => setShowReasonsModal(false)} 
+        reasons={financeReasons}
+        onAdd={handleAddReason}
+        onDelete={handleDeleteReason}
+      />
+
       {/* Top Toggle Switch */}
       <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-2xl">
         <button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'income' ? 'bg-green-600 text-white shadow-green-200' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
@@ -73,16 +163,28 @@ export default function FinanceManager({ students, payments, expenses, paymentsC
                  <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
                  <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
-              <div>
-                 <label className="text-xs block mb-1 font-bold text-gray-700">السبب</label>
-                 <select className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none bg-white" value={payForm.reason} onChange={e=>setPayForm({...payForm, reason:e.target.value})}>
-                    <option>اشتراك شهري</option>
-                    <option>عرض الاشتراك 3 شهور</option>
-                    <option>رسوم فحص</option>
-                    <option>زي رسمي</option>
-                    <option>أخرى</option>
+              
+              {/* --- (تعديل) قائمة الأسباب مع زر الإعدادات --- */}
+              <div className="relative">
+                 <label className="text-xs block mb-1 font-bold text-gray-700 flex justify-between">
+                     السبب
+                     <button type="button" onClick={() => setShowReasonsModal(true)} className="text-green-600 hover:text-green-800 text-[10px] flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded cursor-pointer">
+                         <Settings size={10}/> تعديل القائمة
+                     </button>
+                 </label>
+                 <select 
+                    className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none bg-white cursor-pointer" 
+                    value={payForm.reason} 
+                    onChange={e=>setPayForm({...payForm, reason:e.target.value})}
+                 >
+                    <option value="" disabled>اختر السبب...</option>
+                    {financeReasons.map((r, idx) => (
+                        <option key={idx} value={r.title}>{r.title}</option>
+                    ))}
+                    <option value="أخرى">أخرى (كتابة يدوية)</option>
                  </select>
               </div>
+
               {payForm.reason === 'أخرى' && (
                  <div className="col-span-1 md:col-span-3">
                     <label className="text-xs block mb-1 font-bold text-gray-700">وضح السبب</label>
