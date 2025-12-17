@@ -1,5 +1,6 @@
+// src/views/dashboard/FinanceManager.jsx
 import React, { useState } from 'react';
-import { DollarSign, Printer, Trash2 } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
@@ -47,19 +48,203 @@ export default function FinanceManager({ students, payments, expenses, paymentsC
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-4 mb-6"><button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode === 'income' ? 'bg-green-600 text-white' : 'bg-white'}`}>الإيرادات</button><button onClick={() => setViewMode('expense')} className={`flex-1 py-3 rounded-xl font-bold ${viewMode === 'expense' ? 'bg-red-600 text-white' : 'bg-white'}`}>المصاريف</button></div>
+    <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
+      
+      {/* Top Toggle Switch */}
+      <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-2xl">
+        <button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'income' ? 'bg-green-600 text-white shadow-green-200' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+           الإيرادات (القبض)
+        </button>
+        <button onClick={() => setViewMode('expense')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'expense' ? 'bg-red-600 text-white shadow-red-200' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+           المصاريف
+        </button>
+      </div>
       
       {viewMode === 'income' ? (
         <>
-          <Card title="سند قبض جديد"><form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end"><div className="relative"><label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label><StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." /></div><div><label className="text-xs block mb-1">المبلغ</label><input type="number" className="w-full border p-2 rounded" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required /></div><div><label className="text-xs block mb-1">السبب</label><select className="w-full border p-2 rounded" value={payForm.reason} onChange={e=>setPayForm({...payForm, reason:e.target.value})}><option>اشتراك شهري</option><option>عرض الاشتراك 3 شهور</option><option>رسوم فحص</option><option>أخرى</option></select></div>{payForm.reason === 'أخرى' && <div><label className="text-xs block mb-1">وضح السبب</label><input className="w-full border p-2 rounded" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required /></div>}<div className="md:col-span-2"><label className="text-xs block mb-1">تفاصيل</label><input className="w-full border p-2 rounded" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} /></div><Button type="submit">حفظ وقبض</Button></form></Card>
-          <div className="flex items-center gap-2 mb-2 w-64"><StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} /></div>
-          <Card><table className="w-full text-sm text-right"><thead className="bg-gray-100"><tr><th className="p-3">#</th><th className="p-3">الطالب</th><th className="p-3">البيان</th><th className="p-3">المبلغ</th><th className="p-3">طباعة</th><th className="p-3">حذف</th></tr></thead><tbody>{filteredPayments.map(p=><tr key={p.id} className="hover:bg-gray-50"><td className="p-3">{p.id.slice(0,8)}</td><td className="p-3 font-bold">{p.name}</td><td className="p-3">{p.reason} <span className="text-xs text-gray-400">{p.details}</span></td><td className="p-3 text-green-600">{p.amount}</td><td className="p-3"><button onClick={()=>printReceipt(p)}><Printer size={16}/></button></td><td className="p-3"><button onClick={()=>deletePayment(p.id)} className="text-red-500"><Trash2 size={16}/></button></td></tr>)}</tbody></table></Card>
+          {/* Add Payment Form */}
+          <Card title="سند قبض جديد" className="border-green-100 shadow-green-50">
+            <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="relative col-span-1 md:col-span-1">
+                 <label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label>
+                 <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." />
+              </div>
+              <div>
+                 <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
+                 <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
+              </div>
+              <div>
+                 <label className="text-xs block mb-1 font-bold text-gray-700">السبب</label>
+                 <select className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none bg-white" value={payForm.reason} onChange={e=>setPayForm({...payForm, reason:e.target.value})}>
+                    <option>اشتراك شهري</option>
+                    <option>عرض الاشتراك 3 شهور</option>
+                    <option>رسوم فحص</option>
+                    <option>زي رسمي</option>
+                    <option>أخرى</option>
+                 </select>
+              </div>
+              {payForm.reason === 'أخرى' && (
+                 <div className="col-span-1 md:col-span-3">
+                    <label className="text-xs block mb-1 font-bold text-gray-700">وضح السبب</label>
+                    <input className="w-full border-2 border-gray-100 p-2 rounded-xl outline-none" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required />
+                 </div>
+              )}
+              <div className="col-span-1 md:col-span-3">
+                 <label className="text-xs block mb-1 font-bold text-gray-700">تفاصيل إضافية (اختياري)</label>
+                 <input className="w-full border-2 border-gray-100 p-2 rounded-xl outline-none" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} placeholder="مثال: عن شهر 12 + 1" />
+              </div>
+              <div className="col-span-1 md:col-span-3 mt-2">
+                 <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 py-3">حفظ وقبض</Button>
+              </div>
+            </form>
+          </Card>
+
+          {/* Filter */}
+          <div className="flex items-center gap-2 mb-2 w-full md:w-64">
+             <StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} />
+          </div>
+
+          {/* --- DESKTOP VIEW (Table) --- */}
+          <div className="hidden md:block">
+            <Card>
+                <table className="w-full text-sm text-right">
+                    <thead className="bg-gray-50 text-gray-600">
+                        <tr>
+                            <th className="p-3 rounded-r-lg">#</th>
+                            <th className="p-3">الطالب</th>
+                            <th className="p-3">البيان</th>
+                            <th className="p-3">التاريخ</th>
+                            <th className="p-3">المبلغ</th>
+                            <th className="p-3">طباعة</th>
+                            <th className="p-3 rounded-l-lg">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {filteredPayments.map(p => (
+                            <tr key={p.id} className="hover:bg-green-50 transition-colors">
+                                <td className="p-3 text-gray-400 font-mono text-xs">{p.id.slice(-6)}</td>
+                                <td className="p-3 font-bold text-gray-800">{p.name}</td>
+                                <td className="p-3 text-gray-600">
+                                    <span className="block font-bold text-xs">{p.reason}</span>
+                                    <span className="text-[10px] text-gray-400">{p.details}</span>
+                                </td>
+                                <td className="p-3 text-xs text-gray-500">{p.date}</td>
+                                <td className="p-3 font-bold text-green-600">+{p.amount}</td>
+                                <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600"><Printer size={16}/></button></td>
+                                <td className="p-3"><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-50 rounded-lg hover:bg-red-100 text-red-500"><Trash2 size={16}/></button></td>
+                            </tr>
+                        ))}
+                         {filteredPayments.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">لا يوجد سندات</td></tr>}
+                    </tbody>
+                </table>
+            </Card>
+          </div>
+
+          {/* --- MOBILE VIEW (Cards) --- */}
+          <div className="md:hidden grid gap-4">
+              {filteredPayments.map(p => (
+                  <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                      <div className="flex justify-between items-start pl-2">
+                          <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                  <User size={14} className="text-gray-400"/>
+                                  <span className="font-bold text-gray-800">{p.name}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 flex items-center gap-2">
+                                  <Calendar size={12}/> {p.date}
+                              </div>
+                          </div>
+                          <div className="text-green-600 font-bold text-lg bg-green-50 px-2 py-1 rounded-lg">
+                              +{p.amount}
+                          </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-2 rounded-lg text-sm text-gray-600 flex items-start gap-2">
+                          <FileText size={14} className="mt-1 text-gray-400 shrink-0"/>
+                          <div>
+                             <span className="font-bold block text-xs text-gray-700">{p.reason}</span>
+                             <span className="text-[10px]">{p.details}</span>
+                          </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-gray-100">
+                          <button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold">
+                              <Printer size={14}/> طباعة
+                          </button>
+                          <button onClick={()=>deletePayment(p.id)} className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold">
+                              <Trash2 size={14}/> حذف
+                          </button>
+                      </div>
+                  </div>
+              ))}
+              {filteredPayments.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد سندات</div>}
+          </div>
         </>
       ) : (
         <>
-          <Card title="تسجيل مصروف"><form onSubmit={handleAddExpense} className="flex gap-4 items-end"><div className="flex-1"><label className="text-xs block mb-1">البند</label><input className="w-full border p-2 rounded" value={expForm.title} onChange={e=>setExpForm({...expForm, title:e.target.value})} required /></div><div className="w-32"><label className="text-xs block mb-1">المبلغ</label><input type="number" className="w-full border p-2 rounded" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount:e.target.value})} required /></div><Button type="submit">حفظ</Button></form></Card>
-          <Card><table className="w-full text-sm text-right"><thead><tr><th className="p-3">البند</th><th className="p-3">المبلغ</th><th className="p-3">حذف</th></tr></thead><tbody>{branchExpenses.map(e=><tr key={e.id}><td className="p-3">{e.title}</td><td className="p-3 text-red-600">{e.amount}</td><td className="p-3"><button onClick={()=>deleteExpense(e.id)} className="text-red-500"><Trash2 size={16}/></button></td></tr>)}</tbody></table></Card>
+          {/* Expenses Form */}
+          <Card title="تسجيل مصروف" className="border-red-100 shadow-red-50">
+             <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="col-span-1 md:col-span-2">
+                    <label className="text-xs block mb-1 font-bold text-gray-700">البند (سبب الصرف)</label>
+                    <input className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.title} onChange={e=>setExpForm({...expForm, title:e.target.value})} required placeholder="مثال: فاتورة كهرباء" />
+                </div>
+                <div>
+                    <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
+                    <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount:e.target.value})} required placeholder="0.00" />
+                </div>
+                <div>
+                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 py-2.5">حفظ</Button>
+                </div>
+             </form>
+          </Card>
+          
+          {/* --- DESKTOP VIEW (Expenses Table) --- */}
+          <div className="hidden md:block">
+            <Card>
+                <table className="w-full text-sm text-right">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="p-3 rounded-r-lg">البند</th>
+                            <th className="p-3">التاريخ</th>
+                            <th className="p-3">المبلغ</th>
+                            <th className="p-3 rounded-l-lg">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {branchExpenses.map(e=>(
+                            <tr key={e.id} className="hover:bg-red-50 transition-colors">
+                                <td className="p-3 font-bold text-gray-700">{e.title}</td>
+                                <td className="p-3 text-gray-500 text-xs">{e.date}</td>
+                                <td className="p-3 text-red-600 font-bold">-{e.amount}</td>
+                                <td className="p-3"><button onClick={()=>deleteExpense(e.id)} className="text-red-500 p-2 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Card>
+          </div>
+
+          {/* --- MOBILE VIEW (Expenses Cards) --- */}
+          <div className="md:hidden grid gap-4">
+              {branchExpenses.map(e => (
+                  <div key={e.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                      <div className="pl-3">
+                          <h4 className="font-bold text-gray-800">{e.title}</h4>
+                          <span className="text-xs text-gray-400 block mt-1">{e.date}</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                          <span className="font-bold text-red-600 text-lg">-{e.amount}</span>
+                          <button onClick={()=>deleteExpense(e.id)} className="text-red-400 hover:text-red-600 bg-red-50 p-1.5 rounded-lg">
+                              <Trash2 size={16}/>
+                          </button>
+                      </div>
+                  </div>
+              ))}
+              {branchExpenses.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد مصاريف</div>}
+          </div>
         </>
       )}
     </div>
