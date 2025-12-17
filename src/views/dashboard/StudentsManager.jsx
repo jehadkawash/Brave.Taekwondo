@@ -3,12 +3,12 @@ import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
-  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles 
+  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles, ChevronDown 
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants';
 
-// --- دوال مساعدة ---
+// --- Helper Functions ---
 const generateCredentials = () => {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
   const username = `student${randomNum}`;
@@ -38,10 +38,10 @@ const isNewStudent = (joinDate) => {
     const join = new Date(joinDate);
     const diffTime = Math.abs(today - join);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 7; // يعتبر جديد إذا له أسبوع أو أقل
+    return diffDays <= 7;
 };
 
-// --- مكون النافذة المنبثقة (Modal) ---
+// --- Modal Component ---
 const ModalOverlay = ({ children, onClose }) => {
   if (typeof document === 'undefined') return null;
   return createPortal(
@@ -58,28 +58,23 @@ const ModalOverlay = ({ children, onClose }) => {
 };
 
 const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity }) => {
-  // States for Search & Filter
   const [search, setSearch] = useState(''); 
-  const [statusFilter, setStatusFilter] = useState('all'); // all, active, near_end, expired
-  const [sortOption, setSortOption] = useState('joinDateDesc'); // joinDateDesc, beltDesc, balanceDesc
+  const [statusFilter, setStatusFilter] = useState('all'); 
+  const [sortOption, setSortOption] = useState('joinDateDesc'); 
 
-  // States for Modals
   const [showModal, setShowModal] = useState(false); 
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  // Default Form
   const defaultForm = { name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0, subEnd: '', username: '', password: '' };
   const [newS, setNewS] = useState(defaultForm);
   const [linkFamily, setLinkFamily] = useState('new');
   
   const uniqueFamilies = [...new Map(students.map(item => [item.familyId, item.familyName])).entries()];
 
-  // --- منطق الفلترة والبحث الذكي والترتيب ---
   const processedStudents = useMemo(() => {
       let result = [...students];
 
-      // 1. البحث (Smart Search)
       if (search) {
           const lowerSearch = search.toLowerCase();
           result = result.filter(s => 
@@ -89,33 +84,24 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           );
       }
 
-      // 2. فلترة الحالة (Filter)
       if (statusFilter !== 'all') {
           result = result.filter(s => calculateStatus(s.subEnd) === statusFilter);
       }
 
-      // 3. الترتيب (Sorting)
       result.sort((a, b) => {
           switch (sortOption) {
-              case 'joinDateDesc': // الأحدث التحاقاً (الافتراضي)
-                  return new Date(b.joinDate || 0) - new Date(a.joinDate || 0);
-              case 'joinDateAsc': 
-                  return new Date(a.joinDate || 0) - new Date(b.joinDate || 0);
-              case 'beltDesc': // الحزام: من الأعلى للأسفل
-                  return BELTS.indexOf(b.belt) - BELTS.indexOf(a.belt);
-              case 'beltAsc': 
-                  return BELTS.indexOf(a.belt) - BELTS.indexOf(b.belt);
-              case 'balanceDesc': // الأكثر مديونية أولاً
-                  return b.balance - a.balance;
-              default:
-                  return 0;
+              case 'joinDateDesc': return new Date(b.joinDate || 0) - new Date(a.joinDate || 0);
+              case 'joinDateAsc': return new Date(a.joinDate || 0) - new Date(b.joinDate || 0);
+              case 'beltDesc': return BELTS.indexOf(b.belt) - BELTS.indexOf(a.belt);
+              case 'beltAsc': return BELTS.indexOf(a.belt) - BELTS.indexOf(b.belt);
+              case 'balanceDesc': return b.balance - a.balance;
+              default: return 0;
           }
       });
 
       return result;
   }, [students, search, statusFilter, sortOption]);
 
-  // --- العمليات ---
   const addStudent = async (e) => {
     e.preventDefault(); 
     let finalUser = newS.username;
@@ -212,7 +198,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
-  // --- واتساب (معدل) ---
   const openWhatsAppChat = (phone) => {
     if (!phone) return;
     let cleanPhone = phone.replace(/\D/g, ''); 
@@ -222,12 +207,9 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const sendCredentialsWhatsApp = (student) => {
     if (!student.phone) return;
-    
-    // تنظيف رقم الهاتف للإرسال (الرابط)
     let cleanPhone = student.phone.replace(/\D/g, ''); 
     if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
     
-    // تجهيز نص الرسالة حسب التنسيق المطلوب تماماً
     const message = `مرحباً ${student.name} 🔥
 
 أهلاً بك في أكاديمية الشجاع للتايكواندو !
@@ -248,14 +230,13 @@ https://bravetkd.bar/
 ✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري
 📞 0790368603`;
     
-    // استخدام encodeURIComponent لضمان ظهور الرموز والأسطر بشكل صحيح
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
    
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
-      {/* نافذة نجاح الإنشاء */}
+      {/* Credential Success Modal */}
       {createdCreds && (
         <ModalOverlay onClose={() => setCreatedCreds(null)}>
             <div className="p-8 text-center">
@@ -264,13 +245,11 @@ https://bravetkd.bar/
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">تم تسجيل البطل بنجاح!</h2>
                 <p className="text-gray-600 mb-6">الطالب: <strong>{createdCreds.name}</strong></p>
-                
                 <div className="bg-gray-50 p-4 border rounded-xl mb-6 dir-ltr text-left relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-2 bg-yellow-400 text-xs font-bold text-black rounded-bl-lg">Credentials</div>
                     <p className="font-mono text-sm mb-1">User: <strong className="text-lg text-blue-900 select-all">{createdCreds.username}</strong></p>
                     <p className="font-mono text-sm">Pass: <strong className="text-lg text-red-600 select-all">{createdCreds.password}</strong></p>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                     <Button onClick={() => sendCredentialsWhatsApp(createdCreds)} className="bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2">
                         <Send size={18}/> إرسال واتساب
@@ -281,10 +260,8 @@ https://bravetkd.bar/
         </ModalOverlay>
       )}
       
-      {/* --- شريط الأدوات (بحث + فلترة) --- */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-          
-          {/* البحث الذكي */}
+      {/* --- Filter Toolbar --- */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-20">
           <div className="relative w-full md:w-1/3">
              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <Search size={18} className="text-gray-400"/>
@@ -294,21 +271,17 @@ https://bravetkd.bar/
                 placeholder="ابحث عن اسم، هاتف، يوزر..." 
                 value={search} 
                 onChange={e=>setSearch(e.target.value)} 
-                list="students-suggestions" // ربط بالقائمة المنسدلة
+                list="students-suggestions"
              />
-             {/* القائمة المقترحة */}
              <datalist id="students-suggestions">
                 {students.map(s => <option key={s.id} value={s.name} />)}
              </datalist>
           </div>
 
-          {/* الفلاتر */}
-          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-             
-             {/* فلتر الحالة */}
-             <div className="relative">
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+             <div className="relative min-w-[120px]">
                  <select 
-                    className="appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
+                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                  >
@@ -320,17 +293,16 @@ https://bravetkd.bar/
                  <Filter size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500 pointer-events-none"/>
              </div>
 
-             {/* ترتيب */}
-             <div className="relative">
+             <div className="relative min-w-[140px]">
                  <select 
-                    className="appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
+                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
                     value={sortOption}
                     onChange={(e) => setSortOption(e.target.value)}
                  >
-                    <option value="joinDateDesc">📅 الأحدث التحاقاً</option>
-                    <option value="joinDateAsc">📅 الأقدم التحاقاً</option>
+                    <option value="joinDateDesc">📅 الأحدث</option>
+                    <option value="joinDateAsc">📅 الأقدم</option>
                     <option value="beltDesc">🥋 أعلى حزام</option>
-                    <option value="balanceDesc">💰 الأكثر مديونية</option>
+                    <option value="balanceDesc">💰 المديونية</option>
                  </select>
                  {sortOption.includes('Desc') ? 
                     <SortDesc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500 pointer-events-none"/> :
@@ -339,13 +311,17 @@ https://bravetkd.bar/
              </div>
 
              <Button onClick={()=>{setEditingStudent(null); setShowModal(true)}} className="whitespace-nowrap flex items-center gap-2 shadow-lg shadow-yellow-500/20">
-                <UserPlus size={18}/> طالب جديد
+                <UserPlus size={18}/> <span className="hidden sm:inline">طالب جديد</span><span className="inline sm:hidden">جديد</span>
              </Button>
           </div>
       </div>
 
-      {/* الجدول */}
-      <Card className="overflow-hidden border-none shadow-md rounded-2xl p-0">
+      {/* =========================================================================
+          VIEW SWITCHING: TABLE (Desktop) vs CARDS (Mobile)
+         ========================================================================= */}
+
+      {/* 1. DESKTOP VIEW (Table) - Hidden on Mobile */}
+      <Card className="hidden md:block overflow-hidden border-none shadow-md rounded-2xl p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
                 <thead className="bg-gray-50 text-gray-600 border-b border-gray-100">
@@ -364,66 +340,44 @@ https://bravetkd.bar/
                         const isNew = isNewStudent(s.joinDate);
                         return (
                             <tr key={s.id} className="hover:bg-yellow-50/50 transition-colors group">
-                                
-                                {/* الاسم + شارة جديد */}
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
                                         <div className="font-bold text-gray-800 text-base">{s.name}</div>
                                         {isNew && (
-                                            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold border border-red-200 animate-pulse">
-                                                NEW
-                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold border border-red-200 animate-pulse">NEW</span>
                                         )}
                                     </div>
                                     <div className="text-xs text-gray-400 mt-1">{s.joinDate}</div>
                                 </td>
-
-                                {/* الهاتف + اتصال + شات */}
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
                                         <a href={`tel:${s.phone}`} className="font-mono text-gray-600 hover:text-blue-600 font-bold flex items-center gap-1" title="اتصال">
                                             {s.phone} <Phone size={12} className="opacity-50"/>
                                         </a>
-                                        <button 
-                                            onClick={() => openWhatsAppChat(s.phone)} 
-                                            className="w-8 h-8 rounded-full bg-green-50 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-all shadow-sm"
-                                            title="محادثة واتساب"
-                                        >
+                                        <button onClick={() => openWhatsAppChat(s.phone)} className="w-8 h-8 rounded-full bg-green-50 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-all shadow-sm">
                                             <MessageCircle size={16}/>
                                         </button>
                                     </div>
                                 </td>
-
-                                {/* بيانات الدخول + زر الإرسال السريع */}
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
                                         <div className="bg-gray-50 p-1.5 rounded-lg text-xs font-mono border border-gray-100">
                                             <div className="text-blue-900">U: {s.username}</div>
                                             <div className="text-red-600 font-bold">P: {s.password}</div>
                                         </div>
-                                        <button 
-                                            onClick={() => sendCredentialsWhatsApp(s)}
-                                            className="text-gray-400 hover:text-[#25D366] transition-colors"
-                                            title="إرسال البيانات عبر واتساب"
-                                        >
-                                            <Send size={16}/>
-                                        </button>
+                                        <button onClick={() => sendCredentialsWhatsApp(s)} className="text-gray-400 hover:text-[#25D366] transition-colors"><Send size={16}/></button>
                                     </div>
                                 </td>
-
                                 <td className="p-4">
                                     <span className="px-3 py-1 bg-gray-100 rounded-lg font-bold text-xs border border-gray-200">{s.belt}</span>
                                 </td>
-                                
                                 <td className="p-4">
                                     {s.balance > 0 ? 
                                         <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-xs">عليه {s.balance}</span> : 
                                         <span className="text-green-600 font-bold text-xs">خالص</span>
                                     }
                                 </td>
-
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
-                                
                                 <td className="p-4">
                                     <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
@@ -434,20 +388,74 @@ https://bravetkd.bar/
                             </tr>
                         );
                     })}
-                    {processedStudents.length === 0 && (
-                        <tr>
-                            <td colSpan="7" className="p-12 text-center text-gray-400 flex flex-col items-center justify-center">
-                                <Search size={48} className="mb-4 opacity-20"/>
-                                <p>لا يوجد طلاب مطابقين للبحث</p>
-                            </td>
-                        </tr>
-                    )}
                 </tbody>
             </table>
           </div>
       </Card>
 
-      {/* نافذة الإضافة/التعديل */}
+      {/* 2. MOBILE VIEW (Cards) - Hidden on Desktop */}
+      <div className="md:hidden grid grid-cols-1 gap-4">
+        {processedStudents.map(s => {
+             const isNew = isNewStudent(s.joinDate);
+             const status = calculateStatus(s.subEnd);
+             return (
+                 <div key={s.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                     {/* Header: Name and Status */}
+                     <div className="flex justify-between items-start">
+                         <div>
+                             <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-gray-800 text-lg">{s.name}</h3>
+                                {isNew && <span className="text-[10px] bg-red-100 text-red-600 px-2 rounded-full animate-pulse">NEW</span>}
+                             </div>
+                             <p className="text-xs text-gray-400 mt-0.5">منذ: {s.joinDate}</p>
+                         </div>
+                         <StatusBadge status={status} />
+                     </div>
+
+                     {/* Details Grid */}
+                     <div className="grid grid-cols-2 gap-3 text-sm">
+                         <div className="bg-gray-50 p-2 rounded-lg">
+                             <span className="text-gray-500 text-xs block">الحزام</span>
+                             <span className="font-bold text-gray-800">{s.belt}</span>
+                         </div>
+                         <div className={`p-2 rounded-lg ${s.balance > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                             <span className="text-xs block opacity-70">الرصيد</span>
+                             <span className="font-bold">{s.balance > 0 ? `عليه ${s.balance}` : 'خالص'}</span>
+                         </div>
+                     </div>
+
+                     {/* Credentials Box */}
+                     <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100 border-dashed">
+                         <div className="text-xs font-mono text-gray-600">
+                             <div className="mb-1"><span className="font-bold text-blue-800">U:</span> {s.username}</div>
+                             <div><span className="font-bold text-red-600">P:</span> {s.password}</div>
+                         </div>
+                         <button onClick={() => sendCredentialsWhatsApp(s)} className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">
+                             <Send size={16} />
+                         </button>
+                     </div>
+
+                     {/* Footer: Actions */}
+                     <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-1">
+                         <div className="flex gap-2">
+                             <a href={`tel:${s.phone}`} className="p-2 bg-gray-100 rounded-full text-gray-600"><Phone size={16}/></a>
+                             <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-100 rounded-full text-[#25D366]"><MessageCircle size={16}/></button>
+                         </div>
+                         <div className="flex gap-2">
+                             <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ArrowUp size={16}/></button>
+                             <button onClick={() => openEditModal(s)} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Edit size={16}/></button>
+                             <button onClick={() => archiveStudent(s)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Archive size={16}/></button>
+                         </div>
+                     </div>
+                 </div>
+             )
+        })}
+        {processedStudents.length === 0 && (
+            <div className="text-center p-8 text-gray-400">لا يوجد نتائج</div>
+        )}
+      </div>
+
+      {/* --- Add/Edit Modal (Same as before) --- */}
       {showModal && (
         <ModalOverlay onClose={closeModal}>
             <div className="p-6">
@@ -458,8 +466,6 @@ https://bravetkd.bar/
                 
                 <form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4 text-right">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
-                        {/* قسم بيانات الدخول */}
                         <div className="md:col-span-2 bg-gradient-to-r from-yellow-50 to-white p-4 rounded-xl border border-yellow-200 mb-2">
                             <p className="text-xs font-bold text-yellow-700 mb-3 flex items-center gap-1">
                                 <Sparkles size={12}/> بيانات تسجيل الدخول (اتركها فارغة للتوليد التلقائي)
