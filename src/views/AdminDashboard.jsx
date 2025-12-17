@@ -1,4 +1,4 @@
-// src/views/AdminDashboard.js
+// src/views/AdminDashboard.jsx
 import React, { useState, useMemo } from 'react';
 import { Users, Calendar, DollarSign, Menu, LogOut, Activity, Archive, Inbox, Shield, CheckCircle, Clock, ClipboardList, Megaphone } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
@@ -53,18 +53,19 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Data Preparation
-  const students = studentsCollection.data;
-  const payments = paymentsCollection.data;
-  const expenses = expensesCollection.data;
-  const registrations = registrationsCollection.data;
-  const schedule = scheduleCollection.data;
-  const captains = captainsCollection.data;
+  const students = studentsCollection.data || [];
+  const payments = paymentsCollection.data || [];
+  const expenses = expensesCollection.data || [];
+  const registrations = registrationsCollection.data || [];
+  const schedule = scheduleCollection.data || [];
+  const captains = captainsCollection.data || [];
 
-  // --- (جديد) جلب المجموعات/الفترات من قاعدة البيانات ---
+  // --- جلب المجموعات/الفترات من قاعدة البيانات ---
   const groupsCollection = useCollection('groups');
-  const groupsData = groupsCollection.data;
+  // (الإصلاح هنا: إضافة "|| []" لتجنب الخطأ قبل تحميل البيانات)
+  const groupsData = groupsCollection.data || []; 
 
-  // --- (جديد) جلب الأخبار ---
+  // --- جلب الأخبار ---
   const newsCollection = useCollection('news');
 
   // Filter Data by Branch
@@ -73,7 +74,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
   
-  // (جديد) فلترة المجموعات حسب الفرع
+  // فلترة المجموعات حسب الفرع (لن تضرب إيرور الآن لأن groupsData مضمونة أن تكون مصفوفة)
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
 
   // Calculations
@@ -146,7 +147,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
          {activeTab === 'students' && <StudentsManager 
              students={branchStudents} 
-             groups={branchGroups} // (تعديل) تمرير المجموعات
+             groups={branchGroups} 
              studentsCollection={studentsCollection} 
              archiveCollection={archiveCollection} 
              selectedBranch={selectedBranch} 
@@ -159,9 +160,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
          {activeTab === 'attendance' && <AttendanceManager 
              students={branchStudents} 
-             groups={branchGroups} // (تعديل) تمرير المجموعات للعرض
-             groupsCollection={groupsCollection} // (تعديل) تمرير الكوليكشن للإضافة والحذف
+             groups={branchGroups} 
+             groupsCollection={groupsCollection}
              studentsCollection={studentsCollection}
+             selectedBranch={selectedBranch}
          />}
 
          {activeTab === 'registrations' && <RegistrationsManager 
@@ -184,7 +186,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
          />}
          
          {activeTab === 'news' && <NewsManager 
-            news={newsCollection.data} 
+            news={newsCollection.data || []} 
             newsCollection={newsCollection} 
             selectedBranch={selectedBranch} 
          />}
