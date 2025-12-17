@@ -124,8 +124,10 @@ export default function FinanceManager({
     const logoUrl = window.location.origin + IMAGES.LOGO;
 
     const htmlContent = `
-      <html>
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
         <head>
+          <meta charset="UTF-8">
           <title>سند قبض رسمي - ${payment.name}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -136,10 +138,12 @@ export default function FinanceManager({
               padding: 20px;
               background-color: #f5f5f5;
               -webkit-print-color-adjust: exact;
+              direction: rtl; /* اتجاه الصفحة من اليمين لليسار */
+              text-align: right;
             }
 
             .receipt-container {
-              max-width: 210mm; /* A5 width roughly or half A4 */
+              max-width: 210mm;
               margin: 0 auto;
               background: white;
               border: 1px solid #ddd;
@@ -155,7 +159,7 @@ export default function FinanceManager({
               left: 50%;
               transform: translate(-50%, -50%);
               width: 60%;
-              opacity: 0.06; /* شفافية خفيفة جداً */
+              opacity: 0.05;
               z-index: 0;
               pointer-events: none;
             }
@@ -164,7 +168,7 @@ export default function FinanceManager({
               position: relative;
               z-index: 1;
               padding: 40px;
-              border: 4px double #444; /* برواز مزدوج فخم */
+              border: 4px double #444;
               margin: 10px;
               min-height: 500px;
               display: flex;
@@ -177,7 +181,7 @@ export default function FinanceManager({
               display: flex;
               justify-content: space-between;
               align-items: center;
-              border-bottom: 3px solid #b45309; /* خط ذهبي */
+              border-bottom: 3px solid #b45309;
               padding-bottom: 20px;
               margin-bottom: 30px;
             }
@@ -202,7 +206,7 @@ export default function FinanceManager({
             }
 
             .receipt-info {
-              text-align: left;
+              text-align: right; /* تأكيد المحاذاة لليمين */
               background: #f9f9f9;
               padding: 10px 20px;
               border-radius: 8px;
@@ -222,17 +226,14 @@ export default function FinanceManager({
               font-weight: 900;
               color: #222;
               margin-bottom: 40px;
-              letter-spacing: 1px;
+              letter-spacing: 0;
               position: relative;
-              display: inline-block;
-              left: 50%;
-              transform: translateX(-50%);
             }
             
             .doc-title::after {
               content: '';
               display: block;
-              width: 60%;
+              width: 200px;
               height: 3px;
               background: #b45309;
               margin: 5px auto 0;
@@ -250,14 +251,15 @@ export default function FinanceManager({
             .field-label {
               font-weight: 700;
               color: #444;
-              width: 140px;
-              flex-shrink: 0;
+              width: 140px; /* مساحة ثابتة للعنوان */
+              padding-left: 10px;
+              white-space: nowrap;
             }
 
             .field-value {
               flex-grow: 1;
               border-bottom: 1px dotted #999;
-              padding: 0 10px 5px 0;
+              padding: 0 5px 5px 0;
               font-weight: 600;
               color: #000;
             }
@@ -276,6 +278,7 @@ export default function FinanceManager({
               font-weight: bold;
               border-radius: 50px;
               box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+              direction: ltr; /* المبلغ بالدينار والأرقام يفضل LTR */
             }
 
             /* Footer & Signatures */
@@ -326,11 +329,18 @@ export default function FinanceManager({
               display: flex;
               justify-content: space-between;
               margin-bottom: 6px;
-              padding: 0 10px;
+              padding: 0 5px;
             }
             
             .branch-name { font-weight: bold; }
-            .branch-phone { direction: ltr; font-family: monospace; font-weight: bold; font-size: 13px; }
+            
+            .branch-phone { 
+                direction: ltr; 
+                font-family: monospace; 
+                font-weight: bold; 
+                font-size: 13px; 
+                text-align: left;
+            }
 
             /* Print Specifics */
             @media print {
@@ -385,7 +395,7 @@ export default function FinanceManager({
                 </div>
 
                 <div class="amount-display">
-                  <div class="amount-box">JD ${payment.amount}</div>
+                  <div class="amount-box">${payment.amount} JOD</div>
                 </div>
               </div>
 
