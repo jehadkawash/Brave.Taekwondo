@@ -6,8 +6,6 @@ import {
 } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { createPortal } from 'react-dom';
-import { addDoc, deleteDoc, doc, collection } from "firebase/firestore"; 
-import { db } from '../../lib/firebase';
 
 // --- Groups Management Modal ---
 const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
@@ -57,7 +55,7 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
     );
 };
 
-export default function AttendanceManager({ students, studentsCollection, groups = [], selectedBranch }) {
+export default function AttendanceManager({ students, studentsCollection, groups = [], groupsCollection, selectedBranch }) {
   // --- Date Settings ---
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayForMobile, setSelectedDayForMobile] = useState(new Date().getDate());
@@ -75,32 +73,25 @@ export default function AttendanceManager({ students, studentsCollection, groups
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
 
-  // --- Group Management Functions (Firebase) ---
+  // --- Group Management Functions (Using passed groupsCollection) ---
+  // التعديل هنا: نستخدم groupsCollection الممرر من الداشبورد بدلاً من الكتابة اليدوية
   const handleAddGroup = async (name) => {
       if (groupsList.includes(name)) return alert("هذه الفترة موجودة مسبقاً");
       
-      try {
-          await addDoc(collection(db, 'groups'), {
-              name: name,
-              branch: selectedBranch || (students[0]?.branch || 'عام'), 
-              createdAt: new Date().toISOString()
-          });
-      } catch (error) {
-          console.error("Error adding group: ", error);
-          alert("حدث خطأ أثناء إضافة الفترة");
-      }
+      // نستخدم دالة add الخاصة بالـ Hook لضمان الكتابة في المسار الصحيح المسموح به
+      await groupsCollection.add({
+          name: name,
+          branch: selectedBranch || (students[0]?.branch || 'عام')
+      });
   };
 
   const handleDeleteGroup = async (groupObj) => {
-      if (!confirm(`حذف الفترة "${groupObj.name}"؟ (لن يتم حذف الطلاب، فقط اسم الفترة)`)) return;
+      if (!confirm(`حذف الفترة "${groupObj.name}"؟`)) return;
       
-      try {
-          await deleteDoc(doc(db, "groups", groupObj.id));
-          if (selectedGroup === groupObj.name) setSelectedGroup("الكل");
-      } catch (error) {
-          console.error("Error deleting group: ", error);
-          alert("حدث خطأ أثناء حذف الفترة");
-      }
+      // نستخدم دالة remove الخاصة بالـ Hook
+      await groupsCollection.remove(groupObj.id);
+      
+      if (selectedGroup === groupObj.name) setSelectedGroup("الكل");
   };
 
   // --- Date Functions ---
@@ -128,18 +119,14 @@ export default function AttendanceManager({ students, studentsCollection, groups
 
   // --- 1. Data Processing ---
   const processedStudents = useMemo(() => {
-      // Ensure students is an array to prevent errors
       let result = Array.isArray(students) ? [...students] : [];
 
-      // Group Filter
       if (selectedGroup !== "الكل") {
           result = result.filter(s => s.group === selectedGroup);
       }
 
-      // Sort
       result.sort((a, b) => (a.customOrder || 999999) - (b.customOrder || 999999));
 
-      // Search
       if (searchTerm) {
           result = result.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
       }
@@ -185,7 +172,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
       <GroupsModal 
         isOpen={showGroupsModal} 
         onClose={() => setShowGroupsModal(false)}
-        groups={groups || []} // Ensure groups is passed correctly
+        groups={groups || []}
         onAdd={handleAddGroup}
         onDelete={handleDeleteGroup}
       />
