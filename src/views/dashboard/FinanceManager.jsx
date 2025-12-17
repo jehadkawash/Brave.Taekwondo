@@ -119,13 +119,216 @@ export default function FinanceManager({
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  const printReceipt = (payment) => {
+ const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
-    const logoUrl = window.location.origin + IMAGES.LOGO;
-    receiptWindow.document.write(`<html><head><title>سند قبض</title><style>body{font-family:'Courier New';direction:rtl;text-align:center;border:2px solid #000;padding:20px;max-width:600px;margin:20px auto;}.header{border-bottom:2px dashed #000;padding-bottom:10px;margin-bottom:20px;}.amount{font-size:22px;font-weight:bold;}</style></head><body><div class="header"><img src="${logoUrl}" width="60"/><h3>أكاديمية الشجاع</h3><p>فرع: ${selectedBranch}</p></div><h2>سند قبض</h2><div style="text-align:right;line-height:2"><div><strong>التاريخ:</strong> ${payment.date}</div><div><strong>رقم السند:</strong> #${payment.id.slice(0,8)}</div><div><strong>استلمنا من:</strong> ${payment.name}</div><div><strong>مبلغ:</strong> <span class="amount">${payment.amount} JOD</span></div><div><strong>وذلك عن:</strong> ${payment.reason} ${payment.details}</div></div><br/><p>توقيع المستلم: ________________</p></body></html>`);
+    const logoUrl = window.location.origin + IMAGES.LOGO; // تأكد أن رابط اللوجو صحيح
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>سند قبض - ${payment.name}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+            
+            body {
+              font-family: 'Cairo', sans-serif;
+              direction: rtl;
+              padding: 20px;
+              background-color: #fff;
+              -webkit-print-color-adjust: exact;
+            }
+
+            .receipt-box {
+              border: 3px double #333;
+              padding: 25px;
+              max-width: 800px;
+              margin: 0 auto;
+              position: relative;
+              background: white;
+            }
+
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #eee;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+
+            .academy-info {
+              text-align: right;
+            }
+            .academy-name {
+              font-size: 22px;
+              font-weight: 900;
+              color: #b45309; /* لون برتقالي/ذهبي */
+              margin-bottom: 5px;
+            }
+            .branch-name {
+              font-size: 14px;
+              color: #555;
+              font-weight: bold;
+            }
+
+            .logo img {
+              height: 90px;
+              max-width: 150px;
+            }
+
+            .receipt-meta {
+              text-align: left;
+              font-size: 14px;
+            }
+            .receipt-meta div {
+              margin-bottom: 5px;
+            }
+
+            .title {
+              text-align: center;
+              font-size: 32px;
+              font-weight: 900;
+              margin: 10px 0 30px 0;
+              text-decoration: underline;
+              text-underline-offset: 8px;
+              color: #222;
+            }
+
+            .content {
+              font-size: 18px;
+              line-height: 2.2;
+            }
+
+            .row {
+              display: flex;
+              align-items: baseline;
+              margin-bottom: 10px;
+            }
+            
+            .label {
+              font-weight: bold;
+              width: 130px;
+              color: #444;
+            }
+            
+            .value {
+              flex: 1;
+              border-bottom: 1px dotted #999;
+              padding-right: 10px;
+              font-weight: 700;
+              color: #000;
+            }
+
+            .amount-box {
+              margin: 30px auto;
+              border: 3px solid #000;
+              padding: 10px 40px;
+              font-size: 28px;
+              font-weight: 900;
+              width: fit-content;
+              border-radius: 8px;
+              background: #f9f9f9;
+              box-shadow: 2px 2px 0px #ccc;
+            }
+
+            .footer {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 60px;
+              padding: 0 40px;
+            }
+
+            .signature {
+              text-align: center;
+              width: 200px;
+              border-top: 2px solid #333;
+              padding-top: 10px;
+              font-weight: bold;
+            }
+
+            .notes {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 12px;
+              color: #777;
+              border-top: 1px solid #eee;
+              padding-top: 10px;
+            }
+
+            @media print {
+              .receipt-box { box-shadow: none; border: 2px solid #000; }
+              body { margin: 0; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-box">
+            
+            <div class="header">
+              <div class="academy-info">
+                <div class="academy-name">أكاديمية الشجاع للتايكواندو</div>
+                <div class="branch-name">📍 فرع: ${selectedBranch}</div>
+                <div class="branch-name">📞 هاتف: 0795629606</div>
+              </div>
+              
+              <div class="logo">
+                <img src="${logoUrl}" alt="شعار الأكاديمية" onerror="this.style.display='none'"/>
+              </div>
+
+              <div class="receipt-meta">
+                <div>رقم السند: <strong>#${payment.id.slice(-6)}</strong></div>
+                <div>التاريخ: <strong>${payment.date}</strong></div>
+              </div>
+            </div>
+
+            <div class="title">سند قبض مالي</div>
+
+            <div class="content">
+              <div class="row">
+                <span class="label">استلمنا من السيد/ة:</span>
+                <span class="value">${payment.name}</span>
+              </div>
+              
+              <div class="row">
+                <span class="label">مبلغ وقدره:</span>
+                <span class="value">${payment.amount} دينار أردني</span>
+              </div>
+
+              <div class="row">
+                <span class="label">وذلك عن:</span>
+                <span class="value">${payment.reason} ${payment.details ? ` - ${payment.details}` : ''}</span>
+              </div>
+            </div>
+
+            <div class="amount-box">
+              JD ${payment.amount}
+            </div>
+
+            <div class="footer">
+              <div class="signature">المحاسب</div>
+              <div class="signature">المستلم</div>
+            </div>
+
+            <div class="notes">
+              شكراً لثقتكم بنا! | المبالغ المدفوعة لا تُسترد بعد بدء الاشتراك
+            </div>
+
+          </div>
+        </body>
+      </html>
+    `;
+
+    receiptWindow.document.write(htmlContent);
     receiptWindow.document.close();
-    receiptWindow.focus();
-    setTimeout(() => { receiptWindow.print(); receiptWindow.close(); }, 500);
+    
+    // انتظار تحميل الصور (اللوجو) قبل الطباعة
+    receiptWindow.onload = () => {
+        receiptWindow.focus();
+        setTimeout(() => {
+            receiptWindow.print();
+            receiptWindow.close();
+        }, 500);
+    };
   };
 
   return (
