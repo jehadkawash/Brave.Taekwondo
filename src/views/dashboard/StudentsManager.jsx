@@ -212,7 +212,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
-  // --- واتساب ---
+  // --- واتساب (معدل) ---
   const openWhatsAppChat = (phone) => {
     if (!phone) return;
     let cleanPhone = phone.replace(/\D/g, ''); 
@@ -222,11 +222,33 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const sendCredentialsWhatsApp = (student) => {
     if (!student.phone) return;
+    
+    // تنظيف رقم الهاتف للإرسال (الرابط)
     let cleanPhone = student.phone.replace(/\D/g, ''); 
     if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
     
-    const message = `مرحباً ${student.name} 🥋\n\nأهلاً بك في أكاديمية Brave Taekwondo!\nإليك بيانات الدخول الخاصة بك للتطبيق:\n\n👤 اسم المستخدم: ${student.username}\n🔑 كلمة المرور: ${student.password}\n\nنتمنى لك التوفيق يا بطل! 💪`;
+    // تجهيز نص الرسالة حسب التنسيق المطلوب تماماً
+    const message = `مرحباً ${student.name} 🔥
+
+أهلاً بك في أكاديمية الشجاع للتايكواندو !
+إليك بيانات الدخول الخاصة بك بالموقع :
+
+👤 اسم المستخدم: ${student.username}
+🔑 كلمة المرور: ${student.password}
+
+موقعنا الالكتروني :
+https://bravetkd.bar/
+
+نتمنى لك التوفيق يا بطل! 🥋
+
+📍 فروعنا :
+✅ الفرع الأول: شفابدران – شارع رفعت شموط
+📞 0795629606
+
+✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري
+📞 0790368603`;
     
+    // استخدام encodeURIComponent لضمان ظهور الرموز والأسطر بشكل صحيح
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
    
