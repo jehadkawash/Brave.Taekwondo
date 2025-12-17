@@ -57,7 +57,7 @@ const ModalOverlay = ({ children, onClose }) => {
   );
 };
 
-// استقبال groups هنا كـ prop
+// Receiving groups here as a prop
 const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups }) => {
   const [search, setSearch] = useState(''); 
   const [statusFilter, setStatusFilter] = useState('all'); 
@@ -67,9 +67,9 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  // --- (معدل) جلب المجموعات من البيانات الممررة من Firebase ---
+  // --- Extract group names from the passed groups data from Firebase ---
   const availableGroups = useMemo(() => {
-      // groups عبارة عن مصفوفة كائنات {id, name, branch}.. نحتاج الأسماء فقط للقائمة
+      // groups is an array of objects {id, name, branch}.. we only need names for the list
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
 
@@ -143,7 +143,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         subEnd = subEndDateObj.toISOString().split('T')[0];
     }
     
-    // تعيين فترة افتراضية إذا لم يتم الاختيار
+    // Set default group if none selected
     const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
 
     const student = { 
@@ -159,7 +159,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         familyName: finalFamilyName, 
         customOrder: Date.now(), 
         ...newS,
-        group: finalGroup // حفظ الفترة
+        group: finalGroup // Save group
     };
     
     await studentsCollection.add(student); 
@@ -175,7 +175,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           name: student.name, 
           phone: student.phone, 
           belt: student.belt, 
-          group: student.group || '', // استرجاع الفترة
+          group: student.group || '', // Retrieve group
           joinDate: student.joinDate, 
           dob: student.dob, 
           address: student.address || '', 
@@ -345,7 +345,7 @@ https://bravetkd.bar/
                 <thead className="bg-gray-50 text-gray-600 border-b border-gray-100">
                     <tr>
                         <th className="p-4 font-bold">الطالب</th>
-                        <th className="p-4 font-bold">الفترة</th> {/* إضافة عمود الفترة */}
+                        <th className="p-4 font-bold">الفترة</th> {/* Add Group Column */}
                         <th className="p-4 font-bold">معلومات الاتصال</th>
                         <th className="p-4 font-bold">بيانات الدخول</th>
                         <th className="p-4 font-bold">الحزام</th>
@@ -369,7 +369,7 @@ https://bravetkd.bar/
                                     <div className="text-xs text-gray-400 mt-1">{s.joinDate}</div>
                                 </td>
                                 
-                                {/* عرض الفترة/المجموعة */}
+                                {/* Show Group */}
                                 <td className="p-4">
                                     <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
                                         {s.group || 'غير محدد'}
@@ -517,7 +517,7 @@ https://bravetkd.bar/
                             <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
                         </div>
 
-                        {/* --- (معدل) قائمة اختيار الفترة/المجموعة من Firebase --- */}
+                        {/* --- (Modified) Firebase Group Select --- */}
                         <div className="md:col-span-2">
                              <label className="block text-xs font-bold text-blue-800 mb-1">الفترة / المجموعة</label>
                              <select 
