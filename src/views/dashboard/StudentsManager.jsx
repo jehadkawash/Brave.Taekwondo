@@ -1,9 +1,9 @@
 // src/views/dashboard/StudentsManager.jsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
-  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles, ChevronDown 
+  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles 
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants';
@@ -57,7 +57,8 @@ const ModalOverlay = ({ children, onClose }) => {
   );
 };
 
-const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity }) => {
+// استقبال groups هنا كـ prop
+const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups }) => {
   const [search, setSearch] = useState(''); 
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [sortOption, setSortOption] = useState('joinDateDesc'); 
@@ -66,19 +67,13 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  // --- (جديد) جلب المجموعات من الذاكرة المحلية لتعبئة القائمة ---
-  const [availableGroups, setAvailableGroups] = useState([]);
-  useEffect(() => {
-      const savedGroups = localStorage.getItem('academyGroups');
-      if (savedGroups) {
-          setAvailableGroups(JSON.parse(savedGroups));
-      } else {
-          // فترات افتراضية في حال لم يتم إعدادها في صفحة الحضور بعد
-          setAvailableGroups(["فترة 4:00 - 5:00", "فترة 5:00 - 6:00", "فترة 6:00 - 7:00"]);
-      }
-  }, [showModal]); // تحديث القائمة كلما فتحنا المودال
+  // --- (معدل) جلب المجموعات من البيانات الممررة من Firebase ---
+  const availableGroups = useMemo(() => {
+      // groups عبارة عن مصفوفة كائنات {id, name, branch}.. نحتاج الأسماء فقط للقائمة
+      return groups ? groups.map(g => g.name) : [];
+  }, [groups]);
 
-  // Default Form (Added 'group' field)
+  // Default Form
   const defaultForm = { 
       name: '', phone: '', belt: 'أبيض', group: '', 
       joinDate: new Date().toISOString().split('T')[0], 
@@ -522,7 +517,7 @@ https://bravetkd.bar/
                             <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
                         </div>
 
-                        {/* --- (جديد) قائمة اختيار الفترة/المجموعة --- */}
+                        {/* --- (معدل) قائمة اختيار الفترة/المجموعة من Firebase --- */}
                         <div className="md:col-span-2">
                              <label className="block text-xs font-bold text-blue-800 mb-1">الفترة / المجموعة</label>
                              <select 

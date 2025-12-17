@@ -1,10 +1,10 @@
 // src/views/AdminDashboard.js
 import React, { useState, useMemo } from 'react';
-import { Users, Calendar, DollarSign, Menu, LogOut, Activity, Archive, Inbox, Shield, CheckCircle, Clock, ClipboardList } from 'lucide-react';
+import { Users, Calendar, DollarSign, Menu, LogOut, Activity, Archive, Inbox, Shield, CheckCircle, Clock, ClipboardList, Megaphone } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-import { Megaphone } from 'lucide-react'; // استيراد أيقونة
 import { useCollection } from '../hooks/useCollection';
+
 // Import all managers
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
@@ -60,11 +60,21 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const schedule = scheduleCollection.data;
   const captains = captainsCollection.data;
 
+  // --- (جديد) جلب المجموعات/الفترات من قاعدة البيانات ---
+  const groupsCollection = useCollection('groups');
+  const groupsData = groupsCollection.data;
+
+  // --- (جديد) جلب الأخبار ---
+  const newsCollection = useCollection('news');
+
   // Filter Data by Branch
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
+  
+  // (جديد) فلترة المجموعات حسب الفرع
+  const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
 
   // Calculations
   const totalIncome = branchPayments.reduce((acc, curr) => acc + curr.amount, 0);
@@ -87,15 +97,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   // Wrapper for logging
   const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
 
-
-  // مع باقي الـ Hooks
-const newsCollection = useCollection('news'); // جلب بيانات الأخبار
-
-
   // Navigation Items
   const navItems = [
     {id:'dashboard',icon:Activity,label:'نظرة عامة'},
-    {id:'news',icon:Megaphone,label:'الأخبار والعروض'}, // <-- الإضافة هنا
+    {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
     {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
     {id:'students',icon:Users,label:'الطلاب'},
     {id:'finance',icon:DollarSign,label:'المالية'},
@@ -140,7 +145,12 @@ const newsCollection = useCollection('news'); // جلب بيانات الأخب�
          />}
 
          {activeTab === 'students' && <StudentsManager 
-             students={branchStudents} studentsCollection={studentsCollection} archiveCollection={archiveCollection} selectedBranch={selectedBranch} logActivity={handleLog}
+             students={branchStudents} 
+             groups={branchGroups} // (تعديل) تمرير المجموعات
+             studentsCollection={studentsCollection} 
+             archiveCollection={archiveCollection} 
+             selectedBranch={selectedBranch} 
+             logActivity={handleLog}
          />}
 
          {activeTab === 'finance' && <FinanceManager 
@@ -148,7 +158,10 @@ const newsCollection = useCollection('news'); // جلب بيانات الأخب�
          />}
 
          {activeTab === 'attendance' && <AttendanceManager 
-             students={branchStudents} studentsCollection={studentsCollection}
+             students={branchStudents} 
+             groups={branchGroups} // (تعديل) تمرير المجموعات للعرض
+             groupsCollection={groupsCollection} // (تعديل) تمرير الكوليكشن للإضافة والحذف
+             studentsCollection={studentsCollection}
          />}
 
          {activeTab === 'registrations' && <RegistrationsManager 
@@ -162,17 +175,19 @@ const newsCollection = useCollection('news'); // جلب بيانات الأخب�
          {activeTab === 'captains' && <CaptainsManager 
              captains={captains} captainsCollection={captainsCollection}
          />}
+         
          {activeTab === 'archive' && <ArchiveManager 
              archiveCollection={archiveCollection}
              studentsCollection={studentsCollection}
-             payments={payments} // We pass the full payments list to find history
+             payments={payments}
              logActivity={handleLog}
          />}
+         
          {activeTab === 'news' && <NewsManager 
-    news={newsCollection.data} 
-    newsCollection={newsCollection} 
-    selectedBranch={selectedBranch} 
-/>}
+            news={newsCollection.data} 
+            newsCollection={newsCollection} 
+            selectedBranch={selectedBranch} 
+         />}
       </main>
     </div>
   );

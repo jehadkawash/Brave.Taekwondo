@@ -1,11 +1,13 @@
 // src/views/dashboard/AttendanceManager.jsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ChevronLeft, ChevronRight, UserCheck, X, 
   Search, Save, Layers, Calendar, Users, Settings, Plus, Trash2, Edit3 
 } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { createPortal } from 'react-dom';
+import { addDoc, deleteDoc, doc, collection } from "firebase/firestore"; 
+import { db } from '../../lib/firebase';
 
 // --- مكون النافذة المنبثقة لإدارة الفترات ---
 const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
@@ -55,7 +57,7 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
     );
 };
 
-export default function AttendanceManager({ students, studentsCollection }) {
+export default function AttendanceManager({ students, studentsCollection, groups = [], selectedBranch }) {
   // --- إعدادات التاريخ ---
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayForMobile, setSelectedDayForMobile] = useState(new Date().getDate());
@@ -66,18 +68,44 @@ export default function AttendanceManager({ students, studentsCollection }) {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isReordering, setIsReordering] = useState(false);
   const [showGroupsModal, setShowGroupsModal] = useState(false);
-
-  // --- إدارة الفترات (Local Storage Persistence) ---
-  const [groupsList, setGroupsList] = useState(() => {
-      const saved = localStorage.getItem('academyGroups');
-      return saved ? JSON.parse(saved) : ["فترة 4:00 - 5:00", "فترة 5:00 - 6:00", "فترة 6:00 - 7:00"];
-  });
-  
   const [selectedGroup, setSelectedGroup] = useState("الكل");
 
-  useEffect(() => {
-      localStorage.setItem('academyGroups', JSON.stringify(groupsList));
-  }, [groupsList]);
+  // --- تحويل بيانات الفترات القادمة من Firebase لقائمة أسماء فقط للعرض ---
+  // groups prop: عبارة عن مصفوفة كائنات { id, name, branch ... }
+  const groupsList = useMemo(() => {
+      return groups ? groups.map(g => g.name) : [];
+  }, [groups]);
+
+  // --- دوال إدارة الفترات (Firebase) ---
+  const handleAddGroup = async (name) => {
+      if (groupsList.includes(name)) return alert("هذه الفترة موجودة مسبقاً");
+      
+      try {
+          await addDoc(collection(db, 'groups'), {
+              name: name,
+              branch: selectedBranch || (students[0]?.branch || 'عام'), // التأكد من الفرع
+              createdAt: new Date().toISOString()
+          });
+      } catch (error) {
+          console.error("Error adding group: ", error);
+          alert("حدث خطأ أثناء إضافة الفترة");
+      }
+  };
+
+  const handleDeleteGroup = async (name) => {
+      if (!confirm(`حذف الفترة "${name}"؟ (لن يتم حذف الطلاب، فقط اسم الفترة)`)) return;
+      
+      const groupDoc = groups.find(g => g.name === name);
+      if (groupDoc) {
+          try {
+              await deleteDoc(doc(db, "groups", groupDoc.id));
+              if (selectedGroup === name) setSelectedGroup("الكل");
+          } catch (error) {
+              console.error("Error deleting group: ", error);
+              alert("حدث خطأ أثناء حذف الفترة");
+          }
+      }
+  };
 
   // --- دوال التاريخ ---
   const year = currentDate.getFullYear();
@@ -108,7 +136,6 @@ export default function AttendanceManager({ students, studentsCollection }) {
 
       // فلترة المجموعة
       if (selectedGroup !== "الكل") {
-          // إذا لم يكن للطالب مجموعة محددة، نعتبره "غير محدد"
           result = result.filter(s => s.group === selectedGroup);
       }
 
@@ -129,7 +156,6 @@ export default function AttendanceManager({ students, studentsCollection }) {
       : processedStudents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // --- 2. الأكشن (Action Functions) ---
-  
   const toggleCheck = async (sid, day) => { 
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`; 
       const student = students.find(s => s.id === sid); 
@@ -152,21 +178,9 @@ export default function AttendanceManager({ students, studentsCollection }) {
       await Promise.all(updates);
   };
 
-  // --- دالة تغيير فترة الطالب ---
   const changeStudentGroup = async (studentId, newGroup) => {
       if (!confirm("هل أنت متأكد من نقل الطالب لهذه الفترة؟")) return;
       await studentsCollection.update(studentId, { group: newGroup });
-  };
-
-  // --- دوال إدارة الفترات ---
-  const handleAddGroup = (name) => {
-      if (!groupsList.includes(name)) setGroupsList([...groupsList, name]);
-  };
-  const handleDeleteGroup = (name) => {
-      if (confirm(`حذف الفترة "${name}"؟ (لن يتم حذف الطلاب، فقط اسم الفترة)`)) {
-          setGroupsList(groupsList.filter(g => g !== name));
-          if (selectedGroup === name) setSelectedGroup("الكل");
-      }
   };
 
   return (
@@ -193,7 +207,7 @@ export default function AttendanceManager({ students, studentsCollection }) {
             </select>
         </div>
 
-        {/* --- إدارة الفترات (جديد) --- */}
+        {/* --- إدارة الفترات --- */}
         <div className="flex items-center gap-2 bg-blue-50 p-2 pl-3 rounded-xl border border-blue-100 w-full md:w-auto">
             <Users size={18} className="text-blue-500 ml-1"/>
             <span className="text-xs font-bold text-blue-800 ml-1 hidden sm:inline">الفترة:</span>
@@ -267,11 +281,10 @@ export default function AttendanceManager({ students, studentsCollection }) {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-gray-800">{s.name}</h4>
-                                        {/* Dropdown لتغيير الفترة من الموبايل */}
                                         <div className="relative mt-1">
                                             <select 
                                                 className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md outline-none border-none font-bold w-full appearance-none"
-                                                value={s.group || groupsList[0]}
+                                                value={s.group || (groupsList.length > 0 ? groupsList[0] : "")}
                                                 onChange={(e) => changeStudentGroup(s.id, e.target.value)}
                                             >
                                                 {groupsList.map(g => <option key={g} value={g}>{g}</option>)}
@@ -327,10 +340,8 @@ export default function AttendanceManager({ students, studentsCollection }) {
                                         {globalIndex}
                                     </span>
                                     
-                                    {/* اسم الطالب + دروب داون تغيير الفترة السريع */}
                                     <div className="flex flex-col flex-1">
                                         <span className="truncate">{s.name}</span>
-                                        {/* Select لتغيير الفترة مباشرة */}
                                         <div className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Edit3 size={10} className="text-gray-400"/>
                                             <select 
