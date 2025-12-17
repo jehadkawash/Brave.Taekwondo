@@ -1,5 +1,5 @@
 // src/views/dashboard/StudentsManager.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
@@ -66,7 +66,25 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  const defaultForm = { name: '', phone: '', belt: 'أبيض', joinDate: new Date().toISOString().split('T')[0], dob: '', address: '', balance: 0, subEnd: '', username: '', password: '' };
+  // --- (جديد) جلب المجموعات من الذاكرة المحلية لتعبئة القائمة ---
+  const [availableGroups, setAvailableGroups] = useState([]);
+  useEffect(() => {
+      const savedGroups = localStorage.getItem('academyGroups');
+      if (savedGroups) {
+          setAvailableGroups(JSON.parse(savedGroups));
+      } else {
+          // فترات افتراضية في حال لم يتم إعدادها في صفحة الحضور بعد
+          setAvailableGroups(["فترة 4:00 - 5:00", "فترة 5:00 - 6:00", "فترة 6:00 - 7:00"]);
+      }
+  }, [showModal]); // تحديث القائمة كلما فتحنا المودال
+
+  // Default Form (Added 'group' field)
+  const defaultForm = { 
+      name: '', phone: '', belt: 'أبيض', group: '', 
+      joinDate: new Date().toISOString().split('T')[0], 
+      dob: '', address: '', balance: 0, subEnd: '', username: '', password: '' 
+  };
+  
   const [newS, setNewS] = useState(defaultForm);
   const [linkFamily, setLinkFamily] = useState('new');
   
@@ -130,6 +148,9 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         subEnd = subEndDateObj.toISOString().split('T')[0];
     }
     
+    // تعيين فترة افتراضية إذا لم يتم الاختيار
+    const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
+
     const student = { 
         branch: selectedBranch, 
         status: 'active', 
@@ -142,7 +163,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         familyId: finalFamilyId, 
         familyName: finalFamilyName, 
         customOrder: Date.now(), 
-        ...newS 
+        ...newS,
+        group: finalGroup // حفظ الفترة
     };
     
     await studentsCollection.add(student); 
@@ -158,6 +180,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           name: student.name, 
           phone: student.phone, 
           belt: student.belt, 
+          group: student.group || '', // استرجاع الفترة
           joinDate: student.joinDate, 
           dob: student.dob, 
           address: student.address || '', 
@@ -327,6 +350,7 @@ https://bravetkd.bar/
                 <thead className="bg-gray-50 text-gray-600 border-b border-gray-100">
                     <tr>
                         <th className="p-4 font-bold">الطالب</th>
+                        <th className="p-4 font-bold">الفترة</th> {/* إضافة عمود الفترة */}
                         <th className="p-4 font-bold">معلومات الاتصال</th>
                         <th className="p-4 font-bold">بيانات الدخول</th>
                         <th className="p-4 font-bold">الحزام</th>
@@ -349,6 +373,14 @@ https://bravetkd.bar/
                                     </div>
                                     <div className="text-xs text-gray-400 mt-1">{s.joinDate}</div>
                                 </td>
+                                
+                                {/* عرض الفترة/المجموعة */}
+                                <td className="p-4">
+                                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
+                                        {s.group || 'غير محدد'}
+                                    </span>
+                                </td>
+
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
                                         <a href={`tel:${s.phone}`} className="font-mono text-gray-600 hover:text-blue-600 font-bold flex items-center gap-1" title="اتصال">
@@ -408,6 +440,9 @@ https://bravetkd.bar/
                                 {isNew && <span className="text-[10px] bg-red-100 text-red-600 px-2 rounded-full animate-pulse">NEW</span>}
                              </div>
                              <p className="text-xs text-gray-400 mt-0.5">منذ: {s.joinDate}</p>
+                             <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
+                                 {s.group || 'غير محدد'}
+                             </span>
                          </div>
                          <StatusBadge status={status} />
                      </div>
@@ -455,7 +490,7 @@ https://bravetkd.bar/
         )}
       </div>
 
-      {/* --- Add/Edit Modal (Same as before) --- */}
+      {/* --- Add/Edit Modal (Updated with Group Select) --- */}
       {showModal && (
         <ModalOverlay onClose={closeModal}>
             <div className="p-6">
@@ -485,6 +520,21 @@ https://bravetkd.bar/
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-gray-700 mb-1">الاسم الرباعي</label>
                             <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
+                        </div>
+
+                        {/* --- (جديد) قائمة اختيار الفترة/المجموعة --- */}
+                        <div className="md:col-span-2">
+                             <label className="block text-xs font-bold text-blue-800 mb-1">الفترة / المجموعة</label>
+                             <select 
+                                className="w-full border-2 border-blue-100 focus:border-blue-500 p-2.5 rounded-xl bg-blue-50/50 outline-none"
+                                value={newS.group}
+                                onChange={e=>setNewS({...newS, group:e.target.value})}
+                             >
+                                <option value="">بدون تحديد</option>
+                                {availableGroups.map((g, idx) => (
+                                    <option key={idx} value={g}>{g}</option>
+                                ))}
+                             </select>
                         </div>
 
                         {!editingStudent && (
