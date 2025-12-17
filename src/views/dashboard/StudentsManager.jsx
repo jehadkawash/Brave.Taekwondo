@@ -1,5 +1,5 @@
 // src/views/dashboard/StudentsManager.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
@@ -57,7 +57,6 @@ const ModalOverlay = ({ children, onClose }) => {
   );
 };
 
-// Receiving groups here as a prop
 const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups }) => {
   const [search, setSearch] = useState(''); 
   const [statusFilter, setStatusFilter] = useState('all'); 
@@ -67,13 +66,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  // --- Extract group names from the passed groups data from Firebase ---
+  // استخراج المجموعات من البيانات الممررة
   const availableGroups = useMemo(() => {
-      // groups is an array of objects {id, name, branch}.. we only need names for the list
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
 
-  // Default Form
   const defaultForm = { 
       name: '', phone: '', belt: 'أبيض', group: '', 
       joinDate: new Date().toISOString().split('T')[0], 
@@ -120,6 +117,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     let finalUser = newS.username;
     let finalPass = newS.password;
     
+    // توليد البيانات إذا كانت فارغة
     if (!finalUser || !finalPass) {
         const creds = generateCredentials();
         finalUser = creds.username;
@@ -143,30 +141,34 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         subEnd = subEndDateObj.toISOString().split('T')[0];
     }
     
-    // Set default group if none selected
     const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
 
+    // --- التصحيح هنا: تغيير ترتيب الخصائص ---
+    // نضع ...newS أولاً، ثم نضع القيم المحسوبة (finalUser, finalPass) لتطغى عليها في حال كانت فارغة في newS
     const student = { 
+        ...newS, // 1. نضع بيانات الفورم أولاً (بما فيها القيم الفارغة المحتملة)
         branch: selectedBranch, 
         status: 'active', 
         subEnd: subEnd, 
         notes: [], 
         internalNotes: [], 
         attendance: {}, 
-        username: finalUser, 
-        password: finalPass, 
         familyId: finalFamilyId, 
         familyName: finalFamilyName, 
         customOrder: Date.now(), 
-        ...newS,
-        group: finalGroup // Save group
+        group: finalGroup,
+        username: finalUser, // 2. نضع القيم المولدة هنا لتضمن عدم استبدالها بقيم فارغة
+        password: finalPass 
     };
     
-    await studentsCollection.add(student); 
-    if(logActivity) logActivity("إضافة طالب", `تم إضافة الطالب ${student.name}`);
+    // التحقق من نجاح الحفظ قبل إظهار النافذة
+    const success = await studentsCollection.add(student); 
     
-    setCreatedCreds({ name: student.name, username: finalUser, password: finalPass, phone: student.phone }); 
-    closeModal();
+    if (success) {
+        if(logActivity) logActivity("إضافة طالب", `تم إضافة الطالب ${student.name}`);
+        setCreatedCreds({ name: student.name, username: finalUser, password: finalPass, phone: student.phone }); 
+        closeModal();
+    }
   };
 
   const openEditModal = (student) => { 
@@ -175,7 +177,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           name: student.name, 
           phone: student.phone, 
           belt: student.belt, 
-          group: student.group || '', // Retrieve group
+          group: student.group || '', 
           joinDate: student.joinDate, 
           dob: student.dob, 
           address: student.address || '', 
@@ -345,7 +347,7 @@ https://bravetkd.bar/
                 <thead className="bg-gray-50 text-gray-600 border-b border-gray-100">
                     <tr>
                         <th className="p-4 font-bold">الطالب</th>
-                        <th className="p-4 font-bold">الفترة</th> {/* Add Group Column */}
+                        <th className="p-4 font-bold">الفترة</th> {/* إضافة عمود الفترة */}
                         <th className="p-4 font-bold">معلومات الاتصال</th>
                         <th className="p-4 font-bold">بيانات الدخول</th>
                         <th className="p-4 font-bold">الحزام</th>
@@ -369,7 +371,7 @@ https://bravetkd.bar/
                                     <div className="text-xs text-gray-400 mt-1">{s.joinDate}</div>
                                 </td>
                                 
-                                {/* Show Group */}
+                                {/* عرض الفترة/المجموعة */}
                                 <td className="p-4">
                                     <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
                                         {s.group || 'غير محدد'}
@@ -517,7 +519,7 @@ https://bravetkd.bar/
                             <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
                         </div>
 
-                        {/* --- (Modified) Firebase Group Select --- */}
+                        {/* --- (معدل) قائمة اختيار الفترة/المجموعة من Firebase --- */}
                         <div className="md:col-span-2">
                              <label className="block text-xs font-bold text-blue-800 mb-1">الفترة / المجموعة</label>
                              <select 
