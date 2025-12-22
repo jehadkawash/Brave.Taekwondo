@@ -58,6 +58,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const financeReasonsCollection = useCollection('finance_reasons');
   const financeReasonsData = financeReasonsCollection?.data || [];
 
+  // 🔥 الجديد: جلب سجل النشاطات (Activity Logs) 🔥
+  const activityLogsCollection = useCollection('activity_logs');
+  const activityLogsData = activityLogsCollection?.data || [];
+
   // 3. فلترة البيانات حسب الفرع
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
@@ -65,6 +69,14 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
   const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
+
+  // 🔥 الجديد: فلترة وترتيب سجل النشاطات حسب التاريخ (الأحدث أولاً) 🔥
+  const branchActivityLogs = useMemo(() => {
+      return activityLogsData
+        .filter(l => l.branch === selectedBranch)
+        .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 50); // جلب آخر 50 حركة فقط لتخفيف الحمل
+  }, [activityLogsData, selectedBranch]);
 
   // الحسابات
   const totalIncome = branchPayments.reduce((acc, curr) => acc + curr.amount, 0);
@@ -98,7 +110,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       schedule: schedule,
       news: newsData,
       groups: branchGroups,
-      captains: captains
+      captains: captains,
+      activityLogs: branchActivityLogs // إضافة السجل للنسخة الاحتياطية
     };
 
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
@@ -166,7 +179,21 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             <h2 className="font-bold text-gray-800">أكاديمية الشجاع</h2>
          </div>
          
-         {activeTab === 'dashboard' && <DashboardStats user={user} selectedBranch={selectedBranch} branchStudents={branchStudents} netProfit={netProfit} totalAttendance={totalAttendance} expiredCount={expiredCount} activeStudentsCount={activeStudentsCount} nearEndCount={nearEndCount} totalStudents={totalStudents} branchRegistrations={branchRegistrations} branchPayments={branchPayments} />}
+         {/* 🔥 تم تمرير activityLogs هنا 🔥 */}
+         {activeTab === 'dashboard' && <DashboardStats 
+             user={user} 
+             selectedBranch={selectedBranch} 
+             branchStudents={branchStudents} 
+             netProfit={netProfit} 
+             totalAttendance={totalAttendance} 
+             expiredCount={expiredCount} 
+             activeStudentsCount={activeStudentsCount} 
+             nearEndCount={nearEndCount} 
+             totalStudents={totalStudents} 
+             branchRegistrations={branchRegistrations} 
+             branchPayments={branchPayments} 
+             activityLogs={branchActivityLogs}
+         />}
 
          {activeTab === 'students' && <StudentsManager 
              students={branchStudents} 
@@ -201,10 +228,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
 
          {activeTab === 'schedule' && <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />}
 
-         {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
-         
          {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
          
+         {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
+
          {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
       </main>
     </div>

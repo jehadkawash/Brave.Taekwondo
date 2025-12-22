@@ -1,7 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from "firebase/auth"; 
-// قمنا بإضافة collection, query, where, getDocs هنا من أجل البحث الآمن
 import { getDoc, doc, collection, query, where, getDocs } from "firebase/firestore"; 
 import { auth, db } from './lib/firebase';
 import { useCollection } from './hooks/useCollection';
@@ -16,13 +15,28 @@ import { BRANCHES } from './lib/constants';
 const appId = 'brave-academy-live-data'; 
 
 export default function App() {
-  const [view, setView] = useState('home'); 
-  const [user, setUser] = useState(() => { const saved = localStorage.getItem('braveUser'); return saved ? JSON.parse(saved) : null; });
-  const [dashboardBranch, setDashboardBranch] = useState(BRANCHES.SHAFA); 
+  // 1. الحالة الأولية (تعتمد على الذاكرة)
+  const [user, setUser] = useState(() => { 
+      const saved = localStorage.getItem('braveUser'); 
+      return saved ? JSON.parse(saved) : null; 
+  });
+
+  const [view, setView] = useState(() => {
+      if (typeof window !== 'undefined' && localStorage.getItem('braveUser')) {
+          const u = JSON.parse(localStorage.getItem('braveUser'));
+          return u.role === 'student' ? 'student_portal' : 'admin_dashboard';
+      }
+      return 'home';
+  });
+
+  const [dashboardBranch, setDashboardBranch] = useState(() => {
+      if (user && user.branch) return user.branch;
+      return BRANCHES.SHAFA;
+  });
+  
   const [loadingAuth, setLoadingAuth] = useState(true);
   
   // Collections Hooks
-  // ملاحظة: لا نزال نحتاج هذه البيانات للصفحات الداخلية، لكن لن نعتمد عليها في تسجيل الدخول
   const studentsCollection = useCollection('students'); 
   const paymentsCollection = useCollection('payments');
   const expensesCollection = useCollection('expenses');
@@ -31,33 +45,58 @@ export default function App() {
   const registrationsCollection = useCollection('registrations'); 
   const captainsCollection = useCollection('captains'); 
 
-  // --- 1. المنطق الهجين لتسجيل الدخول (الطلاب + الكباتن + الأدمن) ---
+  // --- 🔥 الجديد: دالة التنقل الذكي (تدعم زر الرجوع) ---
+  const navigateTo = (newView) => {
+     setView(newView);
+     // إضافة "حالة" جديدة لتاريخ المتصفح
+     window.history.pushState({ view: newView }, '', '');
+  };
+
+  // --- 🔥 الجديد: الاستماع لزر الرجوع في المتصفح/الهاتف ---
+  useEffect(() => {
+    // عند تحميل الموقع، نثبت الحالة الحالية
+    window.history.replaceState({ view: view }, '', '');
+
+    const handleBackButton = (event) => {
+       if (event.state && event.state.view) {
+         // إذا ضغط المستخدم رجوع، نذهب للصفحة المحفوظة في التاريخ
+         setView(event.state.view);
+       } else {
+         // إذا لم يكن هناك تاريخ (وصل للبداية)، نذهب للرئيسية
+         setView('home');
+       }
+    };
+
+    window.addEventListener('popstate', handleBackButton);
+    return () => window.removeEventListener('popstate', handleBackButton);
+  }, []); // يعمل مرة واحدة عند التشغيل
+
+
+  // --- تسجيل الدخول ---
   const handleLogin = async (username, password) => {
     try {
-      // A. البحث الآمن في سجلات الطلاب (Server-side Query)
-      // بدلاً من البحث في المصفوفة المحملة، نسأل قاعدة البيانات مباشرة
+      // A. البحث في سجلات الطلاب
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
       const qStudent = query(studentsRef, where("username", "==", username), where("password", "==", password));
       const studentSnap = await getDocs(qStudent);
 
       if (!studentSnap.empty) {
-        // وجدنا الطالب
         const studentDoc = studentSnap.docs[0];
         const studentData = studentDoc.data();
         const userData = { 
             role: 'student', 
             familyId: studentData.familyId, 
-            name: studentData.familyName || studentData.name, // تحسين بسيط للاسم
+            name: studentData.familyName || studentData.name,
             id: studentDoc.id 
         };
         
         setUser(userData); 
         localStorage.setItem('braveUser', JSON.stringify(userData)); 
-        setView('student_portal');
+        navigateTo('student_portal'); // استخدمنا navigateTo بدلاً من setView
         return;
       }
 
-      // B. البحث الآمن في سجلات الكباتن
+      // B. البحث في سجلات الكباتن
       const captainsRef = collection(db, 'artifacts', appId, 'public', 'data', 'captains');
       const qCaptain = query(captainsRef, where("username", "==", username), where("password", "==", password));
       const captainSnap = await getDocs(qCaptain);
@@ -70,39 +109,33 @@ export default function App() {
          setUser(u); 
          localStorage.setItem('braveUser', JSON.stringify(u)); 
          setDashboardBranch(capData.branch); 
-         setView('admin_dashboard');
+         navigateTo('admin_dashboard'); // استخدمنا navigateTo
          return;
       }
 
-      // C. محاولة دخول الأدمن (Firebase Auth)
+      // C. محاولة دخول الأدمن
       if (username.includes('@') || username === 'admin1') {
-          // تحديد الإيميل الصحيح
           let email = username;
           if (username === 'admin1') email = 'admin@brave.com';
-          
           await signInWithEmailAndPassword(auth, email, password);
-          // ملاحظة: useEffect سيلتقط التغيير
           return;
       }
       
-      // إذا وصلنا هنا، يعني لم نجد أي مستخدم مطابق
       alert('بيانات الدخول خاطئة! تأكد من اسم المستخدم وكلمة المرور.');
 
     } catch (error) {
       console.error("Login Error:", error);
-      alert("حدث خطأ أثناء تسجيل الدخول، يرجى المحاولة مرة أخرى.");
+      alert("حدث خطأ أثناء تسجيل الدخول.");
     }
   };
 
-  // --- 2. مراقبة حالة فايربيس (للأدمن فقط) ---
+  // --- مراقبة حالة فايربيس ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email;
         let userData = { email };
 
-        // تحديد الصلاحيات والفرع
-        // (يمكننا لاحقاً نقل هذه الصلاحيات لقاعدة البيانات لجعلها ديناميكية أكثر)
         if (email === 'admin@brave.com') {
           userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
         } else if (email === 'shafa@brave.com') {
@@ -111,7 +144,6 @@ export default function App() {
           userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR };
         }
 
-        // محاولة جلب الاسم المخصص
         try {
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
             const profileSnap = await getDoc(profileRef);
@@ -123,11 +155,11 @@ export default function App() {
         setUser(userData);
         setDashboardBranch(userData.branch);
         localStorage.setItem('braveUser', JSON.stringify(userData));
-        setView('admin_dashboard');
+        // هنا لا نستخدم navigateTo لتجنب تكرار التاريخ عند التحديث التلقائي
+        setView('admin_dashboard'); 
         
       } else {
-        const saved = localStorage.getItem('braveUser');
-        if (!saved) {
+        if (!localStorage.getItem('braveUser')) {
             setUser(null);
         }
       }
@@ -141,16 +173,17 @@ export default function App() {
     await signOut(auth); 
     localStorage.removeItem('braveUser'); 
     setUser(null);
-    setView('home');
+    navigateTo('home'); // استخدمنا navigateTo للعودة للرئيسية
   };
 
-  if (loadingAuth && !user) return <div className="flex h-screen items-center justify-center font-bold text-xl">جاري تحميل النظام...</div>;
+  if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من البيانات...</div>;
 
   return (
     <>
-      {view === 'home' && <HomeView setView={setView} schedule={scheduleCollection.data} registrationsCollection={registrationsCollection} />}
+      {/* مررنا navigateTo كـ prop بدلاً من setView ليعمل التاريخ في كل الصفحات */}
+      {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} registrationsCollection={registrationsCollection} />}
       
-      {view === 'login' && <LoginView setView={setView} handleLogin={handleLogin} />}
+      {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
       
       {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} payments={paymentsCollection.data} handleLogout={handleLogout} />}
       
