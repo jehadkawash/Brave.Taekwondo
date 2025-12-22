@@ -1,12 +1,15 @@
 // src/views/dashboard/StudentsManager.jsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
-  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles 
+  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles, 
+  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone 
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants';
+import { writeBatch, doc } from "firebase/firestore"; 
+import { db } from '../../lib/firebase';
 
 // --- Helper Functions ---
 const generateCredentials = () => {
@@ -41,11 +44,11 @@ const isNewStudent = (joinDate) => {
     return diffDays <= 7;
 };
 
-// --- Modal Component ---
+// --- Modal Components ---
 const ModalOverlay = ({ children, onClose }) => {
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         <div className="relative transform overflow-hidden rounded-2xl text-right shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl bg-white" onClick={e => e.stopPropagation()}>
@@ -57,6 +60,177 @@ const ModalOverlay = ({ children, onClose }) => {
   );
 };
 
+// --- 1. Broadcast Modal (للإرسال الجماعي) ---
+const BroadcastModal = ({ isOpen, onClose, groups, onSend }) => {
+    const [target, setTarget] = useState('all');
+    const [selectedGroup, setSelectedGroup] = useState('');
+    const [message, setMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleSend = async () => {
+        if (!message.trim()) return alert("الرجاء كتابة الرسالة");
+        setLoading(true);
+        await onSend(target, selectedGroup, message);
+        setLoading(false);
+        setMessage('');
+        onClose();
+    };
+
+    return (
+        <ModalOverlay onClose={onClose}>
+            <div className="p-6">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-700">
+                    <Megaphone size={24}/> إرسال تعميم / إعلان
+                </h3>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">لمن تريد إرسال الإعلان؟</label>
+                        <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-200 flex-1">
+                                <input type="radio" name="target" value="all" checked={target === 'all'} onChange={() => setTarget('all')} />
+                                <span>الكل (جميع الطلاب)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-200 flex-1">
+                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups[0]); }} />
+                                <span>فترة / مجموعة محددة</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {target === 'group' && (
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">اختر المجموعة</label>
+                            <select className="w-full border-2 border-gray-200 p-2 rounded-xl outline-none" value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
+                                {groups.map((g, i) => <option key={i} value={g}>{g}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">نص الإعلان</label>
+                        <textarea 
+                            className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none h-32 focus:border-blue-500"
+                            placeholder="اكتب الإعلان هنا... (سيظهر في صفحة الطلاب)"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                        ></textarea>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+                        <Button onClick={handleSend} disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
+                            {loading ? 'جاري الإرسال...' : 'نشر الإعلان'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </ModalOverlay>
+    );
+};
+
+// --- 2. Notes Manager Modal (للملاحظات الفردية) ---
+const NotesManagerModal = ({ student, onClose, onSave }) => {
+    const [activeTab, setActiveTab] = useState('private'); // 'private' or 'public'
+    const [noteText, setNoteText] = useState('');
+
+    // State for existing notes to allow local manipulation before saving/deleting
+    // We update parent via onSave immediately for simplicity
+    
+    const handleAdd = () => {
+        if (!noteText.trim()) return;
+        const newNote = {
+            id: Date.now().toString(),
+            text: noteText,
+            date: new Date().toLocaleDateString('ar-JO'),
+            timestamp: new Date().toISOString()
+        };
+        onSave(student.id, activeTab, 'add', newNote);
+        setNoteText('');
+    };
+
+    const handleDelete = (noteId) => {
+        if (!confirm("حذف الملاحظة؟")) return;
+        onSave(student.id, activeTab, 'delete', { id: noteId });
+    };
+
+    const notesList = activeTab === 'private' ? (student.internalNotes || []) : (student.notes || []);
+
+    return (
+        <ModalOverlay onClose={onClose}>
+            <div className="p-0 overflow-hidden flex flex-col h-[500px]">
+                {/* Header */}
+                <div className={`p-4 text-white flex justify-between items-center ${activeTab === 'private' ? 'bg-red-600' : 'bg-blue-600'}`}>
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                        {activeTab === 'private' ? <Lock size={20}/> : <Bell size={20}/>}
+                        {activeTab === 'private' ? `ملاحظات خاصة: ${student.name}` : `إعلانات للطالب: ${student.name}`}
+                    </h3>
+                    <button onClick={onClose}><X size={20}/></button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b">
+                    <button 
+                        onClick={() => setActiveTab('private')} 
+                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${activeTab === 'private' ? 'text-red-600 border-b-2 border-red-600 bg-red-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <Lock size={16}/> ملاحظات خاصة (للإدارة)
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('public')} 
+                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${activeTab === 'public' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <Bell size={16}/> إعلانات (للطالب)
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                    {notesList.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                            {activeTab === 'private' ? <Lock size={48} className="mb-2 opacity-20"/> : <Bell size={48} className="mb-2 opacity-20"/>}
+                            <p>لا يوجد ملاحظات مسجلة</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {notesList.map((note) => (
+                                <div key={note.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group">
+                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">{note.text}</p>
+                                    <div className="mt-2 flex justify-between items-center">
+                                        <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{note.date}</span>
+                                        <button onClick={() => handleDelete(note.id)} className="text-red-400 hover:text-red-600 p-1">
+                                            <Trash2 size={16}/>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer Input */}
+                <div className="p-4 bg-white border-t">
+                    <div className="flex gap-2">
+                        <input 
+                            className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-yellow-500"
+                            placeholder={activeTab === 'private' ? "اكتب ملاحظة سرية..." : "اكتب إعلاناً للطالب..."}
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                        />
+                        <Button onClick={handleAdd} className={activeTab === 'private' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}>
+                            <Send size={18}/>
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </ModalOverlay>
+    );
+};
+
+
 const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups }) => {
   const [search, setSearch] = useState(''); 
   const [statusFilter, setStatusFilter] = useState('all'); 
@@ -66,7 +240,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  // استخراج المجموعات من البيانات الممررة
+  // --- New Note States ---
+  const [studentForNotes, setStudentForNotes] = useState(null); // The student currently open in Notes Modal
+  const [showBroadcast, setShowBroadcast] = useState(false); // Broadcast Modal Toggle
+
+  // استخراج المجموعات
   const availableGroups = useMemo(() => {
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
@@ -117,7 +295,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     let finalUser = newS.username;
     let finalPass = newS.password;
     
-    // توليد البيانات إذا كانت فارغة
     if (!finalUser || !finalPass) {
         const creds = generateCredentials();
         finalUser = creds.username;
@@ -143,25 +320,22 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     
     const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
 
-    // --- التصحيح هنا: تغيير ترتيب الخصائص ---
-    // نضع ...newS أولاً، ثم نضع القيم المحسوبة (finalUser, finalPass) لتطغى عليها في حال كانت فارغة في newS
     const student = { 
-        ...newS, // 1. نضع بيانات الفورم أولاً (بما فيها القيم الفارغة المحتملة)
+        ...newS, 
         branch: selectedBranch, 
         status: 'active', 
         subEnd: subEnd, 
-        notes: [], 
-        internalNotes: [], 
+        notes: [], // Public Notes
+        internalNotes: [], // Private Notes (New)
         attendance: {}, 
         familyId: finalFamilyId, 
         familyName: finalFamilyName, 
         customOrder: Date.now(), 
         group: finalGroup,
-        username: finalUser, // 2. نضع القيم المولدة هنا لتضمن عدم استبدالها بقيم فارغة
+        username: finalUser, 
         password: finalPass 
     };
     
-    // التحقق من نجاح الحفظ قبل إظهار النافذة
     const success = await studentsCollection.add(student); 
     
     if (success) {
@@ -218,6 +392,67 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
+  // --- Handlers for Notes ---
+  const handleNoteAction = async (studentId, type, action, noteObj) => {
+      // type: 'private' (internalNotes) or 'public' (notes)
+      // action: 'add' or 'delete'
+      
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      const field = type === 'private' ? 'internalNotes' : 'notes';
+      let currentNotes = student[field] || [];
+
+      let updatedNotes;
+      if (action === 'add') {
+          updatedNotes = [noteObj, ...currentNotes];
+      } else {
+          updatedNotes = currentNotes.filter(n => n.id !== noteObj.id);
+      }
+
+      await studentsCollection.update(studentId, { [field]: updatedNotes });
+  };
+
+  // --- Handler for Broadcast ---
+  const handleBroadcast = async (target, groupName, text) => {
+      // Find target students
+      let targets = [];
+      if (target === 'all') {
+          targets = students;
+      } else {
+          targets = students.filter(s => s.group === groupName);
+      }
+
+      if (targets.length === 0) return alert("لا يوجد طلاب في المجموعة المختارة");
+
+      if (!confirm(`سيتم إرسال الإعلان لـ ${targets.length} طالب. هل أنت متأكد؟`)) return;
+
+      const newNote = {
+          id: Date.now().toString(),
+          text: text,
+          date: new Date().toLocaleDateString('ar-JO'),
+          timestamp: new Date().toISOString()
+      };
+
+      // Batch Update (Max 500 per batch in Firestore, doing simple loop here for client-side simplicity on small scale)
+      // For proper scalability, we use writeBatch. 
+      const batch = writeBatch(db);
+      
+      targets.forEach(s => {
+          const sRef = doc(db, 'artifacts', studentsCollection.appId, 'public', 'data', 'students', s.id);
+          const currentNotes = s.notes || [];
+          batch.update(sRef, { notes: [newNote, ...currentNotes] });
+      });
+
+      try {
+          await batch.commit();
+          alert("تم نشر الإعلان بنجاح!");
+      } catch (e) {
+          console.error(e);
+          alert("حدث خطأ أثناء النشر الجماعي");
+      }
+  };
+
   const openWhatsAppChat = (phone) => {
     if (!phone) return;
     let cleanPhone = phone.replace(/\D/g, ''); 
@@ -256,6 +491,23 @@ https://bravetkd.bar/
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
+      {/* Broadcast Modal */}
+      <BroadcastModal 
+         isOpen={showBroadcast}
+         onClose={() => setShowBroadcast(false)}
+         groups={availableGroups}
+         onSend={handleBroadcast}
+      />
+
+      {/* Single Student Notes Modal */}
+      {studentForNotes && (
+          <NotesManagerModal 
+             student={studentForNotes}
+             onClose={() => setStudentForNotes(null)}
+             onSave={handleNoteAction}
+          />
+      )}
+
       {/* Credential Success Modal */}
       {createdCreds && (
         <ModalOverlay onClose={() => setCreatedCreds(null)}>
@@ -299,6 +551,11 @@ https://bravetkd.bar/
           </div>
 
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+             {/* زر الإعلان الجماعي الجديد */}
+             <Button onClick={() => setShowBroadcast(true)} className="bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 whitespace-nowrap flex items-center gap-2">
+                 <Megaphone size={18}/> <span className="hidden sm:inline">إعلان للكل</span>
+             </Button>
+
              <div className="relative min-w-[120px]">
                  <select 
                     className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
@@ -336,18 +593,14 @@ https://bravetkd.bar/
           </div>
       </div>
 
-      {/* =========================================================================
-          VIEW SWITCHING: TABLE (Desktop) vs CARDS (Mobile)
-         ========================================================================= */}
-
-      {/* 1. DESKTOP VIEW (Table) - Hidden on Mobile */}
+      {/* 1. DESKTOP VIEW (Table) */}
       <Card className="hidden md:block overflow-hidden border-none shadow-md rounded-2xl p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
                 <thead className="bg-gray-50 text-gray-600 border-b border-gray-100">
                     <tr>
                         <th className="p-4 font-bold">الطالب</th>
-                        <th className="p-4 font-bold">الفترة</th> {/* إضافة عمود الفترة */}
+                        <th className="p-4 font-bold">الفترة</th>
                         <th className="p-4 font-bold">معلومات الاتصال</th>
                         <th className="p-4 font-bold">بيانات الدخول</th>
                         <th className="p-4 font-bold">الحزام</th>
@@ -359,11 +612,26 @@ https://bravetkd.bar/
                 <tbody className="divide-y divide-gray-100 bg-white">
                     {processedStudents.map(s => {
                         const isNew = isNewStudent(s.joinDate);
+                        const hasPrivateNotes = s.internalNotes && s.internalNotes.length > 0;
+                        const hasPublicNotes = s.notes && s.notes.length > 0;
+
                         return (
                             <tr key={s.id} className="hover:bg-yellow-50/50 transition-colors group">
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
-                                        <div className="font-bold text-gray-800 text-base">{s.name}</div>
+                                        {/* المؤشر الأحمر للملاحظات الخاصة */}
+                                        {hasPrivateNotes && (
+                                            <button 
+                                                onClick={() => setStudentForNotes(s)} 
+                                                className="text-red-500 hover:scale-110 transition-transform" 
+                                                title="يوجد ملاحظات خاصة!"
+                                            >
+                                                <FileWarning size={20} fill="currentColor" className="text-red-100"/>
+                                            </button>
+                                        )}
+                                        <div className="font-bold text-gray-800 text-base cursor-pointer hover:text-blue-600" onClick={() => setStudentForNotes(s)}>
+                                            {s.name}
+                                        </div>
                                         {isNew && (
                                             <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold border border-red-200 animate-pulse">NEW</span>
                                         )}
@@ -371,7 +639,6 @@ https://bravetkd.bar/
                                     <div className="text-xs text-gray-400 mt-1">{s.joinDate}</div>
                                 </td>
                                 
-                                {/* عرض الفترة/المجموعة */}
                                 <td className="p-4">
                                     <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
                                         {s.group || 'غير محدد'}
@@ -408,7 +675,12 @@ https://bravetkd.bar/
                                 </td>
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                 <td className="p-4">
-                                    <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-1">
+                                        {/* زر الملاحظات الجديد */}
+                                        <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-50 text-gray-400 hover:text-yellow-600'}`} title="الملاحظات">
+                                            <Lock size={16}/>
+                                        </button>
+                                        
                                         <button onClick={() => promoteBelt(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
                                         <button onClick={() => openEditModal(s)} className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition" title="تعديل"><Edit size={16}/></button>
                                         <button onClick={() => archiveStudent(s)} className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-600 hover:text-white transition" title="أرشفة"><Archive size={16}/></button>
@@ -422,13 +694,21 @@ https://bravetkd.bar/
           </div>
       </Card>
 
-      {/* 2. MOBILE VIEW (Cards) - Hidden on Desktop */}
+      {/* 2. MOBILE VIEW (Cards) */}
       <div className="md:hidden grid grid-cols-1 gap-4">
         {processedStudents.map(s => {
              const isNew = isNewStudent(s.joinDate);
              const status = calculateStatus(s.subEnd);
+             const hasPrivateNotes = s.internalNotes && s.internalNotes.length > 0;
+
              return (
-                 <div key={s.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                 <div key={s.id} className={`bg-white p-4 rounded-xl shadow-sm border ${hasPrivateNotes ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100'} flex flex-col gap-3 relative`}>
+                     {hasPrivateNotes && (
+                         <div className="absolute top-4 left-14 animate-pulse">
+                             <FileWarning size={20} className="text-red-500 fill-red-100"/>
+                         </div>
+                     )}
+
                      {/* Header: Name and Status */}
                      <div className="flex justify-between items-start">
                          <div>
@@ -474,6 +754,11 @@ https://bravetkd.bar/
                              <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-100 rounded-full text-[#25D366]"><MessageCircle size={16}/></button>
                          </div>
                          <div className="flex gap-2">
+                             {/* زر الملاحظات للموبايل */}
+                             <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg ${hasPrivateNotes ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+                                 <Lock size={16}/>
+                             </button>
+
                              <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ArrowUp size={16}/></button>
                              <button onClick={() => openEditModal(s)} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Edit size={16}/></button>
                              <button onClick={() => archiveStudent(s)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Archive size={16}/></button>
@@ -487,7 +772,7 @@ https://bravetkd.bar/
         )}
       </div>
 
-      {/* --- Add/Edit Modal (Updated with Group Select) --- */}
+      {/* --- Add/Edit Modal --- */}
       {showModal && (
         <ModalOverlay onClose={closeModal}>
             <div className="p-6">
@@ -519,7 +804,6 @@ https://bravetkd.bar/
                             <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
                         </div>
 
-                        {/* --- (معدل) قائمة اختيار الفترة/المجموعة من Firebase --- */}
                         <div className="md:col-span-2">
                              <label className="block text-xs font-bold text-blue-800 mb-1">الفترة / المجموعة</label>
                              <select 

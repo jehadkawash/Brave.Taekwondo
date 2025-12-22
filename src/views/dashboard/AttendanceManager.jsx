@@ -2,10 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { 
   ChevronLeft, ChevronRight, UserCheck, X, 
-  Search, Save, Layers, Calendar, Users, Settings, Plus, Trash2, Edit3 
+  Search, Save, Layers, Calendar, Users, Settings, Plus, Trash2, Edit3, Printer 
 } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { createPortal } from 'react-dom';
+import { IMAGES } from '../../lib/constants';
 
 // --- Groups Management Modal ---
 const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
@@ -19,7 +20,6 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
                     <Settings size={20} className="text-gray-600"/> إدارة الفترات والمجموعات
                 </h3>
                 
-                {/* Add New Group */}
                 <div className="flex gap-2 mb-6">
                     <input 
                         className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-blue-500 outline-none"
@@ -35,7 +35,6 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
                     </button>
                 </div>
 
-                {/* Current Groups List */}
                 <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
                     {groups.map((g, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -68,17 +67,12 @@ export default function AttendanceManager({ students, studentsCollection, groups
   const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState("الكل");
 
-  // --- Process Groups Data for Dropdown (Extract Names) ---
   const groupsList = useMemo(() => {
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
 
-  // --- Group Management Functions (Using passed groupsCollection) ---
-  // التعديل هنا: نستخدم groupsCollection الممرر من الداشبورد بدلاً من الكتابة اليدوية
   const handleAddGroup = async (name) => {
       if (groupsList.includes(name)) return alert("هذه الفترة موجودة مسبقاً");
-      
-      // نستخدم دالة add الخاصة بالـ Hook لضمان الكتابة في المسار الصحيح المسموح به
       await groupsCollection.add({
           name: name,
           branch: selectedBranch || (students[0]?.branch || 'عام')
@@ -87,14 +81,10 @@ export default function AttendanceManager({ students, studentsCollection, groups
 
   const handleDeleteGroup = async (groupObj) => {
       if (!confirm(`حذف الفترة "${groupObj.name}"؟`)) return;
-      
-      // نستخدم دالة remove الخاصة بالـ Hook
       await groupsCollection.remove(groupObj.id);
-      
       if (selectedGroup === groupObj.name) setSelectedGroup("الكل");
   };
 
-  // --- Date Functions ---
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -117,29 +107,23 @@ export default function AttendanceManager({ students, studentsCollection, groups
       setSelectedDayForMobile(newDay);
   };
 
-  // --- 1. Data Processing ---
   const processedStudents = useMemo(() => {
       let result = Array.isArray(students) ? [...students] : [];
-
       if (selectedGroup !== "الكل") {
           result = result.filter(s => s.group === selectedGroup);
       }
-
       result.sort((a, b) => (a.customOrder || 999999) - (b.customOrder || 999999));
-
       if (searchTerm) {
           result = result.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
       }
       return result;
   }, [students, searchTerm, selectedGroup]);
 
-  // Pagination
   const totalPages = Math.ceil(processedStudents.length / itemsPerPage);
   const displayedStudents = isReordering 
       ? processedStudents 
       : processedStudents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // --- 2. Action Functions ---
   const toggleCheck = async (sid, day) => { 
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`; 
       const student = students.find(s => s.id === sid); 
@@ -165,6 +149,105 @@ export default function AttendanceManager({ students, studentsCollection, groups
   const changeStudentGroup = async (studentId, newGroup) => {
       if (!confirm("هل أنت متأكد من نقل الطالب لهذه الفترة؟")) return;
       await studentsCollection.update(studentId, { group: newGroup });
+  };
+
+  // --- Print Report Function ---
+  const printReport = () => {
+    const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
+    const logoUrl = window.location.origin + IMAGES.LOGO;
+    
+    // Generate Headers (Days)
+    let daysHeaders = '';
+    for(let i=1; i<=daysInMonth; i++) {
+        daysHeaders += `<th style="font-size:10px; width:20px; border:1px solid #ccc; background:#f9f9f9;">${i}</th>`;
+    }
+
+    // Generate Rows (Students)
+    let rowsHtml = '';
+    processedStudents.forEach((s, idx) => {
+        let cells = '';
+        for(let i=1; i<=daysInMonth; i++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+            const isPresent = s.attendance?.[dateStr];
+            const isFriday = new Date(year, month, i).getDay() === 5;
+            
+            let content = '';
+            let bg = '';
+            
+            if (isFriday) {
+                bg = '#eee';
+            } else if (isPresent) {
+                content = '✓';
+                bg = '#dcfce7'; // green-100
+            }
+            
+            cells += `<td style="border:1px solid #ccc; background:${bg}; text-align:center; font-size:12px; color:#166534; font-weight:bold;">${content}</td>`;
+        }
+        
+        rowsHtml += `
+            <tr>
+                <td style="border:1px solid #ccc; padding:5px; font-weight:bold; text-align:center;">${idx + 1}</td>
+                <td style="border:1px solid #ccc; padding:5px; text-align:right;">${s.name}</td>
+                <td style="border:1px solid #ccc; padding:5px; text-align:center; font-size:11px;">${s.group || '-'}</td>
+                ${cells}
+            </tr>
+        `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+        <head>
+          <title>كشف الحضور - ${monthNames[month]} ${year}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+            body { font-family: 'Cairo', sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            h1 { text-align: center; color: #b45309; margin-bottom: 5px; }
+            .header-info { text-align: center; margin-bottom: 20px; font-weight:bold; color:#555; }
+            @page { size: A4 landscape; margin: 10mm; }
+          </style>
+        </head>
+        <body>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #b45309; padding-bottom:10px;">
+                <div>
+                    <h1>أكاديمية الشجاع للتايكواندو</h1>
+                    <div style="font-size:12px;">فرع: ${selectedBranch}</div>
+                </div>
+                <img src="${logoUrl}" style="height:60px;" onerror="this.style.display='none'"/>
+            </div>
+
+            <div class="header-info">
+                سجل الحضور والغياب | شهر: ${monthNames[month]} ${year} | المجموعة: ${selectedGroup}
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="border:1px solid #ccc; background:#eee; width:30px;">#</th>
+                        <th style="border:1px solid #ccc; background:#eee; width:200px;">اسم الطالب</th>
+                        <th style="border:1px solid #ccc; background:#eee; width:80px;">المجموعة</th>
+                        ${daysHeaders}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+            
+            <div style="margin-top:20px; font-size:10px; text-align:left; color:#777;">
+                تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')}
+            </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.onload = () => {
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+    };
   };
 
   return (
@@ -206,8 +289,6 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     {groupsList.map((name, idx) => <option key={idx} value={name}>{name}</option>)}
                 </select>
             </div>
-            
-            {/* Settings Button */}
             <button 
                 onClick={() => setShowGroupsModal(true)}
                 className="bg-white p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:shadow-sm border border-transparent hover:border-blue-200 transition-all"
@@ -217,7 +298,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
             </button>
         </div>
 
-        {/* Search and Sort */}
+        {/* Search, Sort, Print */}
         <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
             <div className="relative w-full md:w-64">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -227,14 +308,26 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 />
             </div>
-            <Button 
-                variant={isReordering ? "default" : "outline"}
-                onClick={() => setIsReordering(!isReordering)}
-                className={`gap-2 whitespace-nowrap ${isReordering ? "bg-yellow-500 text-black border-none" : ""}`}
-            >
-                {isReordering ? <Save size={18}/> : <Layers size={18}/>}
-                {isReordering ? "حفظ الترتيب" : "ترتيب"}
-            </Button>
+            
+            <div className="flex gap-2">
+                <Button 
+                    variant={isReordering ? "default" : "outline"}
+                    onClick={() => setIsReordering(!isReordering)}
+                    className={`gap-2 whitespace-nowrap ${isReordering ? "bg-yellow-500 text-black border-none" : ""}`}
+                >
+                    {isReordering ? <Save size={18}/> : <Layers size={18}/>}
+                    {isReordering ? "حفظ الترتيب" : "ترتيب"}
+                </Button>
+                
+                {/* زر الطباعة الجديد */}
+                <Button 
+                    onClick={printReport}
+                    className="bg-gray-800 text-white gap-2 hover:bg-black"
+                    title="طباعة الكشف"
+                >
+                    <Printer size={18}/> <span className="hidden md:inline">طباعة</span>
+                </Button>
+            </div>
         </div>
       </div>
 

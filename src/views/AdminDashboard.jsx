@@ -1,6 +1,6 @@
 // src/views/AdminDashboard.jsx
 import React, { useState, useMemo } from 'react';
-import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone } from 'lucide-react';
+import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
@@ -48,14 +48,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const schedule = scheduleCollection?.data || [];
   const captains = captainsCollection?.data || [];
 
-  // 2. جلب الكولكشنز الإضافية (مجموعات، أخبار، أسباب الدفع)
+  // 2. جلب الكولكشنز الإضافية
   const groupsCollection = useCollection('groups');
   const groupsData = groupsCollection?.data || [];
   
   const newsCollection = useCollection('news');
   const newsData = newsCollection?.data || [];
 
-  // --- (جديد) جلب أسباب الدفع المالية ---
   const financeReasonsCollection = useCollection('finance_reasons');
   const financeReasonsData = financeReasonsCollection?.data || [];
 
@@ -64,10 +63,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
-  
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
-  
-  // --- (جديد) فلترة أسباب الدفع حسب الفرع ---
   const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
 
   // الحسابات
@@ -87,6 +83,32 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   }, 0);
 
   const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
+
+  // --- دالة تحميل النسخة الاحتياطية (Backup) ---
+  const handleBackup = () => {
+    if (!confirm("هل تريد تحميل نسخة كاملة من قاعدة البيانات؟")) return;
+
+    const backupData = {
+      date: new Date().toISOString(),
+      branch: selectedBranch,
+      students: branchStudents,
+      payments: branchPayments,
+      expenses: branchExpenses,
+      registrations: branchRegistrations,
+      schedule: schedule,
+      news: newsData,
+      groups: branchGroups,
+      captains: captains
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `brave_backup_${selectedBranch}_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
 
   const navItems = [
     {id:'dashboard',icon:Activity,label:'نظرة عامة'},
@@ -111,6 +133,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             <p className="text-white font-bold">{user.name}</p>
             <p className="text-xs text-gray-500">{user.role === 'admin' ? 'مدير عام' : 'كابتن'}</p>
         </div>
+        
+        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-6 space-y-2 px-3 custom-scrollbar">
           {navItems.filter(i => !i.role || i.role === user.role).map(item => (
             <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
@@ -119,7 +143,21 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             </button>
           ))}
         </nav>
-        <div className="p-4"><button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-gray-900 rounded"><LogOut size={20}/> {sidebarOpen && "خروج"}</button></div>
+
+        {/* Footer Actions (Backup + Logout) */}
+        <div className="p-4 space-y-2 border-t border-gray-800">
+             {/* زر النسخ الاحتياطي (للأدمن فقط) */}
+             {user.role === 'admin' && (
+                <button onClick={handleBackup} className={`w-full flex items-center gap-4 px-4 py-3 text-green-500 hover:bg-gray-900 rounded transition-colors ${!sidebarOpen && 'justify-center'}`} title="تحميل نسخة احتياطية">
+                    <Database size={20}/> {sidebarOpen && "نسخ احتياطي"}
+                </button>
+             )}
+             
+             {/* زر الخروج */}
+             <button onClick={handleLogout} className={`w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-gray-900 rounded transition-colors ${!sidebarOpen && 'justify-center'}`} title="تسجيل الخروج">
+                 <LogOut size={20}/> {sidebarOpen && "خروج"}
+             </button>
+        </div>
       </aside>
 
       <main className="flex-1 p-4 md:p-8 w-full overflow-x-hidden">
@@ -139,18 +177,14 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
              logActivity={handleLog}
          />}
 
-         {/* --- (تعديل) تمرير أسباب الدفع للمالية --- */}
          {activeTab === 'finance' && <FinanceManager 
              students={branchStudents} 
              payments={branchPayments} 
              expenses={branchExpenses} 
              paymentsCollection={paymentsCollection} 
              expensesCollection={expensesCollection} 
-             
-             // نمرر البيانات الجديدة هنا
              financeReasons={branchFinanceReasons}
              financeReasonsCollection={financeReasonsCollection}
-
              selectedBranch={selectedBranch} 
              logActivity={handleLog} 
          />}
