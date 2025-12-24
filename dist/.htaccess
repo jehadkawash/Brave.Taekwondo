@@ -1,0 +1,29 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+  RewriteRule . /index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # 1. DISABLE CACHING FOR INDEX.HTML (The Map)
+  # This forces the browser to check for a new version every time.
+  <FilesMatch "\.(html|htm)$">
+    FileETag None
+    <ifModule mod_headers.c>
+       Header unset ETag
+       Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
+       Header set Pragma "no-cache"
+       Header set Expires "Wed, 11 Jan 1984 05:00:00 GMT"
+    </ifModule>
+  </FilesMatch>
+
+  # 2. CACHE THE JS/CSS ASSETS (The Treasure)
+  # These have weird hash names (index-DwDtP0Po.js), so it's safe to cache them forever.
+  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+    Header set Cache-Control "max-age=31536000, public"
+  </FilesMatch>
+</IfModule>
