@@ -882,7 +882,7 @@ https://bravetkd.bar/
         <ModalOverlay onClose={closeModal}>
             <div className="p-6">
                 <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h3 className="text-xl font-bold text-gray-800">{editingStudent ? "تعديل بيانات الطالب" : "إضافة بطل جديد"}</h3>
+                    <h3 className="text-xl font-bold text-gray-800">{editingStudent ? "تعديل بيانات الطالب" : "إضافة 'طالب' جديد"}</h3>
                     <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition-colors"><X size={24}/></button>
                 </div>
                 
