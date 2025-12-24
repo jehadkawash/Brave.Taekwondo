@@ -5,7 +5,6 @@ import { getDoc, doc, collection, query, where, getDocs } from "firebase/firesto
 import { auth, db } from './lib/firebase';
 import { useCollection } from './hooks/useCollection';
 
-// Import Views
 import HomeView from './views/HomeView';
 import LoginView from './views/LoginView';
 import StudentPortal from './views/StudentPortal';
@@ -15,7 +14,6 @@ import { BRANCHES } from './lib/constants';
 const appId = 'brave-academy-live-data'; 
 
 export default function App() {
-  // 1. الحالة الأولية
   const [user, setUser] = useState(() => { 
       const saved = localStorage.getItem('braveUser'); 
       return saved ? JSON.parse(saved) : null; 
@@ -36,7 +34,7 @@ export default function App() {
   
   const [loadingAuth, setLoadingAuth] = useState(true);
   
-  // --- Collections Hooks (ربط قواعد البيانات) ---
+  // --- جلب البيانات (Collections) ---
   const studentsCollection = useCollection('students'); 
   const paymentsCollection = useCollection('payments');
   const expensesCollection = useCollection('expenses');
@@ -46,32 +44,27 @@ export default function App() {
   const captainsCollection = useCollection('captains');
   const newsCollection = useCollection('news'); 
 
-  // ✅ (جديد) قواعد البيانات الخاصة بالمتجر والمالية الجديدة
+  // ✅ القواعد الجديدة (المتجر، المالية، الملاحظات، أسباب الدفع)
   const productsCollection = useCollection('products');
   const extraIncomeCollection = useCollection('extra_income');
   const monthlyNotesCollection = useCollection('monthly_notes');
+  const financeReasonsCollection = useCollection('finance_reasons'); // تمت إضافتها هنا
 
-  // --- دالة التنقل الذكي ---
   const navigateTo = (newView) => {
      setView(newView);
      window.history.pushState({ view: newView }, '', '');
   };
 
-  // --- الاستماع لزر الرجوع ---
   useEffect(() => {
     window.history.replaceState({ view: view }, '', '');
     const handleBackButton = (event) => {
-       if (event.state && event.state.view) {
-         setView(event.state.view);
-       } else {
-         setView('home');
-       }
+       if (event.state && event.state.view) setView(event.state.view);
+       else setView('home');
     };
     window.addEventListener('popstate', handleBackButton);
     return () => window.removeEventListener('popstate', handleBackButton);
   }, []); 
 
-  // --- تسجيل الدخول ---
   const handleLogin = async (username, password) => {
     try {
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
@@ -81,16 +74,8 @@ export default function App() {
       if (!studentSnap.empty) {
         const studentDoc = studentSnap.docs[0];
         const studentData = studentDoc.data();
-        const userData = { 
-            role: 'student', 
-            familyId: studentData.familyId, 
-            name: studentData.familyName || studentData.name,
-            id: studentDoc.id 
-        };
-        
-        setUser(userData); 
-        localStorage.setItem('braveUser', JSON.stringify(userData)); 
-        navigateTo('student_portal');
+        const userData = { role: 'student', familyId: studentData.familyId, name: studentData.familyName || studentData.name, id: studentDoc.id };
+        setUser(userData); localStorage.setItem('braveUser', JSON.stringify(userData)); navigateTo('student_portal');
         return;
       }
 
@@ -102,11 +87,7 @@ export default function App() {
           const captainDoc = captainSnap.docs[0];
           const capData = captainDoc.data();
           const u = { role: 'captain', ...capData, id: captainDoc.id };
-          
-          setUser(u); 
-          localStorage.setItem('braveUser', JSON.stringify(u)); 
-          setDashboardBranch(capData.branch); 
-          navigateTo('admin_dashboard');
+          setUser(u); localStorage.setItem('braveUser', JSON.stringify(u)); setDashboardBranch(capData.branch); navigateTo('admin_dashboard');
           return;
       }
 
@@ -116,85 +97,51 @@ export default function App() {
           await signInWithEmailAndPassword(auth, email, password);
           return;
       }
-      
-      alert('بيانات الدخول خاطئة! تأكد من اسم المستخدم وكلمة المرور.');
-
-    } catch (error) {
-      console.error("Login Error:", error);
-      alert("حدث خطأ أثناء تسجيل الدخول.");
-    }
+      alert('بيانات الدخول خاطئة!');
+    } catch (error) { console.error("Login Error:", error); alert("حدث خطأ."); }
   };
 
-  // --- مراقبة حالة فايربيس ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email;
         let userData = { email };
-
-        if (email === 'admin@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
-        } else if (email === 'shafa@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
-        } else if (email === 'abunseir@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR };
-        }
+        if (email === 'admin@brave.com') userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
+        else if (email === 'shafa@brave.com') userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
+        else if (email === 'abunseir@brave.com') userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR };
 
         try {
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
             const profileSnap = await getDoc(profileRef);
-            if (profileSnap.exists() && profileSnap.data().name) {
-                userData.name = profileSnap.data().name;
-            }
-        } catch (err) { console.log("Profile fetch warning"); }
+            if (profileSnap.exists() && profileSnap.data().name) userData.name = profileSnap.data().name;
+        } catch (err) { }
 
-        setUser(userData);
-        setDashboardBranch(userData.branch);
-        localStorage.setItem('braveUser', JSON.stringify(userData));
-        setView('admin_dashboard');
-        
+        setUser(userData); setDashboardBranch(userData.branch); localStorage.setItem('braveUser', JSON.stringify(userData)); setView('admin_dashboard');
       } else {
-        if (!localStorage.getItem('braveUser')) {
-            setUser(null);
-        }
+        if (!localStorage.getItem('braveUser')) setUser(null);
       }
       setLoadingAuth(false);
     });
-
     return () => unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
-    await signOut(auth); 
-    localStorage.removeItem('braveUser'); 
-    setUser(null);
-    navigateTo('home'); 
-  };
+  const handleLogout = async () => { await signOut(auth); localStorage.removeItem('braveUser'); setUser(null); navigateTo('home'); };
 
   if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من البيانات...</div>;
 
   return (
     <>
       {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} registrationsCollection={registrationsCollection} />}
-      
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
-      
-      {view === 'student_portal' && user && <StudentPortal 
-          user={user} 
-          students={studentsCollection.data} 
-          schedule={scheduleCollection.data} 
-          payments={paymentsCollection.data} 
-          news={newsCollection.data}
-          // ✅ تمرير بيانات المتجر للطالب
-          products={productsCollection.data}
-          handleLogout={handleLogout} 
-      />}
+      {/* ✅ تم تمرير بيانات المتجر للطالب */}
+      {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} payments={paymentsCollection.data} news={newsCollection.data} products={productsCollection.data} handleLogout={handleLogout} />}
       
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
           selectedBranch={dashboardBranch} 
           onSwitchBranch={user.isSuper ? setDashboardBranch : null} 
+          // تمرير البيانات الأساسية
           studentsCollection={studentsCollection} 
           paymentsCollection={paymentsCollection} 
           expensesCollection={expensesCollection} 
@@ -203,14 +150,11 @@ export default function App() {
           registrationsCollection={registrationsCollection} 
           captainsCollection={captainsCollection}
           newsCollection={newsCollection}
-          // ✅ تمرير القواعد والبيانات الجديدة للوحة التحكم
+          // ✅ تمرير البيانات الجديدة لضمان وصولها لمدير المالية
           productsCollection={productsCollection}
-          products={productsCollection.data}
           extraIncomeCollection={extraIncomeCollection}
-          extraIncome={extraIncomeCollection.data}
           monthlyNotesCollection={monthlyNotesCollection}
-          monthlyNotes={monthlyNotesCollection.data}
-          // ---------------------------------------------
+          financeReasonsCollection={financeReasonsCollection}
           handleLogout={handleLogout}
         />
       )}
