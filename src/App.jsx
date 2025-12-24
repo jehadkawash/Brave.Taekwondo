@@ -36,7 +36,7 @@ export default function App() {
   
   const [loadingAuth, setLoadingAuth] = useState(true);
   
-  // Collections Hooks
+  // --- Collections Hooks (ربط قواعد البيانات) ---
   const studentsCollection = useCollection('students'); 
   const paymentsCollection = useCollection('payments');
   const expensesCollection = useCollection('expenses');
@@ -44,8 +44,12 @@ export default function App() {
   const archiveCollection = useCollection('archive');
   const registrationsCollection = useCollection('registrations'); 
   const captainsCollection = useCollection('captains');
-  // ✅ (جديد) جلب الأخبار
   const newsCollection = useCollection('news'); 
+
+  // ✅ (جديد) قواعد البيانات الخاصة بالمتجر والمالية الجديدة
+  const productsCollection = useCollection('products');
+  const extraIncomeCollection = useCollection('extra_income');
+  const monthlyNotesCollection = useCollection('monthly_notes');
 
   // --- دالة التنقل الذكي ---
   const navigateTo = (newView) => {
@@ -95,15 +99,15 @@ export default function App() {
       const captainSnap = await getDocs(qCaptain);
 
       if(!captainSnap.empty) {
-         const captainDoc = captainSnap.docs[0];
-         const capData = captainDoc.data();
-         const u = { role: 'captain', ...capData, id: captainDoc.id };
-         
-         setUser(u); 
-         localStorage.setItem('braveUser', JSON.stringify(u)); 
-         setDashboardBranch(capData.branch); 
-         navigateTo('admin_dashboard');
-         return;
+          const captainDoc = captainSnap.docs[0];
+          const capData = captainDoc.data();
+          const u = { role: 'captain', ...capData, id: captainDoc.id };
+          
+          setUser(u); 
+          localStorage.setItem('braveUser', JSON.stringify(u)); 
+          setDashboardBranch(capData.branch); 
+          navigateTo('admin_dashboard');
+          return;
       }
 
       if (username.includes('@') || username === 'admin1') {
@@ -175,13 +179,14 @@ export default function App() {
       
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
       
-      {/* ✅ تم تمرير news هنا */}
       {view === 'student_portal' && user && <StudentPortal 
           user={user} 
           students={studentsCollection.data} 
           schedule={scheduleCollection.data} 
           payments={paymentsCollection.data} 
           news={newsCollection.data}
+          // ✅ تمرير بيانات المتجر للطالب
+          products={productsCollection.data}
           handleLogout={handleLogout} 
       />}
       
@@ -197,6 +202,15 @@ export default function App() {
           archiveCollection={archiveCollection} 
           registrationsCollection={registrationsCollection} 
           captainsCollection={captainsCollection}
+          newsCollection={newsCollection}
+          // ✅ تمرير القواعد والبيانات الجديدة للوحة التحكم
+          productsCollection={productsCollection}
+          products={productsCollection.data}
+          extraIncomeCollection={extraIncomeCollection}
+          extraIncome={extraIncomeCollection.data}
+          monthlyNotesCollection={monthlyNotesCollection}
+          monthlyNotes={monthlyNotesCollection.data}
+          // ---------------------------------------------
           handleLogout={handleLogout}
         />
       )}

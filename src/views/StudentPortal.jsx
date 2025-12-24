@@ -19,12 +19,12 @@ const StudentPortal = ({ user, students, schedule, payments, news, products = []
   const currentUserData = students.find(s => s.id === user.id) || user;
   const myStudents = students.filter(s => s.familyId === user.familyId);
   
-  // Sorting Payments
+  // ترتيب الدفعات
   const myPayments = payments
     .filter(p => myStudents.some(s => s.id === p.studentId))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   
-  // Filtering News
+  // فلترة الأخبار
   const studentBranches = [...new Set(myStudents.map(s => s.branch))];
   const relevantNews = (news || [])
     .filter(n => !n.branch || n.branch === 'الكل' || studentBranches.includes(n.branch))
@@ -87,14 +87,14 @@ const StudentPortal = ({ user, students, schedule, payments, news, products = []
         </div>
       </header>
 
-      {/* NAVIGATION TABS (Mobile & Desktop) */}
+      {/* NAVIGATION TABS (للتبديل بين الرئيسية والمتجر) */}
       <div className="bg-white border-b shadow-sm sticky top-[72px] z-30">
         <div className="container mx-auto flex justify-center md:justify-start">
             <button 
                 onClick={() => setActiveTab('dashboard')}
                 className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 font-bold transition-all border-b-4 ${activeTab === 'dashboard' ? 'border-yellow-500 text-yellow-600 bg-yellow-50' : 'border-transparent text-gray-500 hover:bg-gray-50'}`}
             >
-                <Home size={20}/> لوحة التحكم
+                <Home size={20}/> الرئيسية
             </button>
             <button 
                 onClick={() => setActiveTab('store')}
@@ -107,7 +107,7 @@ const StudentPortal = ({ user, students, schedule, payments, news, products = []
       
       <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
         
-        {/* === VIEW 1: DASHBOARD === */}
+        {/* === VIEW 1: الرئيسية (DASHBOARD) === */}
         {activeTab === 'dashboard' && (
             <div className="space-y-8 animate-fade-in">
                 {/* News Section */}
@@ -174,7 +174,7 @@ const StudentPortal = ({ user, students, schedule, payments, news, products = []
                     ) : <p className="text-gray-500 text-center py-4">لا توجد دفعات مسجلة</p>}
                 </Card>
 
-                {/* Student Cards (Info & Attendance) */}
+                {/* Student Cards */}
                 {myStudents.map(s => (
                     <Card key={s.id} className="mb-8 border-t-4 border-yellow-500" title={s.name}>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6">
