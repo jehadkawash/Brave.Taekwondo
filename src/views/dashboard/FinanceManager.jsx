@@ -1,11 +1,11 @@
 // src/views/dashboard/FinanceManager.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote, LayoutDashboard, ShoppingBag, TrendingUp, AlertCircle, FileSpreadsheet, StickyNote } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote, LayoutDashboard, ShoppingBag, TrendingUp, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
-// --- مكون النافذة المنبثقة لإدارة الأسباب (لم نغير عليه شيئاً) ---
+// --- Reasons Modal (Unchanged) ---
 const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
     const [newReason, setNewReason] = useState("");
     if (!isOpen) return null;
@@ -32,63 +32,71 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
 };
 
 export default function FinanceManager({ 
+    user, // <--- 1. Received User Prop
     students, payments, expenses, 
     paymentsCollection, expensesCollection, 
-    // --- بيانات جديدة مطلوبة للصفحات الجديدة ---
     products = [], productsCollection,
     extraIncome = [], extraIncomeCollection, 
     monthlyNotes = [], monthlyNotesCollection,
-    // ----------------------------------------
     selectedBranch, logActivity,
     financeReasons = [], financeReasonsCollection 
 }) {
-  // للتحكم في التنقل بين الصفحات (الاستقبال، الإدارة، المتجر)
+  // --- PERMISSION CHECK ---
+  const isAdmin = user && user.role === 'admin';
+
+  // Main Tab State: 'reception', 'admin', 'store'
   const [activeTab, setActiveTab] = useState('reception');
 
-  // states الخاصة بصفحة الاستقبال (القديمة)
+  // Force Captains to Reception Tab Only
+  useEffect(() => {
+    if (!isAdmin && activeTab !== 'reception') {
+        setActiveTab('reception');
+    }
+  }, [isAdmin, activeTab]);
+
+  // Reception State
   const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
   
-  // states الخاصة بصفحة الإدارة المالية (الجديدة)
+  // Admin Dashboard State
   const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [extraIncomeForm, setExtraIncomeForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
   const [noteForm, setNoteForm] = useState("");
 
-  // states الخاصة بصفحة المتجر
+  // Store Admin State
   const [productForm, setProductForm] = useState({ name: '', price: '', image: '' });
 
-  // state لطباعة كشف الحساب
+  // Bank Statement Date Range State
   const [calcDates, setCalcDates] = useState({ 
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
+  const [showSummary, setShowSummary] = useState(false);
 
-  // --- تصفية البيانات حسب الفرع ---
+  // --- DATA FILTERING ---
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
   const branchExtraIncome = extraIncome.filter(i => i.branch === selectedBranch);
   const branchNotes = monthlyNotes.filter(n => n.branch === selectedBranch);
-  const branchProducts = products; // المنتجات عادة مشتركة، أو يمكن فلترتها إذا أردت
+  const branchProducts = products; 
 
-  // 1. جدول الاستقبال (نفس المنطق القديم)
+  // 1. Reception Table (Recent payments)
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  // 2. حسابات لوحة الإدارة (بناءً على الشهر المختار)
+  // 2. Dashboard Calculations (Based on Selected Month)
   const dashboardStats = useMemo(() => {
     const [year, month] = dashboardMonth.split('-');
-    
-    // دالة مساعدة لفلترة البيانات حسب الشهر المختار
-    const isSameMonth = (dateString) => {
-        const d = new Date(dateString);
-        return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+    const filterFn = (item) => {
+        const itemDate = new Date(item.date);
+        return itemDate.getFullYear() === parseInt(year) && (itemDate.getMonth() + 1) === parseInt(month);
     };
 
-    const monthlyPayments = branchPayments.filter(p => isSameMonth(p.date));
-    const monthlyExpenses = branchExpenses.filter(e => isSameMonth(e.date));
-    const monthlyExtra = branchExtraIncome.filter(i => isSameMonth(i.date));
+    const monthlyPayments = branchPayments.filter(filterFn);
+    const monthlyExpenses = branchExpenses.filter(filterFn);
+    const monthlyExtra = branchExtraIncome.filter(filterFn);
 
     const totalStudents = monthlyPayments.reduce((sum, p) => sum + Number(p.amount), 0);
     const totalExtra = monthlyExtra.reduce((sum, i) => sum + Number(i.amount), 0);
@@ -97,6 +105,11 @@ export default function FinanceManager({
     const cashPayments = monthlyPayments.filter(p => p.method !== 'cliq').reduce((sum, p) => sum + Number(p.amount), 0);
     const cliqPayments = monthlyPayments.filter(p => p.method === 'cliq').reduce((sum, p) => sum + Number(p.amount), 0);
 
+    const calculatedTotals = {
+        cash: cashPayments,
+        cliq: cliqPayments
+    };
+
     return {
         totalStudents,
         totalExtra,
@@ -104,14 +117,34 @@ export default function FinanceManager({
         netProfit: (totalStudents + totalExtra) - totalExp,
         cash: cashPayments,
         cliq: cliqPayments,
-        count: monthlyPayments.length
+        count: monthlyPayments.length,
+        calculatedTotals // for report
     };
   }, [branchPayments, branchExpenses, branchExtraIncome, dashboardMonth]);
 
+  // UseMemo for Statement Totals
+  const statementTotals = useMemo(() => {
+    const start = new Date(calcDates.start);
+    const end = new Date(calcDates.end);
+    start.setHours(0,0,0,0);
+    end.setHours(23,59,59,999);
 
-  // --- دوال الإضافة والحذف (Handlers) ---
+    const rangePayments = branchPayments.filter(p => {
+        const pDate = new Date(p.date);
+        return pDate >= start && pDate <= end;
+    });
 
-  // 1. إضافة دفعة (استقبال)
+    return rangePayments.reduce((acc, curr) => {
+        if(curr.method === 'cliq') acc.cliq += Number(curr.amount);
+        else acc.cash += Number(curr.amount);
+        return acc;
+    }, { cash: 0, cliq: 0 });
+  }, [branchPayments, calcDates]);
+
+
+  // --- HANDLERS ---
+
+  // 1. Add Payment (Reception)
   const handleAddPayment = async (e) => { 
     e.preventDefault(); 
     if(!payForm.studentObjId) return alert('اختر طالباً'); 
@@ -131,7 +164,7 @@ export default function FinanceManager({
   };
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
 
-  // 2. إضافة مصروف (إدارة)
+  // 2. Add Expense (Admin)
   const handleAddExpense = async (e) => { 
     e.preventDefault(); 
     await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); 
@@ -139,7 +172,7 @@ export default function FinanceManager({
   };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // 3. إضافة دخل إضافي (إدارة)
+  // 3. Add Extra Income (Admin)
   const handleAddExtraIncome = async (e) => {
     e.preventDefault();
     if (!extraIncomeCollection) return alert("يرجى التأكد من ربط قاعدة بيانات الدخل الإضافي");
@@ -148,7 +181,7 @@ export default function FinanceManager({
   };
   const deleteExtraIncome = async (id) => { if(confirm('حذف هذا الدخل؟')) await extraIncomeCollection.remove(id); };
 
-  // 4. إضافة ملاحظة شهرية (إدارة)
+  // 4. Add Note (Admin)
   const handleAddNote = async (e) => {
       e.preventDefault();
       if(!monthlyNotesCollection) return;
@@ -157,7 +190,7 @@ export default function FinanceManager({
   };
   const deleteNote = async (id) => { if(confirm('حذف الملاحظة؟')) await monthlyNotesCollection.remove(id); };
 
-  // 5. إضافة منتج (متجر)
+  // 5. Add Product (Store)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     if(!productsCollection) return alert("يرجى التأكد من ربط قاعدة بيانات المنتجات");
@@ -166,7 +199,7 @@ export default function FinanceManager({
   };
   const deleteProduct = async (id) => { if(confirm('حذف المنتج من المتجر؟')) await productsCollection.remove(id); };
 
-  // --- دوال إدارة الأسباب ---
+  // Reasons Handlers
   const handleAddReason = async (title) => {
       if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
       await financeReasonsCollection.add({ title, branch: selectedBranch, createdAt: new Date().toISOString() });
@@ -177,7 +210,7 @@ export default function FinanceManager({
   };
 
 
-  // --- كود طباعة كشف الحساب (كما هو في كودك) ---
+  // --- PRINT LOGIC ---
   const printStatement = () => {
     const start = new Date(calcDates.start);
     const end = new Date(calcDates.end);
@@ -204,7 +237,6 @@ export default function FinanceManager({
     printWindow.onload = () => { printWindow.focus(); setTimeout(() => { printWindow.print(); }, 500); };
   };
 
-  // --- كود طباعة السند (كما هو في كودك) ---
   const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -219,26 +251,57 @@ export default function FinanceManager({
       
       <ReasonsModal isOpen={showReasonsModal} onClose={() => setShowReasonsModal(false)} reasons={financeReasons} onAdd={handleAddReason} onDelete={handleDeleteReason} />
 
-      {/* --- شريط التنقل العلوي (TABS) --- */}
+      {/* --- MASTER TABS --- */}
       <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-2 sticky top-0 z-30">
         <button onClick={() => setActiveTab('reception')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'reception' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
             <User size={20}/> الاستقبال (Reception)
         </button>
-        <button onClick={() => setActiveTab('admin')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'admin' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
-            <LayoutDashboard size={20}/> إدارة الحسابات (Admin)
-        </button>
-        <button onClick={() => setActiveTab('store')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'store' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
-            <ShoppingBag size={20}/> المتجر (Store)
-        </button>
+        
+        {/* --- 3. RESTRICTED TABS (Only for Admin) --- */}
+        {isAdmin && (
+            <>
+                <button onClick={() => setActiveTab('admin')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'admin' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                    <LayoutDashboard size={20}/> إدارة الحسابات (Admin)
+                </button>
+                <button onClick={() => setActiveTab('store')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'store' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                    <ShoppingBag size={20}/> المتجر (Store)
+                </button>
+            </>
+        )}
       </div>
 
 
       {/* ================================================================================= */}
-      {/* القسم الأول: الاستقبال (للموظفين - دفع يومي فقط) */}
+      {/* TAB 1: RECEPTION (FAST PAYMENTS) - EVERYONE SEES THIS */}
       {/* ================================================================================= */}
       {activeTab === 'reception' && (
         <div className="animate-fade-in space-y-6 mt-4">
-             {/* نموذج القبض */}
+             {/* Report Summary Toggle (Reception View) */}
+             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <button onClick={() => setShowSummary(!showSummary)} className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-right">
+                    <div className="flex items-center gap-2 font-bold text-gray-800"><FileSpreadsheet size={24} className="text-yellow-500" /><span>التقارير والملخص المالي</span></div>
+                    {showSummary ? <ChevronUp size={20} className="text-gray-400"/> : <ChevronDown size={20} className="text-gray-400"/>}
+                </button>
+                {showSummary && (
+                    <div className="p-4 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white animate-slide-in">
+                        <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-6 gap-4">
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                <span className="text-sm font-bold text-gray-500">الفترة من:</span>
+                                <input type="date" value={calcDates.start} onChange={e=>setCalcDates({...calcDates, start: e.target.value})} className="bg-white border rounded-lg px-3 py-2 outline-none focus:border-yellow-500 shadow-sm"/>
+                                <span className="text-sm font-bold text-gray-500">إلى:</span>
+                                <input type="date" value={calcDates.end} onChange={e=>setCalcDates({...calcDates, end: e.target.value})} className="bg-white border rounded-lg px-3 py-2 outline-none focus:border-yellow-500 shadow-sm"/>
+                            </div>
+                            <button onClick={printStatement} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-black transition-colors shadow-lg"><Printer size={18}/> طباعة كشف الحساب</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col items-center shadow-sm"><div className="flex items-center gap-2 text-green-700 font-bold mb-2"><Banknote size={20}/> مجموع الكاش (Cash)</div><div className="text-3xl font-black text-green-600 tracking-tight">{statementTotals.cash} JD</div></div>
+                            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center shadow-sm"><div className="flex items-center gap-2 text-purple-700 font-bold mb-2"><CreditCard size={20}/> مجموع الكليك (Cliq)</div><div className="text-3xl font-black text-purple-600 tracking-tight">{statementTotals.cliq} JD</div></div>
+                        </div>
+                    </div>
+                )}
+             </div>
+
+             {/* Form */}
              <Card title="استلام دفعة جديدة (قسط / زي / بطولة)" className="border-green-100 shadow-green-50">
                 <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div className="relative"><label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label><StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." /></div>
@@ -264,7 +327,7 @@ export default function FinanceManager({
                 </form>
             </Card>
 
-            {/* جدول سجل المقبوضات اليومي */}
+            {/* Daily History Table */}
             <Card title="سجل المقبوضات اليومي">
                 <div className="flex items-center gap-2 mb-4 w-full md:w-64"><StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} /></div>
                 
@@ -327,11 +390,11 @@ export default function FinanceManager({
       )}
 
       {/* ================================================================================= */}
-      {/* القسم الثاني: إدارة الحسابات (للمدير فقط) */}
+      {/* TAB 2: ADMIN DASHBOARD (ACCOUNTS) - ADMIN ONLY */}
       {/* ================================================================================= */}
-      {activeTab === 'admin' && (
+      {activeTab === 'admin' && isAdmin && (
         <div className="animate-fade-in space-y-6 mt-4">
-            {/* 1. ملخص الشهر */}
+            {/* 1. Month Selector & Summary */}
             <div className="bg-gray-900 text-white p-6 rounded-3xl shadow-2xl">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold flex items-center gap-2"><TrendingUp className="text-yellow-500"/> الملخص المالي الشهري</h2>
@@ -364,21 +427,8 @@ export default function FinanceManager({
                 </div>
             </div>
 
-            {/* قسم التقارير (طباعة) */}
-            <Card title="التقارير">
-                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-gray-500">الفترة من:</span>
-                        <input type="date" value={calcDates.start} onChange={e=>setCalcDates({...calcDates, start: e.target.value})} className="bg-gray-50 border rounded-lg px-3 py-2 outline-none"/>
-                        <span className="text-sm font-bold text-gray-500">إلى:</span>
-                        <input type="date" value={calcDates.end} onChange={e=>setCalcDates({...calcDates, end: e.target.value})} className="bg-gray-50 border rounded-lg px-3 py-2 outline-none"/>
-                    </div>
-                    <button onClick={printStatement} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-black transition-colors shadow-lg"><Printer size={18}/> طباعة كشف الحساب</button>
-                 </div>
-            </Card>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 2. إدارة الدخل الإضافي */}
+                {/* 2. Extra Income Manager */}
                 <Card title="إضافة دخل زائد (ربح بدلات / بطولات)">
                     <form onSubmit={handleAddExtraIncome} className="flex gap-2 mb-4">
                         <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="البيان (مثال: ربح بطولة)" value={extraIncomeForm.title} onChange={e=>setExtraIncomeForm({...extraIncomeForm, title: e.target.value})} required/>
@@ -398,7 +448,7 @@ export default function FinanceManager({
                     </div>
                 </Card>
 
-                {/* 3. إدارة المصاريف (منقولة من الصفحة القديمة) */}
+                {/* 3. Expenses Manager */}
                 <Card title="إدارة المصاريف">
                     <form onSubmit={handleAddExpense} className="flex gap-2 mb-4">
                         <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="بند المصروف" value={expForm.title} onChange={e=>setExpForm({...expForm, title: e.target.value})} required/>
@@ -419,7 +469,7 @@ export default function FinanceManager({
                 </Card>
             </div>
 
-            {/* 4. ملاحظات الشهر */}
+            {/* 4. Monthly Notes */}
             <Card title={`ملاحظات شهر ${dashboardMonth}`}>
                 <form onSubmit={handleAddNote} className="flex gap-2 mb-4">
                     <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="اكتب ملاحظة..." value={noteForm} onChange={e=>setNoteForm(e.target.value)} required/>
@@ -438,9 +488,9 @@ export default function FinanceManager({
       )}
 
       {/* ================================================================================= */}
-      {/* القسم الثالث: إدارة المتجر (للمدير) */}
+      {/* TAB 3: STORE ADMIN - ADMIN ONLY */}
       {/* ================================================================================= */}
-      {activeTab === 'store' && (
+      {activeTab === 'store' && isAdmin && (
         <div className="animate-fade-in space-y-6 mt-4">
             <Card title="إدارة منتجات المتجر (تظهر للطلاب)">
                 <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6 flex items-start gap-3">

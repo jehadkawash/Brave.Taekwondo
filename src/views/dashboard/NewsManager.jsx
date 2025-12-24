@@ -1,11 +1,27 @@
 // src/views/dashboard/NewsManager.jsx
 import React, { useState } from 'react';
-import { Trash2, Plus, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Plus, Image as ImageIcon, Lock } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { addDoc, deleteDoc, doc, collection } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
 
-const NewsManager = ({ news, newsCollection, selectedBranch }) => {
+const NewsManager = ({ user, news, newsCollection, selectedBranch }) => {
+  // --- التحقق من الصلاحية (للمدراء فقط) ---
+  const isAdmin = user && user.role === 'admin';
+
+  // إذا لم يكن مديراً، أظهر رسالة منع الوصول
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+        <div className="bg-red-50 p-4 rounded-full mb-4">
+            <Lock size={48} className="text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-800">وصول مقيد</h2>
+        <p className="text-gray-500 mt-2">عذراً، هذه الصفحة مخصصة للمسؤولين فقط.</p>
+      </div>
+    );
+  }
+
   const [showModal, setShowModal] = useState(false);
   const [newItem, setNewItem] = useState({ title: '', desc: '', image: '', branch: selectedBranch });
   const [loading, setLoading] = useState(false);
