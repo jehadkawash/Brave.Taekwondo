@@ -1,11 +1,11 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote, LayoutDashboard, ShoppingBag, TrendingUp, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote, LayoutDashboard, ShoppingBag, TrendingUp, AlertCircle, FileSpreadsheet, StickyNote } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
-// --- Reasons Modal (Unchanged) ---
+// --- مكون النافذة المنبثقة لإدارة الأسباب (لم نغير عليه شيئاً) ---
 const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
     const [newReason, setNewReason] = useState("");
     if (!isOpen) return null;
@@ -34,80 +34,84 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
 export default function FinanceManager({ 
     students, payments, expenses, 
     paymentsCollection, expensesCollection, 
-    // NEW PROPS (Pass these from main layout)
+    // --- بيانات جديدة مطلوبة للصفحات الجديدة ---
     products = [], productsCollection,
     extraIncome = [], extraIncomeCollection, 
-    // ---------
+    monthlyNotes = [], monthlyNotesCollection,
+    // ----------------------------------------
     selectedBranch, logActivity,
     financeReasons = [], financeReasonsCollection 
 }) {
-  // Main Tab State: 'reception', 'admin', 'store'
+  // للتحكم في التنقل بين الصفحات (الاستقبال، الإدارة، المتجر)
   const [activeTab, setActiveTab] = useState('reception');
 
-  // Reception State
+  // states الخاصة بصفحة الاستقبال (القديمة)
   const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
   
-  // Admin Dashboard State
+  // states الخاصة بصفحة الإدارة المالية (الجديدة)
   const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [extraIncomeForm, setExtraIncomeForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
-  
-  // Bank Statement Date Range State
+  const [noteForm, setNoteForm] = useState("");
+
+  // states الخاصة بصفحة المتجر
+  const [productForm, setProductForm] = useState({ name: '', price: '', image: '' });
+
+  // state لطباعة كشف الحساب
   const [calcDates, setCalcDates] = useState({ 
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
 
-  // Store Admin State
-  const [productForm, setProductForm] = useState({ name: '', price: '', image: '' });
-
-  // --- DATA FILTERING ---
+  // --- تصفية البيانات حسب الفرع ---
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
   const branchExtraIncome = extraIncome.filter(i => i.branch === selectedBranch);
-  const branchProducts = products; 
+  const branchNotes = monthlyNotes.filter(n => n.branch === selectedBranch);
+  const branchProducts = products; // المنتجات عادة مشتركة، أو يمكن فلترتها إذا أردت
 
-  // 1. Reception Table (Recent payments)
+  // 1. جدول الاستقبال (نفس المنطق القديم)
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  // 2. Dashboard Calculations (Based on Selected Month)
+  // 2. حسابات لوحة الإدارة (بناءً على الشهر المختار)
   const dashboardStats = useMemo(() => {
     const [year, month] = dashboardMonth.split('-');
-    const filterFn = (item) => {
-        const itemDate = new Date(item.date);
-        return itemDate.getFullYear() === parseInt(year) && itemDate.getMonth() === parseInt(month) - 1;
+    
+    // دالة مساعدة لفلترة البيانات حسب الشهر المختار
+    const isSameMonth = (dateString) => {
+        const d = new Date(dateString);
+        return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
     };
 
-    const monthlyPayments = branchPayments.filter(filterFn);
-    const monthlyExpenses = branchExpenses.filter(filterFn);
-    const monthlyExtraIncome = branchExtraIncome.filter(filterFn);
+    const monthlyPayments = branchPayments.filter(p => isSameMonth(p.date));
+    const monthlyExpenses = branchExpenses.filter(e => isSameMonth(e.date));
+    const monthlyExtra = branchExtraIncome.filter(i => isSameMonth(i.date));
 
     const totalStudents = monthlyPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalExtra = monthlyExtraIncome.reduce((sum, i) => sum + Number(i.amount), 0);
+    const totalExtra = monthlyExtra.reduce((sum, i) => sum + Number(i.amount), 0);
     const totalExp = monthlyExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
     const cashPayments = monthlyPayments.filter(p => p.method !== 'cliq').reduce((sum, p) => sum + Number(p.amount), 0);
     const cliqPayments = monthlyPayments.filter(p => p.method === 'cliq').reduce((sum, p) => sum + Number(p.amount), 0);
 
     return {
-        totalIncome: totalStudents + totalExtra,
         totalStudents,
         totalExtra,
         totalExpenses: totalExp,
         netProfit: (totalStudents + totalExtra) - totalExp,
         cash: cashPayments,
         cliq: cliqPayments,
-        paymentsCount: monthlyPayments.length
+        count: monthlyPayments.length
     };
   }, [branchPayments, branchExpenses, branchExtraIncome, dashboardMonth]);
 
 
-  // --- HANDLERS ---
+  // --- دوال الإضافة والحذف (Handlers) ---
 
-  // 1. Add Payment (Reception)
+  // 1. إضافة دفعة (استقبال)
   const handleAddPayment = async (e) => { 
     e.preventDefault(); 
     if(!payForm.studentObjId) return alert('اختر طالباً'); 
@@ -125,10 +129,9 @@ export default function FinanceManager({
     logActivity("قبض مالي", `استلام ${payForm.amount} (${payForm.method === 'cliq' ? 'Cliq' : 'نقداً'}) من ${selectedStudent.name}`); 
     setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   };
-
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
 
-  // 2. Add Expense (Admin)
+  // 2. إضافة مصروف (إدارة)
   const handleAddExpense = async (e) => { 
     e.preventDefault(); 
     await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); 
@@ -136,26 +139,45 @@ export default function FinanceManager({
   };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // 3. Add Extra Income (Admin)
+  // 3. إضافة دخل إضافي (إدارة)
   const handleAddExtraIncome = async (e) => {
     e.preventDefault();
-    if (!extraIncomeCollection) return alert("خطأ: لم يتم ربط قاعدة بيانات الدخل الإضافي");
+    if (!extraIncomeCollection) return alert("يرجى التأكد من ربط قاعدة بيانات الدخل الإضافي");
     await extraIncomeCollection.add({ id: Date.now().toString(), title: extraIncomeForm.title, amount: Number(extraIncomeForm.amount), date: extraIncomeForm.date, branch: selectedBranch });
     setExtraIncomeForm({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
   };
   const deleteExtraIncome = async (id) => { if(confirm('حذف هذا الدخل؟')) await extraIncomeCollection.remove(id); };
 
-  // 4. Add Product (Store)
+  // 4. إضافة ملاحظة شهرية (إدارة)
+  const handleAddNote = async (e) => {
+      e.preventDefault();
+      if(!monthlyNotesCollection) return;
+      await monthlyNotesCollection.add({ id: Date.now().toString(), text: noteForm, month: dashboardMonth, branch: selectedBranch });
+      setNoteForm("");
+  };
+  const deleteNote = async (id) => { if(confirm('حذف الملاحظة؟')) await monthlyNotesCollection.remove(id); };
+
+  // 5. إضافة منتج (متجر)
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if(!productsCollection) return alert("خطأ: لم يتم ربط قاعدة بيانات المنتجات");
+    if(!productsCollection) return alert("يرجى التأكد من ربط قاعدة بيانات المنتجات");
     await productsCollection.add({ id: Date.now().toString(), ...productForm });
     setProductForm({ name: '', price: '', image: '' });
   };
   const deleteProduct = async (id) => { if(confirm('حذف المنتج من المتجر؟')) await productsCollection.remove(id); };
 
+  // --- دوال إدارة الأسباب ---
+  const handleAddReason = async (title) => {
+      if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
+      await financeReasonsCollection.add({ title, branch: selectedBranch, createdAt: new Date().toISOString() });
+  };
+  const handleDeleteReason = async (reasonObj) => {
+      if (!confirm(`حذف البند "${reasonObj.title}"؟`)) return;
+      await financeReasonsCollection.remove(reasonObj.id);
+  };
 
-  // --- PRINT LOGIC 1: BANK STATEMENT ---
+
+  // --- كود طباعة كشف الحساب (كما هو في كودك) ---
   const printStatement = () => {
     const start = new Date(calcDates.start);
     const end = new Date(calcDates.end);
@@ -178,12 +200,11 @@ export default function FinanceManager({
 
     const htmlContent = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><title>كشف حساب مالي</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); body { font-family: 'Cairo', sans-serif; padding: 20px; background: #fff; } .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; } .logo { width: 80px; height: 80px; object-fit: contain; display: block; margin: 0 auto 10px; } h1 { margin: 5px 0; color: #b45309; } .meta { font-size: 14px; color: #555; display: flex; justify-content: space-between; margin-top: 15px; } table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; } th { background: #f3f4f6; padding: 10px; border: 1px solid #ddd; font-weight: bold; } td { padding: 8px; border: 1px solid #ddd; } .amount { font-weight: bold; direction: ltr; text-align: left; } .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; } .cash { background: #dcfce7; color: #166534; } .cliq { background: #f3e8ff; color: #6b21a8; } .summary-box { margin-top: 30px; border: 2px solid #333; padding: 15px; background: #f9fafb; page-break-inside: avoid; } .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; } .total-row { font-size: 20px; font-weight: 900; color: #b45309; border-top: 2px solid #333; padding-top: 10px; border-bottom: none; } @media print { @page { size: A4; margin: 10mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body><div class="header"><img src="${logoUrl}" class="logo" /><h1>أكاديمية الشجاع للتايكواندو</h1><h3>كشف حساب مالي وتفصيلي</h3><div class="meta"><div><strong>الفرع:</strong> ${selectedBranch}</div><div><strong>الفترة:</strong> من ${calcDates.start} إلى ${calcDates.end}</div><div><strong>تاريخ الطباعة:</strong> ${new Date().toLocaleDateString('ar-EG')}</div></div></div><table><thead><tr><th width="5%">#</th><th width="15%">التاريخ</th><th width="25%">الطالب</th><th width="25%">البيان</th><th width="10%">الطريقة</th><th width="15%">المبلغ</th></tr></thead><tbody>${reportPayments.map((p, i) => `<tr><td>${i + 1}</td><td>${p.date}</td><td><strong>${p.name}</strong></td><td>${p.reason} <span style="font-size:10px; color:#666">${p.details ? `(${p.details})` : ''}</span></td><td style="text-align:center"><span class="badge ${p.method === 'cliq' ? 'cliq' : 'cash'}">${p.method === 'cliq' ? 'CLIQ' : 'CASH'}</span></td><td class="amount">${p.amount} JD</td></tr>`).join('')}${reportPayments.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:20px;">لا يوجد حركات في هذه الفترة</td></tr>' : ''}</tbody></table><div class="summary-box"><div class="summary-row"><span>مجموع المقبوضات النقدية (CASH):</span><strong>${totals.cash} JD</strong></div><div class="summary-row"><span>مجموع المحافظ الإلكترونية (CLIQ):</span><strong>${totals.cliq} JD</strong></div><div class="summary-row total-row"><span>المجموع الكلي (الإيرادات):</span><span>${totals.cash + totals.cliq} JD</span></div></div><div style="margin-top:50px; display:flex; justify-content:space-between; padding:0 50px;"><div>توقيع المحاسب</div><div>توقيع الإدارة</div></div></body></html>`;
     
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    printWindow.document.write(htmlContent); printWindow.document.close();
     printWindow.onload = () => { printWindow.focus(); setTimeout(() => { printWindow.print(); }, 500); };
   };
 
-  // --- PRINT LOGIC 2: RECEIPT ---
+  // --- كود طباعة السند (كما هو في كودك) ---
   const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -198,8 +219,8 @@ export default function FinanceManager({
       
       <ReasonsModal isOpen={showReasonsModal} onClose={() => setShowReasonsModal(false)} reasons={financeReasons} onAdd={handleAddReason} onDelete={handleDeleteReason} />
 
-      {/* --- MASTER TABS --- */}
-      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-2">
+      {/* --- شريط التنقل العلوي (TABS) --- */}
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-2 sticky top-0 z-30">
         <button onClick={() => setActiveTab('reception')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'reception' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
             <User size={20}/> الاستقبال (Reception)
         </button>
@@ -213,11 +234,11 @@ export default function FinanceManager({
 
 
       {/* ================================================================================= */}
-      {/* TAB 1: RECEPTION (FAST PAYMENTS) */}
+      {/* القسم الأول: الاستقبال (للموظفين - دفع يومي فقط) */}
       {/* ================================================================================= */}
       {activeTab === 'reception' && (
-        <div className="animate-fade-in space-y-6">
-             {/* Form */}
+        <div className="animate-fade-in space-y-6 mt-4">
+             {/* نموذج القبض */}
              <Card title="استلام دفعة جديدة (قسط / زي / بطولة)" className="border-green-100 shadow-green-50">
                 <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div className="relative"><label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label><StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." /></div>
@@ -243,7 +264,7 @@ export default function FinanceManager({
                 </form>
             </Card>
 
-            {/* Daily History Table */}
+            {/* جدول سجل المقبوضات اليومي */}
             <Card title="سجل المقبوضات اليومي">
                 <div className="flex items-center gap-2 mb-4 w-full md:w-64"><StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} /></div>
                 
@@ -306,11 +327,11 @@ export default function FinanceManager({
       )}
 
       {/* ================================================================================= */}
-      {/* TAB 2: ADMIN DASHBOARD (ACCOUNTS) */}
+      {/* القسم الثاني: إدارة الحسابات (للمدير فقط) */}
       {/* ================================================================================= */}
       {activeTab === 'admin' && (
-        <div className="animate-fade-in space-y-6">
-            {/* 1. Month Selector & Summary */}
+        <div className="animate-fade-in space-y-6 mt-4">
+            {/* 1. ملخص الشهر */}
             <div className="bg-gray-900 text-white p-6 rounded-3xl shadow-2xl">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold flex items-center gap-2"><TrendingUp className="text-yellow-500"/> الملخص المالي الشهري</h2>
@@ -321,7 +342,7 @@ export default function FinanceManager({
                     <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700">
                         <p className="text-gray-400 text-xs mb-1">مجموع وصولات الطلاب</p>
                         <p className="text-2xl font-bold text-green-400">+{dashboardStats.totalStudents} JD</p>
-                        <p className="text-[10px] text-gray-500 mt-1">{dashboardStats.paymentsCount} وصل</p>
+                        <p className="text-[10px] text-gray-500 mt-1">{dashboardStats.count} وصل</p>
                     </div>
                     <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700">
                         <p className="text-gray-400 text-xs mb-1">دخل إضافي (متجر/بطولات)</p>
@@ -343,7 +364,7 @@ export default function FinanceManager({
                 </div>
             </div>
 
-            {/* Reports Section */}
+            {/* قسم التقارير (طباعة) */}
             <Card title="التقارير">
                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -357,7 +378,7 @@ export default function FinanceManager({
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 2. Extra Income Manager */}
+                {/* 2. إدارة الدخل الإضافي */}
                 <Card title="إضافة دخل زائد (ربح بدلات / بطولات)">
                     <form onSubmit={handleAddExtraIncome} className="flex gap-2 mb-4">
                         <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="البيان (مثال: ربح بطولة)" value={extraIncomeForm.title} onChange={e=>setExtraIncomeForm({...extraIncomeForm, title: e.target.value})} required/>
@@ -377,7 +398,7 @@ export default function FinanceManager({
                     </div>
                 </Card>
 
-                {/* 3. Expenses Manager */}
+                {/* 3. إدارة المصاريف (منقولة من الصفحة القديمة) */}
                 <Card title="إدارة المصاريف">
                     <form onSubmit={handleAddExpense} className="flex gap-2 mb-4">
                         <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="بند المصروف" value={expForm.title} onChange={e=>setExpForm({...expForm, title: e.target.value})} required/>
@@ -397,14 +418,30 @@ export default function FinanceManager({
                     </div>
                 </Card>
             </div>
+
+            {/* 4. ملاحظات الشهر */}
+            <Card title={`ملاحظات شهر ${dashboardMonth}`}>
+                <form onSubmit={handleAddNote} className="flex gap-2 mb-4">
+                    <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="اكتب ملاحظة..." value={noteForm} onChange={e=>setNoteForm(e.target.value)} required/>
+                    <button className="bg-yellow-500 text-black p-2 rounded-lg font-bold">إضافة</button>
+                </form>
+                <div className="space-y-2">
+                    {branchNotes.map(n => (
+                        <div key={n.id} className="flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                            <span className="text-sm">{n.text}</span>
+                            <button onClick={()=>deleteNote(n.id)} className="text-red-500"><Trash2 size={14}/></button>
+                        </div>
+                    ))}
+                </div>
+            </Card>
         </div>
       )}
 
       {/* ================================================================================= */}
-      {/* TAB 3: STORE ADMIN */}
+      {/* القسم الثالث: إدارة المتجر (للمدير) */}
       {/* ================================================================================= */}
       {activeTab === 'store' && (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-6 mt-4">
             <Card title="إدارة منتجات المتجر (تظهر للطلاب)">
                 <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6 flex items-start gap-3">
                     <AlertCircle className="text-yellow-600 shrink-0 mt-1"/>
