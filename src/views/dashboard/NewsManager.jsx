@@ -3,21 +3,21 @@ import React, { useState } from 'react';
 import { Trash2, Plus, Image as ImageIcon } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { addDoc, deleteDoc, doc, collection } from "firebase/firestore"; 
-import { db, appId } from '../../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // استيراد دوال التخزين
+import { db, appId, storage } from '../../lib/firebase'; // استيراد storage
 
 const NewsManager = ({ news, newsCollection, selectedBranch }) => {
   const [showModal, setShowModal] = useState(false);
   const [newItem, setNewItem] = useState({ title: '', desc: '', image: '', branch: selectedBranch });
+  const [imageFile, setImageFile] = useState(null); // لحفظ ملف الصورة المختار
   const [loading, setLoading] = useState(false);
 
-  // دالة لتحويل الصورة إلى نص (Base64) لحفظها بدون تعقيدات التخزين
+  // دالة اختيار الصورة
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 500000) { // 500KB limit
-        alert("حجم الصورة كبير جداً! يرجى اختيار صورة أقل من 500 كيلوبايت");
-        return;
-      }
+      setImageFile(file); // نحفظ الملف لنرفعه لاحقاً
+      // عرض معاينة فقط للمستخدم
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewItem({ ...newItem, image: reader.result });
@@ -26,20 +26,38 @@ const NewsManager = ({ news, newsCollection, selectedBranch }) => {
     }
   };
 
+  // دالة الحفظ
   const handleAdd = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
+        let imageUrl = '';
+        
+        // 1. إذا اختار المستخدم صورة، نرفعها إلى Firebase Storage
+        if (imageFile) {
+            // ننشئ مساراً فريداً للصورة: news/التوقيت_اسم-الملف
+            const storageRef = ref(storage, `news/${Date.now()}_${imageFile.name}`);
+            const snapshot = await uploadBytes(storageRef, imageFile);
+            // نحصل على الرابط العلني للصورة
+            imageUrl = await getDownloadURL(snapshot.ref);
+        }
+
+        // 2. نحفظ البيانات في Firestore (مع الرابط بدلاً من الصورة الكاملة)
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'news'), {
-            ...newItem,
+            title: newItem.title,
+            desc: newItem.desc,
+            branch: newItem.branch,
+            image: imageUrl, // الرابط القصير
             createdAt: new Date().toISOString()
         });
+
         alert("تم نشر الخبر بنجاح!");
         setShowModal(false);
         setNewItem({ title: '', desc: '', image: '', branch: selectedBranch });
+        setImageFile(null);
     } catch (error) {
-        console.error(error);
-        alert("حدث خطأ");
+        console.error("Error adding news:", error);
+        alert("حدث خطأ أثناء النشر، تأكد من الصلاحيات والاتصال.");
     }
     setLoading(false);
   };
@@ -47,6 +65,7 @@ const NewsManager = ({ news, newsCollection, selectedBranch }) => {
   const handleDelete = async (id) => {
     if (confirm("هل أنت متأكد من حذف هذا الخبر؟")) {
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'news', id));
+        // ملاحظة: يفضل مستقبلاً حذف الصورة من Storage أيضاً لتوفير المساحة
     }
   };
 
@@ -88,7 +107,7 @@ const NewsManager = ({ news, newsCollection, selectedBranch }) => {
                     <div>
                         <label className="text-xs font-bold block mb-1">صورة الخبر</label>
                         <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full border p-2 rounded bg-gray-50"/>
-                        <p className="text-[10px] text-gray-400 mt-1">يفضل صور بالعرض (Landscape) - الحد الأقصى 500KB</p>
+                        <p className="text-[10px] text-gray-400 mt-1">يفضل صور بالعرض (Landscape)</p>
                     </div>
                     {newItem.image && <img src={newItem.image} alt="preview" className="w-full h-32 object-cover rounded border" />}
                     <div className="flex justify-end gap-2 mt-4">
