@@ -15,7 +15,7 @@ import { BRANCHES } from './lib/constants';
 const appId = 'brave-academy-live-data'; 
 
 export default function App() {
-  // 1. الحالة الأولية (تعتمد على الذاكرة)
+  // 1. الحالة الأولية
   const [user, setUser] = useState(() => { 
       const saved = localStorage.getItem('braveUser'); 
       return saved ? JSON.parse(saved) : null; 
@@ -43,39 +43,33 @@ export default function App() {
   const scheduleCollection = useCollection('schedule');
   const archiveCollection = useCollection('archive');
   const registrationsCollection = useCollection('registrations'); 
-  const captainsCollection = useCollection('captains'); 
+  const captainsCollection = useCollection('captains');
+  // ✅ (جديد) جلب الأخبار
+  const newsCollection = useCollection('news'); 
 
-  // --- 🔥 الجديد: دالة التنقل الذكي (تدعم زر الرجوع) ---
+  // --- دالة التنقل الذكي ---
   const navigateTo = (newView) => {
      setView(newView);
-     // إضافة "حالة" جديدة لتاريخ المتصفح
      window.history.pushState({ view: newView }, '', '');
   };
 
-  // --- 🔥 الجديد: الاستماع لزر الرجوع في المتصفح/الهاتف ---
+  // --- الاستماع لزر الرجوع ---
   useEffect(() => {
-    // عند تحميل الموقع، نثبت الحالة الحالية
     window.history.replaceState({ view: view }, '', '');
-
     const handleBackButton = (event) => {
        if (event.state && event.state.view) {
-         // إذا ضغط المستخدم رجوع، نذهب للصفحة المحفوظة في التاريخ
          setView(event.state.view);
        } else {
-         // إذا لم يكن هناك تاريخ (وصل للبداية)، نذهب للرئيسية
          setView('home');
        }
     };
-
     window.addEventListener('popstate', handleBackButton);
     return () => window.removeEventListener('popstate', handleBackButton);
-  }, []); // يعمل مرة واحدة عند التشغيل
-
+  }, []); 
 
   // --- تسجيل الدخول ---
   const handleLogin = async (username, password) => {
     try {
-      // A. البحث في سجلات الطلاب
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
       const qStudent = query(studentsRef, where("username", "==", username), where("password", "==", password));
       const studentSnap = await getDocs(qStudent);
@@ -92,11 +86,10 @@ export default function App() {
         
         setUser(userData); 
         localStorage.setItem('braveUser', JSON.stringify(userData)); 
-        navigateTo('student_portal'); // استخدمنا navigateTo بدلاً من setView
+        navigateTo('student_portal');
         return;
       }
 
-      // B. البحث في سجلات الكباتن
       const captainsRef = collection(db, 'artifacts', appId, 'public', 'data', 'captains');
       const qCaptain = query(captainsRef, where("username", "==", username), where("password", "==", password));
       const captainSnap = await getDocs(qCaptain);
@@ -109,11 +102,10 @@ export default function App() {
          setUser(u); 
          localStorage.setItem('braveUser', JSON.stringify(u)); 
          setDashboardBranch(capData.branch); 
-         navigateTo('admin_dashboard'); // استخدمنا navigateTo
+         navigateTo('admin_dashboard');
          return;
       }
 
-      // C. محاولة دخول الأدمن
       if (username.includes('@') || username === 'admin1') {
           let email = username;
           if (username === 'admin1') email = 'admin@brave.com';
@@ -155,8 +147,7 @@ export default function App() {
         setUser(userData);
         setDashboardBranch(userData.branch);
         localStorage.setItem('braveUser', JSON.stringify(userData));
-        // هنا لا نستخدم navigateTo لتجنب تكرار التاريخ عند التحديث التلقائي
-        setView('admin_dashboard'); 
+        setView('admin_dashboard');
         
       } else {
         if (!localStorage.getItem('braveUser')) {
@@ -173,19 +164,26 @@ export default function App() {
     await signOut(auth); 
     localStorage.removeItem('braveUser'); 
     setUser(null);
-    navigateTo('home'); // استخدمنا navigateTo للعودة للرئيسية
+    navigateTo('home'); 
   };
 
   if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من البيانات...</div>;
 
   return (
     <>
-      {/* مررنا navigateTo كـ prop بدلاً من setView ليعمل التاريخ في كل الصفحات */}
       {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} registrationsCollection={registrationsCollection} />}
       
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
       
-      {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} payments={paymentsCollection.data} handleLogout={handleLogout} />}
+      {/* ✅ تم تمرير news هنا */}
+      {view === 'student_portal' && user && <StudentPortal 
+          user={user} 
+          students={studentsCollection.data} 
+          schedule={scheduleCollection.data} 
+          payments={paymentsCollection.data} 
+          news={newsCollection.data}
+          handleLogout={handleLogout} 
+      />}
       
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 

@@ -1,14 +1,13 @@
-// src/views/StudentPortal.js
+// src/views/StudentPortal.jsx
 import React, { useState } from 'react';
-// 1. أضفنا أيقونات الإعدادات والإغلاق (Settings, X)
-import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X } from 'lucide-react';
+// 1. أضفنا أيقونات الإعدادات، الإغلاق، والأخبار (Megaphone)
+import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
-// 2. استيرادات فايربيس اللازمة للتحديث
 import { updateDoc, doc } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 
-const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => {
+const StudentPortal = ({ user, students, schedule, payments, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const changeMonth = (inc) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + inc); setCurrentDate(d); };
   const year = currentDate.getFullYear();
@@ -16,13 +15,20 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
-  // 3. نجلب أحدث بيانات للطالب المسجل دخوله حالياً لضمان ظهور اليوزر والباسورد الصحيحين
   const currentUserData = students.find(s => s.id === user.id) || user;
-
   const myStudents = students.filter(s => s.familyId === user.familyId);
-  const myPayments = payments.filter(p => myStudents.some(s => s.id === p.studentId));
   
-  // Helper Helper
+  // ترتيب الدفعات
+  const myPayments = payments
+    .filter(p => myStudents.some(s => s.id === p.studentId))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  // ✅ (جديد) فلترة الأخبار: العامة أو الخاصة بفروع أبناء العائلة
+  const studentBranches = [...new Set(myStudents.map(s => s.branch))];
+  const relevantNews = (news || [])
+    .filter(n => !n.branch || n.branch === 'الكل' || studentBranches.includes(n.branch))
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); // الأحدث أولاً
+
   const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
     const today = new Date();
@@ -35,7 +41,6 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
     return 'active';
   };
 
-  // --- 4. منطق نافذة الإعدادات (الجديد) ---
   const [showSettings, setShowSettings] = useState(false);
   const [creds, setCreds] = useState({ username: '', password: '' });
   const [isUpdating, setIsUpdating] = useState(false);
@@ -46,14 +51,12 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
 
     setIsUpdating(true);
     try {
-      // تحديث في فايربيس
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
       await updateDoc(studentRef, {
         username: creds.username,
         password: creds.password
       });
 
-      // تحديث التخزين المحلي
       const updatedUserLocal = { ...user, username: creds.username, password: creds.password };
       localStorage.setItem('braveUser', JSON.stringify(updatedUserLocal));
 
@@ -66,7 +69,6 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
       setIsUpdating(false);
     }
   };
-  // ---------------------------------------
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-right" dir="rtl">
@@ -77,7 +79,6 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
              <div><h1 className="font-bold text-lg">مرحباً {user.name}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div>
           </div>
           
-          {/* 5. أضفنا زر الإعدادات بجانب زر الخروج */}
           <div className="flex gap-2">
             <Button 
                 variant="secondary" 
@@ -95,6 +96,43 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
       </header>
       
       <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
+        
+        {/* ✅ (جديد) قسم الأخبار والإعلانات */}
+        {relevantNews.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-lg border-r-4 border-yellow-500 overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-yellow-50 to-white border-b border-yellow-100 flex items-center gap-2">
+                    <div className="bg-yellow-500 text-white p-2 rounded-full shadow-sm animate-pulse">
+                        <Megaphone size={20}/>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">آخر الأخبار والإعلانات</h3>
+                </div>
+                <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {relevantNews.slice(0, 4).map(n => (
+                            <div key={n.id} className="flex gap-4 items-start p-3 bg-gray-50 rounded-xl hover:shadow-md transition-all border border-gray-100">
+                                {n.image ? (
+                                    <img src={n.image} alt="News" className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                                ) : (
+                                    <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400">
+                                        <Megaphone size={24}/>
+                                    </div>
+                                )}
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-900 mb-1">{n.title}</h4>
+                                    <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">{n.desc}</p>
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className="text-[10px] bg-white border border-gray-200 px-2 py-0.5 rounded-full text-gray-500">
+                                            {n.branch || 'عام'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Schedule */}
         <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-2xl shadow-lg">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Clock className="text-yellow-500"/> مواعيد الحصص</h3>
@@ -108,11 +146,11 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
                <table className="w-full text-sm text-right">
                  <thead className="bg-gray-100"><tr><th className="p-3">التاريخ</th><th className="p-3">الطالب</th><th className="p-3">البيان</th><th className="p-3">المبلغ</th></tr></thead>
                  <tbody>{myPayments.map(p=>(
-                    <tr key={p.id} className="border-b">
-                        <td className="p-3">{p.date}</td>
-                        <td className="p-3 font-bold">{p.name}</td>
-                        <td className="p-3">{p.reason} {p.details && <span className="block text-xs text-gray-400 mt-1">({p.details})</span>}</td>
-                        <td className="p-3 text-green-600 font-bold">{p.amount} JOD</td>
+                    <tr key={p.id} className="border-b hover:bg-gray-50 transition-colors">
+                        <td className="p-3 text-gray-500 font-mono">{p.date}</td>
+                        <td className="p-3 font-bold text-gray-800">{p.name}</td>
+                        <td className="p-3 text-gray-700">{p.reason} {p.details && <span className="block text-xs text-gray-400 mt-1">({p.details})</span>}</td>
+                        <td className="p-3 text-green-600 font-bold" dir="ltr">{p.amount} JD</td>
                     </tr>
                  ))}</tbody>
                </table>
@@ -140,7 +178,6 @@ const StudentPortal = ({ user, students, schedule, payments, handleLogout }) => 
         ))}
       </div>
 
-      {/* 6. نافذة الإعدادات (Modal) مضافة في النهاية */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
             <Card className="w-full max-w-sm relative bg-white rounded-2xl shadow-2xl">

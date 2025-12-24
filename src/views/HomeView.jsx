@@ -187,7 +187,7 @@ const HomeView = ({ setView, schedule }) => {
 
                     {/* Action Buttons (Glassmorphism) */}
                     <div className="grid grid-cols-2 gap-3 mt-6">
-                       <button onClick={() => openLocation('https://share.google/PGRNQACVSiOhXkmbj')} className="flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white font-bold py-4 rounded-2xl hover:bg-white hover:text-black transition-all duration-300">
+                       <button onClick={() => openLocation('https://maps.app.goo.gl/mTqvZD4Ftor3NALJ8?g_st=ic')} className="flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white font-bold py-4 rounded-2xl hover:bg-white hover:text-black transition-all duration-300">
                           <Navigation size={20}/>
                           <span>الموقع</span>
                        </button>
@@ -228,7 +228,7 @@ const HomeView = ({ setView, schedule }) => {
 
                     {/* Action Buttons */}
                     <div className="grid grid-cols-2 gap-3 mt-6">
-                       <button onClick={() => openLocation('https://share.google/6rSHFxa03RG6n9WH0')} className="flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white font-bold py-4 rounded-2xl hover:bg-white hover:text-black transition-all duration-300">
+                       <button onClick={() => openLocation('https://maps.app.goo.gl/yqu6tWBiqrRWGCMJ8?g_st=ic')} className="flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md border border-white/30 text-white font-bold py-4 rounded-2xl hover:bg-white hover:text-black transition-all duration-300">
                           <Navigation size={20}/>
                           <span>الموقع</span>
                        </button>

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
-import { addDoc, deleteDoc, doc } from "firebase/firestore"; // استيراد دوال فايربيس
+import { addDoc, deleteDoc, doc } from "firebase/firestore"; 
 import { db } from '../../lib/firebase';
 
 // --- مكون النافذة المنبثقة لإدارة الأسباب ---
@@ -60,21 +60,26 @@ export default function FinanceManager({
     students, payments, expenses, 
     paymentsCollection, expensesCollection, 
     selectedBranch, logActivity,
-    financeReasons = [], financeReasonsCollection // استقبال البروبس الجديدة
+    financeReasons = [], financeReasonsCollection 
 }) {
   const [viewMode, setViewMode] = useState('income'); 
   const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '' }); 
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
-  const [showReasonsModal, setShowReasonsModal] = useState(false); // حالة إظهار المودال
+  const [showReasonsModal, setShowReasonsModal] = useState(false); 
 
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
-  const filteredPayments = incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments;
+  
+  // ✅ التعديل هنا: ترتيب السندات (الأحدث أولاً) بناءً على وقت الإنشاء أو التاريخ
+  const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
+      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+
+  // ✅ ترتيب المصاريف أيضاً (الأحدث أولاً)
+  const sortedExpenses = [...branchExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   // --- دوال إدارة الأسباب (Firebase) ---
   const handleAddReason = async (title) => {
-      // التحقق من التكرار
       if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
       
       await financeReasonsCollection.add({
@@ -95,14 +100,22 @@ export default function FinanceManager({
     const selectedStudent = students.find(s => s.id === payForm.studentObjId); 
     if(!selectedStudent) return alert('طالب غير موجود'); 
     
-    // إذا لم يتم اختيار سبب (مثلاً القائمة فارغة)، نستخدم "أخرى" كافتراضي أو نطلب من المستخدم الاختيار
     if (!payForm.reason && financeReasons.length > 0) {
         return alert("الرجاء اختيار سبب الدفع");
     }
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     
-    const newPay = { id: Date.now().toString(), studentId: selectedStudent.id, name: selectedStudent.name, amount: Number(payForm.amount), reason: finalReason, details: payForm.details, date: new Date().toISOString().split('T')[0], branch: selectedBranch }; 
+    const newPay = { 
+        id: Date.now().toString(), 
+        studentId: selectedStudent.id, 
+        name: selectedStudent.name, 
+        amount: Number(payForm.amount), 
+        reason: finalReason, 
+        details: payForm.details, 
+        date: new Date().toISOString().split('T')[0], 
+        branch: selectedBranch 
+    }; 
     
     await paymentsCollection.add(newPay); 
     logActivity("قبض مالي", `استلام ${payForm.amount} من ${selectedStudent.name}`); 
@@ -133,14 +146,14 @@ export default function FinanceManager({
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
             
             @page {
-              size: A5 landscape; /* حجم مناسب للسندات (نصف A4 بالعرض) */
-              margin: 0; /* إلغاء هوامش الطابعة الافتراضية لمنع الصفحة الثانية */
+              size: A5 landscape; 
+              margin: 0; 
             }
 
             body {
               font-family: 'Cairo', sans-serif;
               margin: 0;
-              padding: 10mm; /* هامش داخلي للمحتوى */
+              padding: 10mm; 
               background-color: white;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -150,30 +163,28 @@ export default function FinanceManager({
 
             .receipt-border {
               border: 3px double #444;
-              height: 96%; /* ارتفاع ديناميكي */
+              height: 96%; 
               position: relative;
               padding: 20px;
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
               justify-content: space-between;
-              overflow: hidden; /* لمنع أي محتوى من الخروج لصفحة ثانية */
+              overflow: hidden; 
             }
 
-            /* --- Watermark (Professional Look) --- */
             .watermark {
               position: absolute;
               top: 50%;
               left: 50%;
-              transform: translate(-50%, -50%) rotate(-25deg); /* ميلان احترافي */
-              width: 50%; /* حجم مناسب غير طاغي */
-              opacity: 0.08; /* شفافية خفيفة جداً */
+              transform: translate(-50%, -50%) rotate(-25deg); 
+              width: 50%; 
+              opacity: 0.08; 
               z-index: 0;
               pointer-events: none;
-              filter: grayscale(100%); /* لجعلها رسمية أكثر */
+              filter: grayscale(100%); 
             }
 
-            /* --- Header --- */
             .header {
               display: flex;
               justify-content: space-between;
@@ -211,7 +222,6 @@ export default function FinanceManager({
             }
             .meta-info div { margin-bottom: 3px; }
 
-            /* --- Content --- */
             .content {
               position: relative;
               z-index: 2;
@@ -248,7 +258,6 @@ export default function FinanceManager({
               padding: 0 5px;
             }
 
-            /* --- Amount Box --- */
             .amount-container {
               position: absolute;
               left: 20px;
@@ -257,7 +266,7 @@ export default function FinanceManager({
               padding: 5px 15px;
               border-radius: 8px;
               background: #f9f9f9;
-              transform: rotate(-5deg); /* حركة تصميمية */
+              transform: rotate(-5deg); 
               box-shadow: 2px 2px 0 #ccc;
             }
             .amount-number {
@@ -266,7 +275,6 @@ export default function FinanceManager({
               direction: ltr;
             }
 
-            /* --- Footer --- */
             .footer {
               margin-top: 20px;
               position: relative;
@@ -427,7 +435,7 @@ export default function FinanceManager({
                  <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
               
-              {/* --- (تعديل) قائمة الأسباب مع زر الإعدادات --- */}
+              {/* قائمة الأسباب مع زر الإعدادات */}
               <div className="relative">
                  <label className="text-xs block mb-1 font-bold text-gray-700 flex justify-between">
                      السبب
@@ -578,7 +586,7 @@ export default function FinanceManager({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {branchExpenses.map(e=>(
+                        {sortedExpenses.map(e=>(
                             <tr key={e.id} className="hover:bg-red-50 transition-colors">
                                 <td className="p-3 font-bold text-gray-700">{e.title}</td>
                                 <td className="p-3 text-gray-500 text-xs">{e.date}</td>
@@ -593,7 +601,7 @@ export default function FinanceManager({
 
           {/* --- MOBILE VIEW (Expenses Cards) --- */}
           <div className="md:hidden grid gap-4">
-              {branchExpenses.map(e => (
+              {sortedExpenses.map(e => (
                   <div key={e.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
                       <div className="pl-3">
@@ -608,7 +616,7 @@ export default function FinanceManager({
                       </div>
                   </div>
               ))}
-              {branchExpenses.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد مصاريف</div>}
+              {sortedExpenses.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد مصاريف</div>}
           </div>
         </>
       )}
