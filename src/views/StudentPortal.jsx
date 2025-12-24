@@ -1,7 +1,6 @@
 // src/views/StudentPortal.jsx
 import React, { useState } from 'react';
-// 1. أضفنا أيقونات الإعدادات، الإغلاق، والأخبار (Megaphone)
-import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone } from 'lucide-react';
+import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone, Banknote, CreditCard } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
 import { updateDoc, doc } from "firebase/firestore"; 
@@ -23,11 +22,11 @@ const StudentPortal = ({ user, students, schedule, payments, news, handleLogout 
     .filter(p => myStudents.some(s => s.id === p.studentId))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   
-  // ✅ (جديد) فلترة الأخبار: العامة أو الخاصة بفروع أبناء العائلة
+  // فلترة الأخبار
   const studentBranches = [...new Set(myStudents.map(s => s.branch))];
   const relevantNews = (news || [])
     .filter(n => !n.branch || n.branch === 'الكل' || studentBranches.includes(n.branch))
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); // الأحدث أولاً
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
   const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
@@ -97,7 +96,7 @@ const StudentPortal = ({ user, students, schedule, payments, news, handleLogout 
       
       <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
         
-        {/* ✅ (جديد) قسم الأخبار والإعلانات */}
+        {/* قسم الأخبار والإعلانات */}
         {relevantNews.length > 0 && (
             <div className="bg-white rounded-2xl shadow-lg border-r-4 border-yellow-500 overflow-hidden">
                 <div className="p-4 bg-gradient-to-r from-yellow-50 to-white border-b border-yellow-100 flex items-center gap-2">
@@ -144,12 +143,27 @@ const StudentPortal = ({ user, students, schedule, payments, news, handleLogout 
            {myPayments.length > 0 ? (
              <div className="overflow-x-auto">
                <table className="w-full text-sm text-right">
-                 <thead className="bg-gray-100"><tr><th className="p-3">التاريخ</th><th className="p-3">الطالب</th><th className="p-3">البيان</th><th className="p-3">المبلغ</th></tr></thead>
+                 <thead className="bg-gray-100">
+                    <tr>
+                        <th className="p-3">التاريخ</th>
+                        <th className="p-3">الطالب</th>
+                        <th className="p-3">البيان</th>
+                        <th className="p-3">الدفع</th>
+                        <th className="p-3">المبلغ</th>
+                    </tr>
+                 </thead>
                  <tbody>{myPayments.map(p=>(
                     <tr key={p.id} className="border-b hover:bg-gray-50 transition-colors">
                         <td className="p-3 text-gray-500 font-mono">{p.date}</td>
                         <td className="p-3 font-bold text-gray-800">{p.name}</td>
                         <td className="p-3 text-gray-700">{p.reason} {p.details && <span className="block text-xs text-gray-400 mt-1">({p.details})</span>}</td>
+                        <td className="p-3">
+                            {p.method === 'cliq' ? (
+                                <span className="flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-1 rounded text-xs w-fit font-bold"><CreditCard size={12}/> Cliq</span>
+                            ) : (
+                                <span className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded text-xs w-fit font-bold"><Banknote size={12}/> نقداً</span>
+                            )}
+                        </td>
                         <td className="p-3 text-green-600 font-bold" dir="ltr">{p.amount} JD</td>
                     </tr>
                  ))}</tbody>

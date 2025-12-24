@@ -1,7 +1,7 @@
 // src/views/dashboard/FinanceManager.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import { addDoc, deleteDoc, doc } from "firebase/firestore"; 
@@ -63,20 +63,49 @@ export default function FinanceManager({
     financeReasons = [], financeReasonsCollection 
 }) {
   const [viewMode, setViewMode] = useState('income'); 
-  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '' }); 
+  // Added 'method' to state
+  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
 
+  // --- Date Calculation State ---
+  const todayStr = new Date().toISOString().split('T')[0];
+  const firstDayStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [calcDates, setCalcDates] = useState({ start: firstDayStr, end: todayStr });
+
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
   
-  // ✅ التعديل هنا: ترتيب السندات (الأحدث أولاً) بناءً على وقت الإنشاء أو التاريخ
+  // تصفية للدفعات المعروضة في الجدول
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  // ✅ ترتيب المصاريف أيضاً (الأحدث أولاً)
   const sortedExpenses = [...branchExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // --- حساب مجموع الكاش والكليك حسب التاريخ المختار ---
+  const calculatedTotals = useMemo(() => {
+    const start = new Date(calcDates.start);
+    const end = new Date(calcDates.end);
+    start.setHours(0,0,0,0);
+    end.setHours(23,59,59,999);
+
+    const rangePayments = branchPayments.filter(p => {
+        const pDate = new Date(p.date);
+        return pDate >= start && pDate <= end;
+    });
+
+    return rangePayments.reduce((acc, curr) => {
+        // Default to cash if method is missing (for old data)
+        if(curr.method === 'cliq') {
+            acc.cliq += Number(curr.amount);
+        } else {
+            acc.cash += Number(curr.amount);
+        }
+        return acc;
+    }, { cash: 0, cliq: 0 });
+  }, [branchPayments, calcDates]);
+
 
   // --- دوال إدارة الأسباب (Firebase) ---
   const handleAddReason = async (title) => {
@@ -113,13 +142,14 @@ export default function FinanceManager({
         amount: Number(payForm.amount), 
         reason: finalReason, 
         details: payForm.details, 
+        method: payForm.method, // حفظ طريقة الدفع
         date: new Date().toISOString().split('T')[0], 
         branch: selectedBranch 
     }; 
     
     await paymentsCollection.add(newPay); 
-    logActivity("قبض مالي", `استلام ${payForm.amount} من ${selectedStudent.name}`); 
-    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '' }); 
+    logActivity("قبض مالي", `استلام ${payForm.amount} (${payForm.method === 'cliq' ? 'Cliq' : 'نقداً'}) من ${selectedStudent.name}`); 
+    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   };
 
   const handleAddExpense = async (e) => { 
@@ -135,6 +165,7 @@ export default function FinanceManager({
  const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
+    const paymentMethodText = payment.method === 'cliq' ? 'محفظة إلكترونية (Cliq)' : 'نقداً (Cash)';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -351,6 +382,10 @@ export default function FinanceManager({
                 <span class="value">${payment.amount} دينار أردني</span>
               </div>
               <div class="row">
+                <span class="label">طريقة الدفع:</span>
+                <span class="value">${paymentMethodText}</span>
+              </div>
+              <div class="row">
                 <span class="label">وذلك عن:</span>
                 <span class="value">${payment.reason} ${payment.details ? `(${payment.details})` : ''}</span>
               </div>
@@ -411,6 +446,34 @@ export default function FinanceManager({
         onDelete={handleDeleteReason}
       />
 
+      {/* --- NEW SECTION: FINANCIAL CALCULATOR --- */}
+      <Card className="border-b-4 border-gray-800 bg-gradient-to-br from-gray-50 to-white">
+        <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-4 gap-4">
+            <h3 className="font-bold text-gray-800 flex items-center gap-2"><DollarSign size={20} className="text-yellow-500"/>ملخص التحصيل (كاش / Cliq)</h3>
+            <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+                <span className="text-xs font-bold text-gray-500 mr-2">من:</span>
+                <input type="date" value={calcDates.start} onChange={e=>setCalcDates({...calcDates, start: e.target.value})} className="text-sm bg-gray-50 border rounded px-2 py-1 outline-none focus:border-yellow-500"/>
+                <span className="text-xs font-bold text-gray-500 mx-1">إلى:</span>
+                <input type="date" value={calcDates.end} onChange={e=>setCalcDates({...calcDates, end: e.target.value})} className="text-sm bg-gray-50 border rounded px-2 py-1 outline-none focus:border-yellow-500"/>
+            </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+            <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col items-center">
+                <div className="flex items-center gap-2 text-green-700 font-bold mb-1">
+                    <Banknote size={18}/> مجموع الكاش (Cash)
+                </div>
+                <div className="text-2xl font-black text-green-600">{calculatedTotals.cash} JD</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center">
+                <div className="flex items-center gap-2 text-purple-700 font-bold mb-1">
+                    <CreditCard size={18}/> مجموع الكليك (Cliq)
+                </div>
+                <div className="text-2xl font-black text-purple-600">{calculatedTotals.cliq} JD</div>
+            </div>
+        </div>
+      </Card>
+      {/* ------------------------------------------- */}
+
       {/* Top Toggle Switch */}
       <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-2xl">
         <button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'income' ? 'bg-green-600 text-white shadow-green-200' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
@@ -434,6 +497,20 @@ export default function FinanceManager({
                  <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
                  <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
+
+              {/* --- NEW PAYMENT METHOD SELECTION --- */}
+              <div>
+                  <label className="text-xs block mb-1 font-bold text-gray-700">طريقة الدفع</label>
+                  <div className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                    <button type="button" onClick={()=>setPayForm({...payForm, method:'cash'})} className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-sm font-bold transition-colors ${payForm.method==='cash'?'bg-white text-green-600 shadow-sm ring-1 ring-green-200':'text-gray-400 hover:text-gray-600'}`}>
+                        <Banknote size={14}/> نقداً
+                    </button>
+                    <button type="button" onClick={()=>setPayForm({...payForm, method:'cliq'})} className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-sm font-bold transition-colors ${payForm.method==='cliq'?'bg-white text-purple-600 shadow-sm ring-1 ring-purple-200':'text-gray-400 hover:text-gray-600'}`}>
+                        <CreditCard size={14}/> Cliq
+                    </button>
+                  </div>
+              </div>
+              {/* ------------------------------------ */}
               
               {/* قائمة الأسباب مع زر الإعدادات */}
               <div className="relative">
@@ -486,6 +563,7 @@ export default function FinanceManager({
                             <th className="p-3 rounded-r-lg">#</th>
                             <th className="p-3">الطالب</th>
                             <th className="p-3">البيان</th>
+                            <th className="p-3">الطريقة</th> {/* New Column */}
                             <th className="p-3">التاريخ</th>
                             <th className="p-3">المبلغ</th>
                             <th className="p-3">طباعة</th>
@@ -501,13 +579,19 @@ export default function FinanceManager({
                                     <span className="block font-bold text-xs">{p.reason}</span>
                                     <span className="text-[10px] text-gray-400">{p.details}</span>
                                 </td>
+                                <td className="p-3">
+                                    {p.method === 'cliq' ? 
+                                        <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-md">Cliq</span> : 
+                                        <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">Cash</span>
+                                    }
+                                </td>
                                 <td className="p-3 text-xs text-gray-500">{p.date}</td>
                                 <td className="p-3 font-bold text-green-600">+{p.amount}</td>
                                 <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600"><Printer size={16}/></button></td>
                                 <td className="p-3"><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-50 rounded-lg hover:bg-red-100 text-red-500"><Trash2 size={16}/></button></td>
                             </tr>
                         ))}
-                         {filteredPayments.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">لا يوجد سندات</td></tr>}
+                         {filteredPayments.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400">لا يوجد سندات</td></tr>}
                     </tbody>
                 </table>
             </Card>
@@ -517,7 +601,7 @@ export default function FinanceManager({
           <div className="md:hidden grid gap-4">
               {filteredPayments.map(p => (
                   <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                      <div className={`absolute top-0 left-0 w-1 h-full ${p.method==='cliq' ? 'bg-purple-500' : 'bg-green-500'}`}></div>
                       <div className="flex justify-between items-start pl-2">
                           <div>
                               <div className="flex items-center gap-2 mb-1">
@@ -535,10 +619,14 @@ export default function FinanceManager({
                       
                       <div className="bg-gray-50 p-2 rounded-lg text-sm text-gray-600 flex items-start gap-2">
                           <FileText size={14} className="mt-1 text-gray-400 shrink-0"/>
-                          <div>
+                          <div className="flex-1">
                              <span className="font-bold block text-xs text-gray-700">{p.reason}</span>
                              <span className="text-[10px]">{p.details}</span>
                           </div>
+                          {p.method === 'cliq' ? 
+                             <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Cliq</span> : 
+                             <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Cash</span>
+                          }
                       </div>
 
                       <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-gray-100">
