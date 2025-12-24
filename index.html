@@ -18,14 +18,6 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('Service Worker Registered! Scope:', reg.scope))
-            .catch(err => console.log('Service Worker Failed:', err));
-        });
-      }
-    </script>
+
   </body>
 </html>
