@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-import { useCollection } from '../hooks/useCollection';
+import { useCollection } from '../hooks/useCollection'; // ✅ استيراد الهوك
 
 // Import Managers
 import { DashboardStats } from './dashboard/DashboardStats';
@@ -36,11 +36,18 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsCollection, expensesCollection, scheduleCollection, archiveCollection, registrationsCollection, captainsCollection, handleLogout }) => {
+// 🚀 حذفنا الـ Collections الإدارية من الـ Props وسنجلبها في الداخل
+const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // 1. جلب البيانات
+  // 1. 🚀 جلب البيانات الإدارية هنا (Lazy Loading عند دخول الأدمن فقط)
+  const paymentsCollection = useCollection('payments');
+  const expensesCollection = useCollection('expenses');
+  const archiveCollection = useCollection('archive');
+  const registrationsCollection = useCollection('registrations');
+  const captainsCollection = useCollection('captains');
+
   const students = studentsCollection?.data || [];
   const payments = paymentsCollection?.data || [];
   const expenses = expensesCollection?.data || [];
@@ -58,7 +65,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const financeReasonsCollection = useCollection('finance_reasons');
   const financeReasonsData = financeReasonsCollection?.data || [];
 
-  // 🔥 الجديد: جلب سجل النشاطات (Activity Logs) 🔥
   const activityLogsCollection = useCollection('activity_logs');
   const activityLogsData = activityLogsCollection?.data || [];
 
@@ -70,12 +76,11 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
   const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
 
-  // 🔥 الجديد: فلترة وترتيب سجل النشاطات حسب التاريخ (الأحدث أولاً) 🔥
   const branchActivityLogs = useMemo(() => {
       return activityLogsData
         .filter(l => l.branch === selectedBranch)
         .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 50); // جلب آخر 50 حركة فقط لتخفيف الحمل
+        .slice(0, 50); 
   }, [activityLogsData, selectedBranch]);
 
   // الحسابات
@@ -111,7 +116,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
       news: newsData,
       groups: branchGroups,
       captains: captains,
-      activityLogs: branchActivityLogs // إضافة السجل للنسخة الاحتياطية
+      activityLogs: branchActivityLogs 
     };
 
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
@@ -147,7 +152,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             <p className="text-xs text-gray-500">{user.role === 'admin' ? 'مدير عام' : 'كابتن'}</p>
         </div>
         
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-6 space-y-2 px-3 custom-scrollbar">
           {navItems.filter(i => !i.role || i.role === user.role).map(item => (
             <button key={item.id} onClick={() => {setActiveTab(item.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black font-bold' : 'hover:bg-gray-800'}`}>
@@ -157,16 +161,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
           ))}
         </nav>
 
-        {/* Footer Actions (Backup + Logout) */}
         <div className="p-4 space-y-2 border-t border-gray-800">
-             {/* زر النسخ الاحتياطي (للأدمن فقط) */}
              {user.role === 'admin' && (
                 <button onClick={handleBackup} className={`w-full flex items-center gap-4 px-4 py-3 text-green-500 hover:bg-gray-900 rounded transition-colors ${!sidebarOpen && 'justify-center'}`} title="تحميل نسخة احتياطية">
                     <Database size={20}/> {sidebarOpen && "نسخ احتياطي"}
                 </button>
              )}
              
-             {/* زر الخروج */}
              <button onClick={handleLogout} className={`w-full flex items-center gap-4 px-4 py-3 text-red-400 hover:bg-gray-900 rounded transition-colors ${!sidebarOpen && 'justify-center'}`} title="تسجيل الخروج">
                  <LogOut size={20}/> {sidebarOpen && "خروج"}
              </button>
@@ -179,7 +180,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, paymentsColl
             <h2 className="font-bold text-gray-800">أكاديمية الشجاع</h2>
          </div>
          
-         {/* 🔥 تم تمرير activityLogs هنا 🔥 */}
          {activeTab === 'dashboard' && <DashboardStats 
              user={user} 
              selectedBranch={selectedBranch} 

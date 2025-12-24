@@ -36,16 +36,13 @@ export default function App() {
   
   const [loadingAuth, setLoadingAuth] = useState(true);
   
-  // Collections Hooks
+  // ✅ Collections Hooks (البيانات الخفيفة والمشتركة فقط)
   const studentsCollection = useCollection('students'); 
-  const paymentsCollection = useCollection('payments');
-  const expensesCollection = useCollection('expenses');
   const scheduleCollection = useCollection('schedule');
-  const archiveCollection = useCollection('archive');
-  const registrationsCollection = useCollection('registrations'); 
-  const captainsCollection = useCollection('captains');
-  // ✅ (جديد) جلب الأخبار
   const newsCollection = useCollection('news'); 
+  
+  // 🚀 تم إزالة: payments, expenses, archive, registrations, captains
+  // سيتم جلبهم داخل AdminDashboard أو StudentPortal عند الحاجة فقط
 
   // --- دالة التنقل الذكي ---
   const navigateTo = (newView) => {
@@ -171,32 +168,27 @@ export default function App() {
 
   return (
     <>
-      {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} registrationsCollection={registrationsCollection} />}
+      {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} />}
       
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
       
-      {/* ✅ تم تمرير news هنا */}
+      {/* 🚀 Portal يجلب دفعاته بنفسه الآن */}
       {view === 'student_portal' && user && <StudentPortal 
           user={user} 
           students={studentsCollection.data} 
           schedule={scheduleCollection.data} 
-          payments={paymentsCollection.data} 
           news={newsCollection.data}
           handleLogout={handleLogout} 
       />}
       
+      {/* 🚀 Dashboard يجلب بياناته الإدارية بنفسه الآن */}
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
           selectedBranch={dashboardBranch} 
           onSwitchBranch={user.isSuper ? setDashboardBranch : null} 
           studentsCollection={studentsCollection} 
-          paymentsCollection={paymentsCollection} 
-          expensesCollection={expensesCollection} 
           scheduleCollection={scheduleCollection} 
-          archiveCollection={archiveCollection} 
-          registrationsCollection={registrationsCollection} 
-          captainsCollection={captainsCollection}
           handleLogout={handleLogout}
         />
       )}

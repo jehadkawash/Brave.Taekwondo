@@ -1,19 +1,24 @@
 // src/views/StudentPortal.jsx
 import React, { useState } from 'react';
-// 1. أضفنا أيقونات الإعدادات، الإغلاق، والأخبار (Megaphone)
 import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
 import { updateDoc, doc } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
+import { useCollection } from '../hooks/useCollection'; // ✅ استيراد الهوك
 
-const StudentPortal = ({ user, students, schedule, payments, news, handleLogout }) => {
+// 🚀 حذفنا payments من الـ Props وسنجلبها بالداخل
+const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const changeMonth = (inc) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + inc); setCurrentDate(d); };
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
+  // 1. 🚀 جلب الدفعات هنا فقط عند دخول الطالب
+  const paymentsCollection = useCollection('payments');
+  const payments = paymentsCollection.data || [];
 
   const currentUserData = students.find(s => s.id === user.id) || user;
   const myStudents = students.filter(s => s.familyId === user.familyId);
