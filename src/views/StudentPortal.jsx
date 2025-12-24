@@ -1,13 +1,13 @@
 // src/views/StudentPortal.jsx
 import React, { useState } from 'react';
-import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone, ShoppingBag } from 'lucide-react'; // ✅ أضفنا أيقونة المتجر
+import { Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
 import { updateDoc, doc } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-import { useCollection } from '../hooks/useCollection';
-import { StudentStore } from './StudentStore'; // ✅ استيراد المتجر
+import { useCollection } from '../hooks/useCollection'; // ✅ استيراد الهوك
 
+// 🚀 حذفنا payments من الـ Props وسنجلبها بالداخل
 const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const changeMonth = (inc) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + inc); setCurrentDate(d); };
@@ -16,12 +16,9 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
-  // 1. جلب البيانات (الدفعات والمنتجات)
+  // 1. 🚀 جلب الدفعات هنا فقط عند دخول الطالب
   const paymentsCollection = useCollection('payments');
-  const productsCollection = useCollection('products'); // ✅ جلب المنتجات
-
   const payments = paymentsCollection.data || [];
-  const products = productsCollection.data || [];
 
   const currentUserData = students.find(s => s.id === user.id) || user;
   const myStudents = students.filter(s => s.familyId === user.familyId);
@@ -31,11 +28,11 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
     .filter(p => myStudents.some(s => s.id === p.studentId))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   
-  // فلترة الأخبار
+  // ✅ (جديد) فلترة الأخبار: العامة أو الخاصة بفروع أبناء العائلة
   const studentBranches = [...new Set(myStudents.map(s => s.branch))];
   const relevantNews = (news || [])
     .filter(n => !n.branch || n.branch === 'الكل' || studentBranches.includes(n.branch))
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); // الأحدث أولاً
 
   const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
@@ -105,7 +102,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       
       <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
         
-        {/* قسم الأخبار والإعلانات */}
+        {/* ✅ (جديد) قسم الأخبار والإعلانات */}
         {relevantNews.length > 0 && (
             <div className="bg-white rounded-2xl shadow-lg border-r-4 border-yellow-500 overflow-hidden">
                 <div className="p-4 bg-gradient-to-r from-yellow-50 to-white border-b border-yellow-100 flex items-center gap-2">
@@ -140,15 +137,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                 </div>
             </div>
         )}
-
-        {/* ✅ المتجر: وضعناه هنا ليظهر بعد الأخبار */}
-        <Card title="متجر الأكاديمية (المنتجات المتوفرة)" className="border-t-4 border-yellow-500">
-             <div className="flex items-center gap-2 mb-4 text-gray-500 text-sm bg-yellow-50 p-2 rounded-lg">
-                <ShoppingBag size={16} className="text-yellow-600"/>
-                <p>يمكنك شراء هذه المنتجات من النادي مباشرة.</p>
-             </div>
-             <StudentStore products={products} />
-        </Card>
 
         {/* Schedule */}
         <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-2xl shadow-lg">
