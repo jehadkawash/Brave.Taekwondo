@@ -3,6 +3,7 @@ import React from 'react';
 import { Package } from 'lucide-react';
 
 export const StudentStore = ({ products }) => {
+  // نعرض فقط المنتجات التي فيها كمية (stock > 0)
   const availableProducts = products.filter(p => p.stock > 0);
 
   if (availableProducts.length === 0) return <div className="text-center py-10 text-gray-400">لا توجد منتجات معروضة حالياً</div>;
@@ -12,6 +13,7 @@ export const StudentStore = ({ products }) => {
       {availableProducts.map(item => (
         <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden border hover:shadow-md transition-shadow">
            <div className="h-40 bg-gray-100 relative">
+               {/* إذا في صورة اعرضها، إذا لا اعرض أيقونة */}
                {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full"><Package className="text-gray-300"/></div>}
            </div>
            <div className="p-3">
