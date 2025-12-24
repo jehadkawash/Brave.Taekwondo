@@ -7,8 +7,8 @@ import { useCollection } from '../hooks/useCollection';
 import { IMAGES, BRANCHES } from '../lib/constants';
 
 // Import Managers
-// 👇 THE FIX IS HERE: Removed { } around DashboardStats
-import DashboardStats from './dashboard/DashboardStats'; 
+// ✅ FIX: Added { } because DashboardStats is a named export
+import { DashboardStats } from './dashboard/DashboardStats'; 
 import StudentsManager from './dashboard/StudentsManager';
 import ArchiveManager from './dashboard/ArchiveManager';
 import FinanceManager from './dashboard/FinanceManager';
@@ -176,7 +176,7 @@ const AdminDashboard = ({
             {/* ✅ تمرير البيانات بشكل صحيح للمالية */}
             {activeView === 'finance' && (
                 <FinanceManager 
-                    user={user} // 👈 هذا كان ناقصاً ويسبب اختفاء التبويبات
+                    user={user} 
                     students={branchStudents}
                     payments={branchPayments} paymentsCollection={paymentsCollection}
                     expenses={branchExpenses} expensesCollection={expensesCollection}
