@@ -7,7 +7,8 @@ import { useCollection } from '../hooks/useCollection';
 import { IMAGES, BRANCHES } from '../lib/constants';
 
 // Import Managers
-import DashboardStats from './dashboard/DashboardStats';
+// 👇 THE FIX IS HERE: Removed { } around DashboardStats
+import DashboardStats from './dashboard/DashboardStats'; 
 import StudentsManager from './dashboard/StudentsManager';
 import ArchiveManager from './dashboard/ArchiveManager';
 import FinanceManager from './dashboard/FinanceManager';
