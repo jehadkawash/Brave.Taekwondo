@@ -4,8 +4,14 @@ import { createPortal } from 'react-dom';
 import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote, LayoutDashboard, ShoppingBag, TrendingUp, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
+// --- 1. استيراد دوال فايربيس الضرورية ---
+import { addDoc, deleteDoc, doc, collection } from "firebase/firestore"; 
+import { db, appId } from '../../lib/firebase';
 
-// --- Reasons Modal (Unchanged) ---
+// --- مسار البيانات الثابت (لتسهيل الكتابة) ---
+const DATA_PATH = ['artifacts', appId, 'public', 'data'];
+
+// --- مكون النافذة المنبثقة لإدارة الأسباب ---
 const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
     const [newReason, setNewReason] = useState("");
     if (!isOpen) return null;
@@ -32,61 +38,56 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
 };
 
 export default function FinanceManager({ 
-    user, // <--- 1. Received User Prop
+    user, 
     students, payments, expenses, 
-    paymentsCollection, expensesCollection, 
-    products = [], productsCollection,
-    extraIncome = [], extraIncomeCollection, 
-    monthlyNotes = [], monthlyNotesCollection,
+    // نستلم البيانات هنا كمصفوفات
+    products = [], 
+    extraIncome = [], 
+    monthlyNotes = [], 
     selectedBranch, logActivity,
-    financeReasons = [], financeReasonsCollection 
+    financeReasons = []
 }) {
-  // --- PERMISSION CHECK ---
+  // --- التحقق من الصلاحية ---
   const isAdmin = user && user.role === 'admin';
 
-  // Main Tab State: 'reception', 'admin', 'store'
+  // التبويبات
   const [activeTab, setActiveTab] = useState('reception');
 
-  // Force Captains to Reception Tab Only
+  // إجبار الكابتن على البقاء في الاستقبال
   useEffect(() => {
     if (!isAdmin && activeTab !== 'reception') {
         setActiveTab('reception');
     }
   }, [isAdmin, activeTab]);
 
-  // Reception State
+  // States
   const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
   
-  // Admin Dashboard State
   const [dashboardMonth, setDashboardMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [extraIncomeForm, setExtraIncomeForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
   const [noteForm, setNoteForm] = useState("");
-
-  // Store Admin State
   const [productForm, setProductForm] = useState({ name: '', price: '', image: '' });
 
-  // Bank Statement Date Range State
   const [calcDates, setCalcDates] = useState({ 
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], 
     end: new Date().toISOString().split('T')[0] 
   });
   const [showSummary, setShowSummary] = useState(false);
 
-  // --- DATA FILTERING ---
+  // --- تصفية البيانات ---
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
   const branchExtraIncome = extraIncome.filter(i => i.branch === selectedBranch);
   const branchNotes = monthlyNotes.filter(n => n.branch === selectedBranch);
   const branchProducts = products; 
 
-  // 1. Reception Table (Recent payments)
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
       .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  // 2. Dashboard Calculations (Based on Selected Month)
+  // --- الحسابات ---
   const dashboardStats = useMemo(() => {
     const [year, month] = dashboardMonth.split('-');
     const filterFn = (item) => {
@@ -105,29 +106,17 @@ export default function FinanceManager({
     const cashPayments = monthlyPayments.filter(p => p.method !== 'cliq').reduce((sum, p) => sum + Number(p.amount), 0);
     const cliqPayments = monthlyPayments.filter(p => p.method === 'cliq').reduce((sum, p) => sum + Number(p.amount), 0);
 
-    const calculatedTotals = {
-        cash: cashPayments,
-        cliq: cliqPayments
-    };
-
     return {
-        totalStudents,
-        totalExtra,
-        totalExpenses: totalExp,
+        totalStudents, totalExtra, totalExpenses: totalExp,
         netProfit: (totalStudents + totalExtra) - totalExp,
-        cash: cashPayments,
-        cliq: cliqPayments,
-        count: monthlyPayments.length,
-        calculatedTotals // for report
+        cash: cashPayments, cliq: cliqPayments, count: monthlyPayments.length
     };
   }, [branchPayments, branchExpenses, branchExtraIncome, dashboardMonth]);
 
-  // UseMemo for Statement Totals
   const statementTotals = useMemo(() => {
     const start = new Date(calcDates.start);
     const end = new Date(calcDates.end);
-    start.setHours(0,0,0,0);
-    end.setHours(23,59,59,999);
+    start.setHours(0,0,0,0); end.setHours(23,59,59,999);
 
     const rangePayments = branchPayments.filter(p => {
         const pDate = new Date(p.date);
@@ -142,9 +131,8 @@ export default function FinanceManager({
   }, [branchPayments, calcDates]);
 
 
-  // --- HANDLERS ---
+  // --- HANDLERS (باستخدام Firebase مباشرة) ---
 
-  // 1. Add Payment (Reception)
   const handleAddPayment = async (e) => { 
     e.preventDefault(); 
     if(!payForm.studentObjId) return alert('اختر طالباً'); 
@@ -154,68 +142,79 @@ export default function FinanceManager({
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     const newPay = { 
-        id: Date.now().toString(), studentId: selectedStudent.id, name: selectedStudent.name, 
+        studentId: selectedStudent.id, name: selectedStudent.name, 
         amount: Number(payForm.amount), reason: finalReason, details: payForm.details, 
-        method: payForm.method, date: new Date().toISOString().split('T')[0], branch: selectedBranch 
+        method: payForm.method, date: new Date().toISOString().split('T')[0], branch: selectedBranch,
+        createdAt: new Date().toISOString()
     }; 
-    await paymentsCollection.add(newPay); 
+    // إضافة مباشرة لـ Firestore
+    await addDoc(collection(db, ...DATA_PATH, 'payments'), newPay);
     logActivity("قبض مالي", `استلام ${payForm.amount} (${payForm.method === 'cliq' ? 'Cliq' : 'نقداً'}) من ${selectedStudent.name}`); 
     setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   };
-  const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
 
-  // 2. Add Expense (Admin)
+  const deletePayment = async (id) => { 
+      if(confirm('حذف السند؟')) await deleteDoc(doc(db, ...DATA_PATH, 'payments', id)); 
+  };
+
   const handleAddExpense = async (e) => { 
     e.preventDefault(); 
-    await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); 
+    await addDoc(collection(db, ...DATA_PATH, 'expenses'), { 
+        title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch, createdAt: new Date().toISOString() 
+    }); 
     setExpForm({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   };
-  const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
+  const deleteExpense = async (id) => { 
+      if(confirm('حذف المصروف؟')) await deleteDoc(doc(db, ...DATA_PATH, 'expenses', id)); 
+  };
 
-  // 3. Add Extra Income (Admin)
   const handleAddExtraIncome = async (e) => {
     e.preventDefault();
-    if (!extraIncomeCollection) return alert("يرجى التأكد من ربط قاعدة بيانات الدخل الإضافي");
-    await extraIncomeCollection.add({ id: Date.now().toString(), title: extraIncomeForm.title, amount: Number(extraIncomeForm.amount), date: extraIncomeForm.date, branch: selectedBranch });
+    await addDoc(collection(db, ...DATA_PATH, 'extra_income'), { 
+        title: extraIncomeForm.title, amount: Number(extraIncomeForm.amount), date: extraIncomeForm.date, branch: selectedBranch, createdAt: new Date().toISOString() 
+    });
     setExtraIncomeForm({ title: '', amount: '', date: new Date().toISOString().split('T')[0] });
   };
-  const deleteExtraIncome = async (id) => { if(confirm('حذف هذا الدخل؟')) await extraIncomeCollection.remove(id); };
+  const deleteExtraIncome = async (id) => { 
+      if(confirm('حذف هذا الدخل؟')) await deleteDoc(doc(db, ...DATA_PATH, 'extra_income', id)); 
+  };
 
-  // 4. Add Note (Admin)
   const handleAddNote = async (e) => {
       e.preventDefault();
-      if(!monthlyNotesCollection) return;
-      await monthlyNotesCollection.add({ id: Date.now().toString(), text: noteForm, month: dashboardMonth, branch: selectedBranch });
+      await addDoc(collection(db, ...DATA_PATH, 'monthly_notes'), { 
+          text: noteForm, month: dashboardMonth, branch: selectedBranch, createdAt: new Date().toISOString() 
+      });
       setNoteForm("");
   };
-  const deleteNote = async (id) => { if(confirm('حذف الملاحظة؟')) await monthlyNotesCollection.remove(id); };
+  const deleteNote = async (id) => { 
+      if(confirm('حذف الملاحظة؟')) await deleteDoc(doc(db, ...DATA_PATH, 'monthly_notes', id)); 
+  };
 
-  // 5. Add Product (Store)
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if(!productsCollection) return alert("يرجى التأكد من ربط قاعدة بيانات المنتجات");
-    await productsCollection.add({ id: Date.now().toString(), ...productForm });
+    await addDoc(collection(db, ...DATA_PATH, 'products'), { 
+        ...productForm, createdAt: new Date().toISOString() 
+    });
     setProductForm({ name: '', price: '', image: '' });
   };
-  const deleteProduct = async (id) => { if(confirm('حذف المنتج من المتجر؟')) await productsCollection.remove(id); };
+  const deleteProduct = async (id) => { 
+      if(confirm('حذف المنتج من المتجر؟')) await deleteDoc(doc(db, ...DATA_PATH, 'products', id)); 
+  };
 
-  // Reasons Handlers
   const handleAddReason = async (title) => {
       if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
-      await financeReasonsCollection.add({ title, branch: selectedBranch, createdAt: new Date().toISOString() });
+      await addDoc(collection(db, ...DATA_PATH, 'finance_reasons'), { title, branch: selectedBranch, createdAt: new Date().toISOString() });
   };
   const handleDeleteReason = async (reasonObj) => {
       if (!confirm(`حذف البند "${reasonObj.title}"؟`)) return;
-      await financeReasonsCollection.remove(reasonObj.id);
+      await deleteDoc(doc(db, ...DATA_PATH, 'finance_reasons', reasonObj.id));
   };
 
-
-  // --- PRINT LOGIC ---
+  // --- الطباعة ---
   const printStatement = () => {
     const start = new Date(calcDates.start);
     const end = new Date(calcDates.end);
-    start.setHours(0,0,0,0);
-    end.setHours(23,59,59,999);
+    start.setHours(0,0,0,0); end.setHours(23,59,59,999);
 
     const reportPayments = branchPayments.filter(p => {
         const pDate = new Date(p.date);
@@ -232,7 +231,6 @@ export default function FinanceManager({
     const printWindow = window.open('', 'PRINT', 'height=800,width=1000');
 
     const htmlContent = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><title>كشف حساب مالي</title><style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap'); body { font-family: 'Cairo', sans-serif; padding: 20px; background: #fff; } .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; } .logo { width: 80px; height: 80px; object-fit: contain; display: block; margin: 0 auto 10px; } h1 { margin: 5px 0; color: #b45309; } .meta { font-size: 14px; color: #555; display: flex; justify-content: space-between; margin-top: 15px; } table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; } th { background: #f3f4f6; padding: 10px; border: 1px solid #ddd; font-weight: bold; } td { padding: 8px; border: 1px solid #ddd; } .amount { font-weight: bold; direction: ltr; text-align: left; } .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; } .cash { background: #dcfce7; color: #166534; } .cliq { background: #f3e8ff; color: #6b21a8; } .summary-box { margin-top: 30px; border: 2px solid #333; padding: 15px; background: #f9fafb; page-break-inside: avoid; } .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; } .total-row { font-size: 20px; font-weight: 900; color: #b45309; border-top: 2px solid #333; padding-top: 10px; border-bottom: none; } @media print { @page { size: A4; margin: 10mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body><div class="header"><img src="${logoUrl}" class="logo" /><h1>أكاديمية الشجاع للتايكواندو</h1><h3>كشف حساب مالي وتفصيلي</h3><div class="meta"><div><strong>الفرع:</strong> ${selectedBranch}</div><div><strong>الفترة:</strong> من ${calcDates.start} إلى ${calcDates.end}</div><div><strong>تاريخ الطباعة:</strong> ${new Date().toLocaleDateString('ar-EG')}</div></div></div><table><thead><tr><th width="5%">#</th><th width="15%">التاريخ</th><th width="25%">الطالب</th><th width="25%">البيان</th><th width="10%">الطريقة</th><th width="15%">المبلغ</th></tr></thead><tbody>${reportPayments.map((p, i) => `<tr><td>${i + 1}</td><td>${p.date}</td><td><strong>${p.name}</strong></td><td>${p.reason} <span style="font-size:10px; color:#666">${p.details ? `(${p.details})` : ''}</span></td><td style="text-align:center"><span class="badge ${p.method === 'cliq' ? 'cliq' : 'cash'}">${p.method === 'cliq' ? 'CLIQ' : 'CASH'}</span></td><td class="amount">${p.amount} JD</td></tr>`).join('')}${reportPayments.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:20px;">لا يوجد حركات في هذه الفترة</td></tr>' : ''}</tbody></table><div class="summary-box"><div class="summary-row"><span>مجموع المقبوضات النقدية (CASH):</span><strong>${totals.cash} JD</strong></div><div class="summary-row"><span>مجموع المحافظ الإلكترونية (CLIQ):</span><strong>${totals.cliq} JD</strong></div><div class="summary-row total-row"><span>المجموع الكلي (الإيرادات):</span><span>${totals.cash + totals.cliq} JD</span></div></div><div style="margin-top:50px; display:flex; justify-content:space-between; padding:0 50px;"><div>توقيع المحاسب</div><div>توقيع الإدارة</div></div></body></html>`;
-    
     printWindow.document.write(htmlContent); printWindow.document.close();
     printWindow.onload = () => { printWindow.focus(); setTimeout(() => { printWindow.print(); }, 500); };
   };
@@ -248,7 +246,6 @@ export default function FinanceManager({
 
   return (
     <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
-      
       <ReasonsModal isOpen={showReasonsModal} onClose={() => setShowReasonsModal(false)} reasons={financeReasons} onAdd={handleAddReason} onDelete={handleDeleteReason} />
 
       {/* --- MASTER TABS --- */}
@@ -257,7 +254,6 @@ export default function FinanceManager({
             <User size={20}/> الاستقبال (Reception)
         </button>
         
-        {/* --- 3. RESTRICTED TABS (Only for Admin) --- */}
         {isAdmin && (
             <>
                 <button onClick={() => setActiveTab('admin')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'admin' ? 'bg-black text-yellow-500 shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
@@ -270,13 +266,9 @@ export default function FinanceManager({
         )}
       </div>
 
-
-      {/* ================================================================================= */}
-      {/* TAB 1: RECEPTION (FAST PAYMENTS) - EVERYONE SEES THIS */}
-      {/* ================================================================================= */}
+      {/* --- RECEPTION VIEW --- */}
       {activeTab === 'reception' && (
         <div className="animate-fade-in space-y-6 mt-4">
-             {/* Report Summary Toggle (Reception View) */}
              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <button onClick={() => setShowSummary(!showSummary)} className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-right">
                     <div className="flex items-center gap-2 font-bold text-gray-800"><FileSpreadsheet size={24} className="text-yellow-500" /><span>التقارير والملخص المالي</span></div>
@@ -301,7 +293,6 @@ export default function FinanceManager({
                 )}
              </div>
 
-             {/* Form */}
              <Card title="استلام دفعة جديدة (قسط / زي / بطولة)" className="border-green-100 shadow-green-50">
                 <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div className="relative"><label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label><StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." /></div>
@@ -327,16 +318,11 @@ export default function FinanceManager({
                 </form>
             </Card>
 
-            {/* Daily History Table */}
             <Card title="سجل المقبوضات اليومي">
                 <div className="flex items-center gap-2 mb-4 w-full md:w-64"><StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} /></div>
-                
-                {/* Desktop View */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm text-right">
-                        <thead className="bg-gray-50 text-gray-600">
-                            <tr><th className="p-3 rounded-r-lg">#</th><th className="p-3">الطالب</th><th className="p-3">البيان</th><th className="p-3">الطريقة</th><th className="p-3">التاريخ</th><th className="p-3">المبلغ</th><th className="p-3 rounded-l-lg">أدوات</th></tr>
-                        </thead>
+                        <thead className="bg-gray-50 text-gray-600"><tr><th className="p-3 rounded-r-lg">#</th><th className="p-3">الطالب</th><th className="p-3">البيان</th><th className="p-3">الطريقة</th><th className="p-3">التاريخ</th><th className="p-3">المبلغ</th><th className="p-3 rounded-l-lg">أدوات</th></tr></thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredPayments.map(p => (
                                 <tr key={p.id} className="hover:bg-green-50 transition-colors">
@@ -346,41 +332,23 @@ export default function FinanceManager({
                                     <td className="p-3">{p.method === 'cliq' ? <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-md">Cliq</span> : <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">Cash</span>}</td>
                                     <td className="p-3 text-xs text-gray-500">{p.date}</td>
                                     <td className="p-3 font-bold text-green-600">+{p.amount}</td>
-                                    <td className="p-3 flex gap-2">
-                                        <button onClick={()=>printReceipt(p)} className="p-2 bg-gray-100 rounded-lg text-gray-600"><Printer size={16}/></button>
-                                        <button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-50 rounded-lg text-red-500"><Trash2 size={16}/></button>
-                                    </td>
+                                    <td className="p-3 flex gap-2"><button onClick={()=>printReceipt(p)} className="p-2 bg-gray-100 rounded-lg text-gray-600"><Printer size={16}/></button><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-50 rounded-lg text-red-500"><Trash2 size={16}/></button></td>
                                 </tr>
                             ))}
                              {filteredPayments.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">لا يوجد سندات</td></tr>}
                         </tbody>
                     </table>
                 </div>
-
-                {/* Mobile View */}
                 <div className="md:hidden grid gap-4">
                   {filteredPayments.map(p => (
                       <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 relative overflow-hidden">
                           <div className={`absolute top-0 left-0 w-1 h-full ${p.method==='cliq' ? 'bg-purple-500' : 'bg-green-500'}`}></div>
                           <div className="flex justify-between items-start pl-2">
-                              <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                      <User size={14} className="text-gray-400"/>
-                                      <span className="font-bold text-gray-800">{p.name}</span>
-                                  </div>
-                                  <div className="text-xs text-gray-500 flex items-center gap-2"><Calendar size={12}/> {p.date}</div>
-                              </div>
+                              <div><div className="flex items-center gap-2 mb-1"><User size={14} className="text-gray-400"/><span className="font-bold text-gray-800">{p.name}</span></div><div className="text-xs text-gray-500 flex items-center gap-2"><Calendar size={12}/> {p.date}</div></div>
                               <div className="text-green-600 font-bold text-lg bg-green-50 px-2 py-1 rounded-lg">+{p.amount}</div>
                           </div>
-                          <div className="bg-gray-50 p-2 rounded-lg text-sm text-gray-600 flex items-start gap-2">
-                              <FileText size={14} className="mt-1 text-gray-400 shrink-0"/>
-                              <div className="flex-1"><span className="font-bold block text-xs text-gray-700">{p.reason}</span><span className="text-[10px]">{p.details}</span></div>
-                              {p.method === 'cliq' ? <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Cliq</span> : <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Cash</span>}
-                          </div>
-                          <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-gray-100">
-                              <button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold"><Printer size={14}/> طباعة</button>
-                              <button onClick={()=>deletePayment(p.id)} className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold"><Trash2 size={14}/> حذف</button>
-                          </div>
+                          <div className="bg-gray-50 p-2 rounded-lg text-sm text-gray-600 flex items-start gap-2"><FileText size={14} className="mt-1 text-gray-400 shrink-0"/><div className="flex-1"><span className="font-bold block text-xs text-gray-700">{p.reason}</span><span className="text-[10px]">{p.details}</span></div>{p.method === 'cliq' ? <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Cliq</span> : <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Cash</span>}</div>
+                          <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-gray-100"><button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold"><Printer size={14}/> طباعة</button><button onClick={()=>deletePayment(p.id)} className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold"><Trash2 size={14}/> حذف</button></div>
                       </div>
                   ))}
                   {filteredPayments.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد سندات</div>}
@@ -389,147 +357,55 @@ export default function FinanceManager({
         </div>
       )}
 
-      {/* ================================================================================= */}
-      {/* TAB 2: ADMIN DASHBOARD (ACCOUNTS) - ADMIN ONLY */}
-      {/* ================================================================================= */}
+      {/* --- ADMIN VIEW --- */}
       {activeTab === 'admin' && isAdmin && (
         <div className="animate-fade-in space-y-6 mt-4">
-            {/* 1. Month Selector & Summary */}
             <div className="bg-gray-900 text-white p-6 rounded-3xl shadow-2xl">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold flex items-center gap-2"><TrendingUp className="text-yellow-500"/> الملخص المالي الشهري</h2>
-                    <input type="month" value={dashboardMonth} onChange={(e) => setDashboardMonth(e.target.value)} className="bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-2 outline-none focus:border-yellow-500"/>
-                </div>
-                
+                <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold flex items-center gap-2"><TrendingUp className="text-yellow-500"/> الملخص المالي الشهري</h2><input type="month" value={dashboardMonth} onChange={(e) => setDashboardMonth(e.target.value)} className="bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-2 outline-none focus:border-yellow-500"/></div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700">
-                        <p className="text-gray-400 text-xs mb-1">مجموع وصولات الطلاب</p>
-                        <p className="text-2xl font-bold text-green-400">+{dashboardStats.totalStudents} JD</p>
-                        <p className="text-[10px] text-gray-500 mt-1">{dashboardStats.count} وصل</p>
-                    </div>
-                    <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700">
-                        <p className="text-gray-400 text-xs mb-1">دخل إضافي (متجر/بطولات)</p>
-                        <p className="text-2xl font-bold text-blue-400">+{dashboardStats.totalExtra} JD</p>
-                    </div>
-                    <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700">
-                        <p className="text-gray-400 text-xs mb-1">المصاريف</p>
-                        <p className="text-2xl font-bold text-red-400">-{dashboardStats.totalExpenses} JD</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-4 rounded-2xl shadow-lg transform scale-105">
-                        <p className="text-black/60 text-xs mb-1 font-bold">صافي الربح</p>
-                        <p className="text-3xl font-black text-black">{dashboardStats.netProfit} JD</p>
-                    </div>
+                    <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700"><p className="text-gray-400 text-xs mb-1">مجموع وصولات الطلاب</p><p className="text-2xl font-bold text-green-400">+{dashboardStats.totalStudents} JD</p><p className="text-[10px] text-gray-500 mt-1">{dashboardStats.count} وصل</p></div>
+                    <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700"><p className="text-gray-400 text-xs mb-1">دخل إضافي</p><p className="text-2xl font-bold text-blue-400">+{dashboardStats.totalExtra} JD</p></div>
+                    <div className="bg-gray-800 p-4 rounded-2xl border border-gray-700"><p className="text-gray-400 text-xs mb-1">المصاريف</p><p className="text-2xl font-bold text-red-400">-{dashboardStats.totalExpenses} JD</p></div>
+                    <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-4 rounded-2xl shadow-lg transform scale-105"><p className="text-black/60 text-xs mb-1 font-bold">صافي الربح</p><p className="text-3xl font-black text-black">{dashboardStats.netProfit} JD</p></div>
                 </div>
-
-                <div className="flex gap-4 text-xs font-mono text-gray-400 bg-black/20 p-3 rounded-xl">
-                    <span>💵 كاش: <span className="text-green-400">{dashboardStats.cash}</span></span>
-                    <span>📱 كليك: <span className="text-purple-400">{dashboardStats.cliq}</span></span>
-                </div>
+                <div className="flex gap-4 text-xs font-mono text-gray-400 bg-black/20 p-3 rounded-xl"><span>💵 كاش: <span className="text-green-400">{dashboardStats.cash}</span></span><span>📱 كليك: <span className="text-purple-400">{dashboardStats.cliq}</span></span></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 2. Extra Income Manager */}
-                <Card title="إضافة دخل زائد (ربح بدلات / بطولات)">
-                    <form onSubmit={handleAddExtraIncome} className="flex gap-2 mb-4">
-                        <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="البيان (مثال: ربح بطولة)" value={extraIncomeForm.title} onChange={e=>setExtraIncomeForm({...extraIncomeForm, title: e.target.value})} required/>
-                        <input className="w-24 border p-2 rounded-lg text-sm" type="number" placeholder="المبلغ" value={extraIncomeForm.amount} onChange={e=>setExtraIncomeForm({...extraIncomeForm, amount: e.target.value})} required/>
-                        <button className="bg-blue-600 text-white p-2 rounded-lg"><Plus size={18}/></button>
-                    </form>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {branchExtraIncome.map(i => (
-                            <div key={i.id} className="flex justify-between items-center bg-blue-50 p-2 rounded border border-blue-100 text-sm">
-                                <span>{i.title} ({i.date})</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-blue-700">+{i.amount}</span>
-                                    <button onClick={()=>deleteExtraIncome(i.id)} className="text-red-500"><Trash2 size={14}/></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                <Card title="إضافة دخل زائد">
+                    <form onSubmit={handleAddExtraIncome} className="flex gap-2 mb-4"><input className="flex-1 border p-2 rounded-lg text-sm" placeholder="البيان" value={extraIncomeForm.title} onChange={e=>setExtraIncomeForm({...extraIncomeForm, title: e.target.value})} required/><input className="w-24 border p-2 rounded-lg text-sm" type="number" placeholder="المبلغ" value={extraIncomeForm.amount} onChange={e=>setExtraIncomeForm({...extraIncomeForm, amount: e.target.value})} required/><button className="bg-blue-600 text-white p-2 rounded-lg"><Plus size={18}/></button></form>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">{branchExtraIncome.map(i => (<div key={i.id} className="flex justify-between items-center bg-blue-50 p-2 rounded border border-blue-100 text-sm"><span>{i.title} ({i.date})</span><div className="flex items-center gap-2"><span className="font-bold text-blue-700">+{i.amount}</span><button onClick={()=>deleteExtraIncome(i.id)} className="text-red-500"><Trash2 size={14}/></button></div></div>))}</div>
                 </Card>
-
-                {/* 3. Expenses Manager */}
                 <Card title="إدارة المصاريف">
-                    <form onSubmit={handleAddExpense} className="flex gap-2 mb-4">
-                        <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="بند المصروف" value={expForm.title} onChange={e=>setExpForm({...expForm, title: e.target.value})} required/>
-                        <input className="w-24 border p-2 rounded-lg text-sm" type="number" placeholder="المبلغ" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount: e.target.value})} required/>
-                        <button className="bg-red-600 text-white p-2 rounded-lg"><Plus size={18}/></button>
-                    </form>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {branchExpenses.map(e => (
-                            <div key={e.id} className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-100 text-sm">
-                                <span>{e.title} ({e.date})</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-red-700">-{e.amount}</span>
-                                    <button onClick={()=>deleteExpense(e.id)} className="text-red-500"><Trash2 size={14}/></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <form onSubmit={handleAddExpense} className="flex gap-2 mb-4"><input className="flex-1 border p-2 rounded-lg text-sm" placeholder="بند المصروف" value={expForm.title} onChange={e=>setExpForm({...expForm, title: e.target.value})} required/><input className="w-24 border p-2 rounded-lg text-sm" type="number" placeholder="المبلغ" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount: e.target.value})} required/><button className="bg-red-600 text-white p-2 rounded-lg"><Plus size={18}/></button></form>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">{branchExpenses.map(e => (<div key={e.id} className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-100 text-sm"><span>{e.title} ({e.date})</span><div className="flex items-center gap-2"><span className="font-bold text-red-700">-{e.amount}</span><button onClick={()=>deleteExpense(e.id)} className="text-red-500"><Trash2 size={14}/></button></div></div>))}</div>
                 </Card>
             </div>
 
-            {/* 4. Monthly Notes */}
             <Card title={`ملاحظات شهر ${dashboardMonth}`}>
-                <form onSubmit={handleAddNote} className="flex gap-2 mb-4">
-                    <input className="flex-1 border p-2 rounded-lg text-sm" placeholder="اكتب ملاحظة..." value={noteForm} onChange={e=>setNoteForm(e.target.value)} required/>
-                    <button className="bg-yellow-500 text-black p-2 rounded-lg font-bold">إضافة</button>
-                </form>
-                <div className="space-y-2">
-                    {branchNotes.map(n => (
-                        <div key={n.id} className="flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                            <span className="text-sm">{n.text}</span>
-                            <button onClick={()=>deleteNote(n.id)} className="text-red-500"><Trash2 size={14}/></button>
-                        </div>
-                    ))}
-                </div>
+                <form onSubmit={handleAddNote} className="flex gap-2 mb-4"><input className="flex-1 border p-2 rounded-lg text-sm" placeholder="اكتب ملاحظة..." value={noteForm} onChange={e=>setNoteForm(e.target.value)} required/><button className="bg-yellow-500 text-black p-2 rounded-lg font-bold">إضافة</button></form>
+                <div className="space-y-2">{branchNotes.map(n => (<div key={n.id} className="flex justify-between items-center bg-yellow-50 p-3 rounded-lg border border-yellow-200"><span className="text-sm">{n.text}</span><button onClick={()=>deleteNote(n.id)} className="text-red-500"><Trash2 size={14}/></button></div>))}</div>
             </Card>
         </div>
       )}
 
-      {/* ================================================================================= */}
-      {/* TAB 3: STORE ADMIN - ADMIN ONLY */}
-      {/* ================================================================================= */}
+      {/* --- STORE VIEW --- */}
       {activeTab === 'store' && isAdmin && (
         <div className="animate-fade-in space-y-6 mt-4">
-            <Card title="إدارة منتجات المتجر (تظهر للطلاب)">
-                <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6 flex items-start gap-3">
-                    <AlertCircle className="text-yellow-600 shrink-0 mt-1"/>
-                    <div className="text-sm text-yellow-800">
-                        <p className="font-bold">كيف تضيف صورة؟</p>
-                        <p>انسخ رابط الصورة من جوجل أو أي موقع وضع الرابط في حقل "رابط الصورة".</p>
-                    </div>
-                </div>
-
+            <Card title="إدارة منتجات المتجر">
+                <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6 flex items-start gap-3"><AlertCircle className="text-yellow-600 shrink-0 mt-1"/><div className="text-sm text-yellow-800"><p className="font-bold">كيف تضيف صورة؟</p><p>انسخ رابط الصورة من جوجل أو أي موقع وضع الرابط في حقل "رابط الصورة".</p></div></div>
                 <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <div className="md:col-span-2">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">اسم المنتج</label>
-                        <input className="w-full p-2 rounded-lg border outline-none" placeholder="مثال: بدلة تايكواندو Adidas" value={productForm.name} onChange={e=>setProductForm({...productForm, name: e.target.value})} required/>
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 block mb-1">السعر (JD)</label>
-                        <input className="w-full p-2 rounded-lg border outline-none" type="number" placeholder="25" value={productForm.price} onChange={e=>setProductForm({...productForm, price: e.target.value})} required/>
-                    </div>
-                    <div className="md:col-span-3">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">رابط الصورة (URL)</label>
-                        <input className="w-full p-2 rounded-lg border outline-none font-mono text-left dir-ltr" placeholder="https://..." value={productForm.image} onChange={e=>setProductForm({...productForm, image: e.target.value})} />
-                    </div>
-                    <div className="flex items-end">
-                        <Button type="submit" className="w-full bg-black text-white hover:bg-gray-800">إضافة للمتجر</Button>
-                    </div>
+                    <div className="md:col-span-2"><label className="text-xs font-bold text-gray-500 block mb-1">اسم المنتج</label><input className="w-full p-2 rounded-lg border outline-none" placeholder="مثال: بدلة تايكواندو" value={productForm.name} onChange={e=>setProductForm({...productForm, name: e.target.value})} required/></div>
+                    <div><label className="text-xs font-bold text-gray-500 block mb-1">السعر (JD)</label><input className="w-full p-2 rounded-lg border outline-none" type="number" placeholder="25" value={productForm.price} onChange={e=>setProductForm({...productForm, price: e.target.value})} required/></div>
+                    <div className="md:col-span-3"><label className="text-xs font-bold text-gray-500 block mb-1">رابط الصورة (URL)</label><input className="w-full p-2 rounded-lg border outline-none font-mono text-left dir-ltr" placeholder="https://..." value={productForm.image} onChange={e=>setProductForm({...productForm, image: e.target.value})} /></div>
+                    <div className="flex items-end"><Button type="submit" className="w-full bg-black text-white hover:bg-gray-800">إضافة للمتجر</Button></div>
                 </form>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {branchProducts.map(prod => (
                         <div key={prod.id} className="border rounded-xl p-3 flex gap-3 items-center bg-white shadow-sm relative group">
                             <img src={prod.image || 'https://via.placeholder.com/50'} className="w-16 h-16 object-cover rounded-lg bg-gray-200"/>
-                            <div>
-                                <h4 className="font-bold text-gray-800">{prod.name}</h4>
-                                <p className="text-yellow-600 font-bold">{prod.price} JD</p>
-                            </div>
-                            <button onClick={()=>deleteProduct(prod.id)} className="absolute top-2 left-2 bg-red-100 text-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Trash2 size={16}/>
-                            </button>
+                            <div><h4 className="font-bold text-gray-800">{prod.name}</h4><p className="text-yellow-600 font-bold">{prod.price} JD</p></div>
+                            <button onClick={()=>deleteProduct(prod.id)} className="absolute top-2 left-2 bg-red-100 text-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
                         </div>
                     ))}
                     {branchProducts.length === 0 && <p className="text-gray-400 col-span-3 text-center py-4">لا يوجد منتجات في المتجر</p>}
