@@ -1,7 +1,7 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, CreditCard, Banknote, ChevronDown, ChevronUp, FileSpreadsheet } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import { addDoc, deleteDoc, doc } from "firebase/firestore"; 
@@ -63,11 +63,13 @@ export default function FinanceManager({
     financeReasons = [], financeReasonsCollection 
 }) {
   const [viewMode, setViewMode] = useState('income'); 
-  // Added 'method' to state
   const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
+  
+  // --- 1. Toggle State for Summary ---
+  const [showSummary, setShowSummary] = useState(false);
 
   // --- Date Calculation State ---
   const todayStr = new Date().toISOString().split('T')[0];
@@ -96,7 +98,6 @@ export default function FinanceManager({
     });
 
     return rangePayments.reduce((acc, curr) => {
-        // Default to cash if method is missing (for old data)
         if(curr.method === 'cliq') {
             acc.cliq += Number(curr.amount);
         } else {
@@ -110,7 +111,6 @@ export default function FinanceManager({
   // --- دوال إدارة الأسباب (Firebase) ---
   const handleAddReason = async (title) => {
       if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
-      
       await financeReasonsCollection.add({
           title: title,
           branch: selectedBranch,
@@ -142,7 +142,7 @@ export default function FinanceManager({
         amount: Number(payForm.amount), 
         reason: finalReason, 
         details: payForm.details, 
-        method: payForm.method, // حفظ طريقة الدفع
+        method: payForm.method, 
         date: new Date().toISOString().split('T')[0], 
         branch: selectedBranch 
     }; 
@@ -162,6 +162,134 @@ export default function FinanceManager({
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
+  // --- 2. Print Bank Statement Function ---
+  const printStatement = () => {
+    const start = new Date(calcDates.start);
+    const end = new Date(calcDates.end);
+    start.setHours(0,0,0,0);
+    end.setHours(23,59,59,999);
+
+    // Get payments for the range and sort by date ascending (oldest to newest)
+    const reportPayments = branchPayments.filter(p => {
+        const pDate = new Date(p.date);
+        return pDate >= start && pDate <= end;
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Calculate report totals
+    const totals = reportPayments.reduce((acc, curr) => {
+        if(curr.method === 'cliq') acc.cliq += Number(curr.amount);
+        else acc.cash += Number(curr.amount);
+        return acc;
+    }, { cash: 0, cliq: 0 });
+
+    const logoUrl = window.location.origin + IMAGES.LOGO;
+    const printWindow = window.open('', 'PRINT', 'height=800,width=1000');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+        <head>
+          <title>كشف حساب مالي</title>
+          <style>
+             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+             body { font-family: 'Cairo', sans-serif; padding: 20px; background: #fff; }
+             .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+             .logo { width: 80px; height: 80px; object-fit: contain; display: block; margin: 0 auto 10px; }
+             h1 { margin: 5px 0; color: #b45309; }
+             .meta { font-size: 14px; color: #555; display: flex; justify-content: space-between; margin-top: 15px; }
+             
+             table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+             th { background: #f3f4f6; padding: 10px; border: 1px solid #ddd; font-weight: bold; }
+             td { padding: 8px; border: 1px solid #ddd; }
+             .amount { font-weight: bold; direction: ltr; text-align: left; }
+             
+             .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+             .cash { background: #dcfce7; color: #166534; }
+             .cliq { background: #f3e8ff; color: #6b21a8; }
+             
+             .summary-box { margin-top: 30px; border: 2px solid #333; padding: 15px; background: #f9fafb; page-break-inside: avoid; }
+             .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+             .total-row { font-size: 20px; font-weight: 900; color: #b45309; border-top: 2px solid #333; padding-top: 10px; border-bottom: none; }
+             
+             @media print {
+                @page { size: A4; margin: 10mm; }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+             }
+          </style>
+        </head>
+        <body>
+            <div class="header">
+                <img src="${logoUrl}" class="logo" />
+                <h1>أكاديمية الشجاع للتايكواندو</h1>
+                <h3>كشف حساب مالي وتفصيلي</h3>
+                <div class="meta">
+                    <div><strong>الفرع:</strong> ${selectedBranch}</div>
+                    <div><strong>الفترة:</strong> من ${calcDates.start} إلى ${calcDates.end}</div>
+                    <div><strong>تاريخ الطباعة:</strong> ${new Date().toLocaleDateString('ar-EG')}</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="15%">التاريخ</th>
+                        <th width="25%">الطالب</th>
+                        <th width="25%">البيان</th>
+                        <th width="10%">الطريقة</th>
+                        <th width="15%">المبلغ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${reportPayments.map((p, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${p.date}</td>
+                            <td><strong>${p.name}</strong></td>
+                            <td>${p.reason} <span style="font-size:10px; color:#666">${p.details ? `(${p.details})` : ''}</span></td>
+                            <td style="text-align:center">
+                                <span class="badge ${p.method === 'cliq' ? 'cliq' : 'cash'}">
+                                    ${p.method === 'cliq' ? 'CLIQ' : 'CASH'}
+                                </span>
+                            </td>
+                            <td class="amount">${p.amount} JD</td>
+                        </tr>
+                    `).join('')}
+                    ${reportPayments.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:20px;">لا يوجد حركات في هذه الفترة</td></tr>' : ''}
+                </tbody>
+            </table>
+
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span>مجموع المقبوضات النقدية (CASH):</span>
+                    <strong>${totals.cash} JD</strong>
+                </div>
+                <div class="summary-row">
+                    <span>مجموع المحافظ الإلكترونية (CLIQ):</span>
+                    <strong>${totals.cliq} JD</strong>
+                </div>
+                <div class="summary-row total-row">
+                    <span>المجموع الكلي (الإيرادات):</span>
+                    <span>${totals.cash + totals.cliq} JD</span>
+                </div>
+            </div>
+            
+            <div style="margin-top:50px; display:flex; justify-content:space-between; padding:0 50px;">
+                <div>توقيع المحاسب</div>
+                <div>توقيع الإدارة</div>
+            </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.onload = () => {
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 500);
+    };
+  };
+
  const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -175,263 +303,67 @@ export default function FinanceManager({
           <title>سند قبض - ${payment.name}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-            
-            @page {
-              size: A5 landscape; 
-              margin: 0; 
-            }
-
-            body {
-              font-family: 'Cairo', sans-serif;
-              margin: 0;
-              padding: 10mm; 
-              background-color: white;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              height: 100vh;
-              box-sizing: border-box;
-            }
-
-            .receipt-border {
-              border: 3px double #444;
-              height: 96%; 
-              position: relative;
-              padding: 20px;
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              overflow: hidden; 
-            }
-
-            .watermark {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%) rotate(-25deg); 
-              width: 50%; 
-              opacity: 0.08; 
-              z-index: 0;
-              pointer-events: none;
-              filter: grayscale(100%); 
-            }
-
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              border-bottom: 2px solid #b45309;
-              padding-bottom: 10px;
-              margin-bottom: 15px;
-              position: relative;
-              z-index: 2;
-            }
-
-            .company-info h1 {
-              margin: 0;
-              font-size: 22px;
-              color: #b45309;
-              font-weight: 900;
-            }
-            .company-info p {
-              margin: 2px 0;
-              font-size: 12px;
-              font-weight: bold;
-              color: #555;
-            }
-
-            .logo img {
-              height: 70px;
-              object-fit: contain;
-            }
-
-            .meta-info {
-              text-align: left;
-              font-size: 12px;
-              border-right: 2px solid #eee;
-              padding-right: 10px;
-            }
+            @page { size: A5 landscape; margin: 0; }
+            body { font-family: 'Cairo', sans-serif; margin: 0; padding: 10mm; background-color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: 100vh; box-sizing: border-box; }
+            .receipt-border { border: 3px double #444; height: 96%; position: relative; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+            .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); width: 50%; opacity: 0.08; z-index: 0; pointer-events: none; filter: grayscale(100%); }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #b45309; padding-bottom: 10px; margin-bottom: 15px; position: relative; z-index: 2; }
+            .company-info h1 { margin: 0; font-size: 22px; color: #b45309; font-weight: 900; }
+            .company-info p { margin: 2px 0; font-size: 12px; font-weight: bold; color: #555; }
+            .logo img { height: 70px; object-fit: contain; }
+            .meta-info { text-align: left; font-size: 12px; border-right: 2px solid #eee; padding-right: 10px; }
             .meta-info div { margin-bottom: 3px; }
-
-            .content {
-              position: relative;
-              z-index: 2;
-              flex-grow: 1;
-            }
-
-            .title {
-              text-align: center;
-              font-size: 24px;
-              font-weight: 900;
-              margin: 10px 0 20px;
-              text-decoration: underline;
-              text-decoration-color: #b45309;
-              text-underline-offset: 5px;
-            }
-
-            .row {
-              display: flex;
-              align-items: baseline;
-              margin-bottom: 12px;
-              font-size: 16px;
-            }
-
-            .label {
-              font-weight: bold;
-              width: 110px;
-              color: #333;
-            }
-
-            .value {
-              flex: 1;
-              border-bottom: 1px dotted #888;
-              font-weight: 700;
-              padding: 0 5px;
-            }
-
-            .amount-container {
-              position: absolute;
-              left: 20px;
-              top: 40px;
-              border: 2px solid #333;
-              padding: 5px 15px;
-              border-radius: 8px;
-              background: #f9f9f9;
-              transform: rotate(-5deg); 
-              box-shadow: 2px 2px 0 #ccc;
-            }
-            .amount-number {
-              font-size: 20px;
-              font-weight: 900;
-              direction: ltr;
-            }
-
-            .footer {
-              margin-top: 20px;
-              position: relative;
-              z-index: 2;
-            }
-
-            .signatures {
-              display: flex;
-              justify-content: space-between;
-              padding: 0 40px;
-              margin-bottom: 15px;
-            }
-            .sign-box {
-              text-align: center;
-              width: 150px;
-            }
-            .sign-line {
-              border-top: 1px solid #333;
-              margin-bottom: 5px;
-            }
+            .content { position: relative; z-index: 2; flex-grow: 1; }
+            .title { text-align: center; font-size: 24px; font-weight: 900; margin: 10px 0 20px; text-decoration: underline; text-decoration-color: #b45309; text-underline-offset: 5px; }
+            .row { display: flex; align-items: baseline; margin-bottom: 12px; font-size: 16px; }
+            .label { font-weight: bold; width: 110px; color: #333; }
+            .value { flex: 1; border-bottom: 1px dotted #888; font-weight: 700; padding: 0 5px; }
+            .amount-container { position: absolute; left: 20px; top: 40px; border: 2px solid #333; padding: 5px 15px; border-radius: 8px; background: #f9f9f9; transform: rotate(-5deg); box-shadow: 2px 2px 0 #ccc; }
+            .amount-number { font-size: 20px; font-weight: 900; direction: ltr; }
+            .footer { margin-top: 20px; position: relative; z-index: 2; }
+            .signatures { display: flex; justify-content: space-between; padding: 0 40px; margin-bottom: 15px; }
+            .sign-box { text-align: center; width: 150px; }
+            .sign-line { border-top: 1px solid #333; margin-bottom: 5px; }
             .sign-title { font-size: 12px; font-weight: bold; color: #555; }
-
-            .branches-box {
-              border-top: 2px solid #b45309;
-              padding-top: 8px;
-              font-size: 10px;
-              display: flex;
-              justify-content: space-between;
-              background: #fff;
-            }
-            
-            .branch {
-              display: flex;
-              flex-direction: column;
-              width: 48%;
-            }
+            .branches-box { border-top: 2px solid #b45309; padding-top: 8px; font-size: 10px; display: flex; justify-content: space-between; background: #fff; }
+            .branch { display: flex; flex-direction: column; width: 48%; }
             .branch span { display: block; margin-bottom: 2px; }
             .phone { direction: ltr; text-align: right; font-weight: bold; }
-
           </style>
         </head>
         <body>
           <div class="receipt-border">
-            
             <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
-
             <div class="header">
-              <div class="company-info">
-                <h1>أكاديمية الشجاع للتايكواندو</h1>
-                <p>فرع: ${selectedBranch}</p>
-              </div>
-              <div class="logo">
-                <img src="${logoUrl}" onerror="this.style.display='none'"/>
-              </div>
-              <div class="meta-info">
-                <div>رقم السند: <strong>${payment.id.slice(-6)}</strong></div>
-                <div>التاريخ: <strong>${payment.date}</strong></div>
-              </div>
+              <div class="company-info"><h1>أكاديمية الشجاع للتايكواندو</h1><p>فرع: ${selectedBranch}</p></div>
+              <div class="logo"><img src="${logoUrl}" onerror="this.style.display='none'"/></div>
+              <div class="meta-info"><div>رقم السند: <strong>${payment.id.slice(-6)}</strong></div><div>التاريخ: <strong>${payment.date}</strong></div></div>
             </div>
-
             <div class="content">
               <div class="title">سند قبض</div>
-              
-              <div class="amount-container">
-                <div class="amount-number">${payment.amount} JD</div>
-              </div>
-
-              <div class="row">
-                <span class="label">استلمنا من:</span>
-                <span class="value">${payment.name}</span>
-              </div>
-              <div class="row">
-                <span class="label">مبلغ وقدره:</span>
-                <span class="value">${payment.amount} دينار أردني</span>
-              </div>
-              <div class="row">
-                <span class="label">طريقة الدفع:</span>
-                <span class="value">${paymentMethodText}</span>
-              </div>
-              <div class="row">
-                <span class="label">وذلك عن:</span>
-                <span class="value">${payment.reason} ${payment.details ? `(${payment.details})` : ''}</span>
-              </div>
+              <div class="amount-container"><div class="amount-number">${payment.amount} JD</div></div>
+              <div class="row"><span class="label">استلمنا من:</span><span class="value">${payment.name}</span></div>
+              <div class="row"><span class="label">مبلغ وقدره:</span><span class="value">${payment.amount} دينار أردني</span></div>
+              <div class="row"><span class="label">طريقة الدفع:</span><span class="value">${paymentMethodText}</span></div>
+              <div class="row"><span class="label">وذلك عن:</span><span class="value">${payment.reason} ${payment.details ? `(${payment.details})` : ''}</span></div>
             </div>
-
             <div class="footer">
               <div class="signatures">
-                <div class="sign-box">
-                  <div class="sign-line"></div>
-                  <div class="sign-title">توقيع المحاسب</div>
-                </div>
-                <div class="sign-box">
-                  <div class="sign-line"></div>
-                  <div class="sign-title">توقيع المستلم</div>
-                </div>
+                <div class="sign-box"><div class="sign-line"></div><div class="sign-title">توقيع المحاسب</div></div>
+                <div class="sign-box"><div class="sign-line"></div><div class="sign-title">توقيع المستلم</div></div>
               </div>
-
               <div class="branches-box">
-                <div class="branch">
-                  <span style="font-weight:bold; color:#b45309">الفرع الأول: شفابدران</span>
-                  <span>شارع رفعت شموط</span>
-                  <span class="phone">079 5629 606</span>
-                </div>
-                <div class="branch">
-                  <span style="font-weight:bold; color:#b45309">الفرع الثاني: أبو نصير</span>
-                  <span>دوار البحرية - مجمع الفرّا</span>
-                  <span class="phone">079 0368 603</span>
-                </div>
+                <div class="branch"><span style="font-weight:bold; color:#b45309">الفرع الأول: شفابدران</span><span>شارع رفعت شموط</span><span class="phone">079 5629 606</span></div>
+                <div class="branch"><span style="font-weight:bold; color:#b45309">الفرع الثاني: أبو نصير</span><span>دوار البحرية - مجمع الفرّا</span><span class="phone">079 0368 603</span></div>
               </div>
             </div>
-
           </div>
         </body>
       </html>
     `;
-
     receiptWindow.document.write(htmlContent);
     receiptWindow.document.close();
-    
-    receiptWindow.onload = () => {
-        receiptWindow.focus();
-        setTimeout(() => {
-            receiptWindow.print();
-            receiptWindow.close();
-        }, 500);
-    };
+    receiptWindow.onload = () => { receiptWindow.focus(); setTimeout(() => { receiptWindow.print(); receiptWindow.close(); }, 500); };
   };
 
   return (
@@ -446,32 +378,56 @@ export default function FinanceManager({
         onDelete={handleDeleteReason}
       />
 
-      {/* --- NEW SECTION: FINANCIAL CALCULATOR --- */}
-      <Card className="border-b-4 border-gray-800 bg-gradient-to-br from-gray-50 to-white">
-        <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-4 gap-4">
-            <h3 className="font-bold text-gray-800 flex items-center gap-2"><DollarSign size={20} className="text-yellow-500"/>ملخص التحصيل (كاش / Cliq)</h3>
-            <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-                <span className="text-xs font-bold text-gray-500 mr-2">من:</span>
-                <input type="date" value={calcDates.start} onChange={e=>setCalcDates({...calcDates, start: e.target.value})} className="text-sm bg-gray-50 border rounded px-2 py-1 outline-none focus:border-yellow-500"/>
-                <span className="text-xs font-bold text-gray-500 mx-1">إلى:</span>
-                <input type="date" value={calcDates.end} onChange={e=>setCalcDates({...calcDates, end: e.target.value})} className="text-sm bg-gray-50 border rounded px-2 py-1 outline-none focus:border-yellow-500"/>
+      {/* --- Collapsible Reports & Summary Section --- */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <button 
+            onClick={() => setShowSummary(!showSummary)}
+            className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-right"
+        >
+            <div className="flex items-center gap-2 font-bold text-gray-800">
+                <FileSpreadsheet size={24} className="text-yellow-500" />
+                <span>التقارير والملخص المالي</span>
             </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-            <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col items-center">
-                <div className="flex items-center gap-2 text-green-700 font-bold mb-1">
-                    <Banknote size={18}/> مجموع الكاش (Cash)
+            {showSummary ? <ChevronUp size={20} className="text-gray-400"/> : <ChevronDown size={20} className="text-gray-400"/>}
+        </button>
+
+        {showSummary && (
+            <div className="p-4 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white animate-slide-in">
+                {/* Date Controls */}
+                <div className="flex flex-col md:flex-row justify-between items-end md:items-center mb-6 gap-4">
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <span className="text-sm font-bold text-gray-500">الفترة من:</span>
+                        <input type="date" value={calcDates.start} onChange={e=>setCalcDates({...calcDates, start: e.target.value})} className="bg-white border rounded-lg px-3 py-2 outline-none focus:border-yellow-500 shadow-sm"/>
+                        <span className="text-sm font-bold text-gray-500">إلى:</span>
+                        <input type="date" value={calcDates.end} onChange={e=>setCalcDates({...calcDates, end: e.target.value})} className="bg-white border rounded-lg px-3 py-2 outline-none focus:border-yellow-500 shadow-sm"/>
+                    </div>
+                    {/* Print Button */}
+                    <button 
+                        onClick={printStatement}
+                        className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-xl hover:bg-black transition-colors shadow-lg"
+                    >
+                        <Printer size={18}/> طباعة كشف الحساب
+                    </button>
                 </div>
-                <div className="text-2xl font-black text-green-600">{calculatedTotals.cash} JD</div>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center">
-                <div className="flex items-center gap-2 text-purple-700 font-bold mb-1">
-                    <CreditCard size={18}/> مجموع الكليك (Cliq)
+
+                {/* Calculation Boxes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col items-center shadow-sm">
+                        <div className="flex items-center gap-2 text-green-700 font-bold mb-2">
+                            <Banknote size={20}/> مجموع الكاش (Cash)
+                        </div>
+                        <div className="text-3xl font-black text-green-600 tracking-tight">{calculatedTotals.cash} JD</div>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center shadow-sm">
+                        <div className="flex items-center gap-2 text-purple-700 font-bold mb-2">
+                            <CreditCard size={20}/> مجموع الكليك (Cliq)
+                        </div>
+                        <div className="text-3xl font-black text-purple-600 tracking-tight">{calculatedTotals.cliq} JD</div>
+                    </div>
                 </div>
-                <div className="text-2xl font-black text-purple-600">{calculatedTotals.cliq} JD</div>
             </div>
-        </div>
-      </Card>
+        )}
+      </div>
       {/* ------------------------------------------- */}
 
       {/* Top Toggle Switch */}
@@ -498,7 +454,7 @@ export default function FinanceManager({
                  <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
 
-              {/* --- NEW PAYMENT METHOD SELECTION --- */}
+              {/* Payment Method Selection */}
               <div>
                   <label className="text-xs block mb-1 font-bold text-gray-700">طريقة الدفع</label>
                   <div className="flex gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
@@ -510,7 +466,6 @@ export default function FinanceManager({
                     </button>
                   </div>
               </div>
-              {/* ------------------------------------ */}
               
               {/* قائمة الأسباب مع زر الإعدادات */}
               <div className="relative">
@@ -563,7 +518,7 @@ export default function FinanceManager({
                             <th className="p-3 rounded-r-lg">#</th>
                             <th className="p-3">الطالب</th>
                             <th className="p-3">البيان</th>
-                            <th className="p-3">الطريقة</th> {/* New Column */}
+                            <th className="p-3">الطريقة</th> 
                             <th className="p-3">التاريخ</th>
                             <th className="p-3">المبلغ</th>
                             <th className="p-3">طباعة</th>
