@@ -1,6 +1,5 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from "firebase/auth"; 
 import { getDoc, doc, collection, query, where, getDocs } from "firebase/firestore"; 
 import { auth, db } from './lib/firebase';
@@ -15,22 +14,19 @@ import { BRANCHES } from './lib/constants';
 
 const appId = 'brave-academy-live-data'; 
 
-// --- مكون الحماية (Protected Route) ---
-const ProtectedRoute = ({ user, allowedRoles, children }) => {
-  if (!user) return <Navigate to="/login" replace />;
-  
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-     // إذا لم يكن لديه الصلاحية، ارجعه للصفحة الرئيسية
-     return <Navigate to="/" replace />; 
-  }
-  
-  return children;
-};
-
 export default function App() {
+  // 1. الحالة الأولية
   const [user, setUser] = useState(() => { 
       const saved = localStorage.getItem('braveUser'); 
       return saved ? JSON.parse(saved) : null; 
+  });
+
+  const [view, setView] = useState(() => {
+      if (typeof window !== 'undefined' && localStorage.getItem('braveUser')) {
+          const u = JSON.parse(localStorage.getItem('braveUser'));
+          return u.role === 'student' ? 'student_portal' : 'admin_dashboard';
+      }
+      return 'home';
   });
 
   const [dashboardBranch, setDashboardBranch] = useState(() => {
@@ -40,15 +36,37 @@ export default function App() {
   
   const [loadingAuth, setLoadingAuth] = useState(true);
   
-  // ✅ Collections Hooks
+  // ✅ Collections Hooks (البيانات الخفيفة والمشتركة فقط)
   const studentsCollection = useCollection('students'); 
   const scheduleCollection = useCollection('schedule');
   const newsCollection = useCollection('news'); 
   
-  // --- دالة تسجيل الدخول (تقوم فقط بتحديث حالة المستخدم) ---
+  // 🚀 تم إزالة: payments, expenses, archive, registrations, captains
+  // سيتم جلبهم داخل AdminDashboard أو StudentPortal عند الحاجة فقط
+
+  // --- دالة التنقل الذكي ---
+  const navigateTo = (newView) => {
+     setView(newView);
+     window.history.pushState({ view: newView }, '', '');
+  };
+
+  // --- الاستماع لزر الرجوع ---
+  useEffect(() => {
+    window.history.replaceState({ view: view }, '', '');
+    const handleBackButton = (event) => {
+       if (event.state && event.state.view) {
+         setView(event.state.view);
+       } else {
+         setView('home');
+       }
+    };
+    window.addEventListener('popstate', handleBackButton);
+    return () => window.removeEventListener('popstate', handleBackButton);
+  }, []); 
+
+  // --- تسجيل الدخول ---
   const handleLogin = async (username, password) => {
     try {
-      // 1. فحص حسابات الطلاب
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
       const qStudent = query(studentsRef, where("username", "==", username), where("password", "==", password));
       const studentSnap = await getDocs(qStudent);
@@ -65,11 +83,10 @@ export default function App() {
         
         setUser(userData); 
         localStorage.setItem('braveUser', JSON.stringify(userData)); 
-        // الموجه (Router) سيقوم بالتحويل تلقائياً لأن حالة المستخدم تغيرت
+        navigateTo('student_portal');
         return;
       }
 
-      // 2. فحص حسابات الكباتن
       const captainsRef = collection(db, 'artifacts', appId, 'public', 'data', 'captains');
       const qCaptain = query(captainsRef, where("username", "==", username), where("password", "==", password));
       const captainSnap = await getDocs(qCaptain);
@@ -82,10 +99,10 @@ export default function App() {
          setUser(u); 
          localStorage.setItem('braveUser', JSON.stringify(u)); 
          setDashboardBranch(capData.branch); 
+         navigateTo('admin_dashboard');
          return;
       }
 
-      // 3. فحص حسابات الأدمن (Firebase Auth)
       if (username.includes('@') || username === 'admin1') {
           let email = username;
           if (username === 'admin1') email = 'admin@brave.com';
@@ -127,6 +144,7 @@ export default function App() {
         setUser(userData);
         setDashboardBranch(userData.branch);
         localStorage.setItem('braveUser', JSON.stringify(userData));
+        setView('admin_dashboard');
         
       } else {
         if (!localStorage.getItem('braveUser')) {
@@ -143,67 +161,37 @@ export default function App() {
     await signOut(auth); 
     localStorage.removeItem('braveUser'); 
     setUser(null);
+    navigateTo('home'); 
   };
 
-  if (loadingAuth) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من البيانات...</div>;
+  if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من البيانات...</div>;
 
   return (
-    <BrowserRouter>
-      <Routes>
-        
-        {/* الصفحة الرئيسية */}
-        <Route path="/" element={<HomeView setView={()=>{}} schedule={scheduleCollection.data} />} />
-        
-        {/* صفحة تسجيل الدخول */}
-        <Route 
-          path="/login" 
-          element={
-            !user ? (
-              <LoginView setView={()=>{}} handleLogin={handleLogin} />
-            ) : (
-              // إذا كان مسجلاً للدخول، وجهه حسب صلاحيته
-              <Navigate to={user.role === 'student' ? '/portal' : '/admin'} replace />
-            )
-          } 
+    <>
+      {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} />}
+      
+      {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
+      
+      {/* 🚀 Portal يجلب دفعاته بنفسه الآن */}
+      {view === 'student_portal' && user && <StudentPortal 
+          user={user} 
+          students={studentsCollection.data} 
+          schedule={scheduleCollection.data} 
+          news={newsCollection.data}
+          handleLogout={handleLogout} 
+      />}
+      
+      {/* 🚀 Dashboard يجلب بياناته الإدارية بنفسه الآن */}
+      {view === 'admin_dashboard' && user && (
+        <AdminDashboard 
+          user={user} 
+          selectedBranch={dashboardBranch} 
+          onSwitchBranch={user.isSuper ? setDashboardBranch : null} 
+          studentsCollection={studentsCollection} 
+          scheduleCollection={scheduleCollection} 
+          handleLogout={handleLogout}
         />
-        
-        {/* بوابة الطالب (محمية) */}
-        <Route 
-          path="/portal" 
-          element={
-            <ProtectedRoute user={user} allowedRoles={['student']}>
-              <StudentPortal 
-                user={user} 
-                students={studentsCollection.data} 
-                schedule={scheduleCollection.data} 
-                news={newsCollection.data}
-                handleLogout={handleLogout} 
-              />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* لوحة الأدمن (محمية) */}
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute user={user} allowedRoles={['admin', 'captain']}>
-              <AdminDashboard 
-                user={user} 
-                selectedBranch={dashboardBranch} 
-                onSwitchBranch={user.isSuper ? setDashboardBranch : null} 
-                studentsCollection={studentsCollection} 
-                scheduleCollection={scheduleCollection} 
-                handleLogout={handleLogout}
-              />
-            </ProtectedRoute>
-          } 
-        />
-
-        {/* أي رابط خاطئ يعود للرئيسية */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-        
-      </Routes>
-    </BrowserRouter>
+      )}
+    </>
   );
 }
