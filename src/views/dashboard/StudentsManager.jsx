@@ -272,7 +272,7 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
     );
 };
 
-// --- 3. Quick Renewal Modal (معدل: إضافة خيار شهرين) ---
+// --- 3. Quick Renewal Modal ---
 const SubscriptionModal = ({ student, onClose, onSave }) => {
     const [date, setDate] = useState(student.subEnd || new Date().toISOString().split('T')[0]);
 
@@ -300,7 +300,6 @@ const SubscriptionModal = ({ student, onClose, onSave }) => {
                 <label className="block text-xs font-bold text-gray-400 mb-2">إضافة سريعة:</label>
                 <div className="flex gap-2 mb-6">
                     <button onClick={() => addMonths(1)} className="flex-1 bg-white hover:bg-green-50 text-green-700 border border-green-200 py-3 rounded-xl font-bold text-sm transition shadow-sm hover:shadow-md">+ شهر</button>
-                    {/* إضافة خيار شهرين */}
                     <button onClick={() => addMonths(2)} className="flex-1 bg-white hover:bg-green-50 text-green-700 border border-green-200 py-3 rounded-xl font-bold text-sm transition shadow-sm hover:shadow-md">+ شهرين</button>
                     <button onClick={() => addMonths(3)} className="flex-1 bg-white hover:bg-green-50 text-green-700 border border-green-200 py-3 rounded-xl font-bold text-sm transition shadow-sm hover:shadow-md">+ 3 شهور</button>
                 </div>
@@ -342,7 +341,31 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [newS, setNewS] = useState(defaultForm);
   const [linkFamily, setLinkFamily] = useState('new');
   
-  const uniqueFamilies = [...new Map(students.map(item => [item.familyId, item.familyName])).entries()];
+  // --- التعديل الأول: تحسين تجميع العائلات مع الأسماء ---
+  const uniqueFamilies = useMemo(() => {
+      const familiesMap = {};
+      
+      students.forEach(s => {
+          if (s.familyId && s.familyId !== 'new') { 
+              if (!familiesMap[s.familyId]) {
+                  familiesMap[s.familyId] = {
+                      name: s.familyName || 'عائلة',
+                      members: []
+                  };
+              }
+              // نضيف اسم الطالب للقائمة (بحد أقصى 3 أسماء لتجنب الطول)
+              if (familiesMap[s.familyId].members.length < 3) {
+                   familiesMap[s.familyId].members.push(s.name.split(' ')[0]); 
+              }
+          }
+      });
+
+      return Object.entries(familiesMap).map(([id, data]) => ({
+          id,
+          // النص الذي سيظهر في القائمة
+          displayName: `${data.name} (يشمل: ${data.members.join('، ')}...)`
+      }));
+  }, [students]);
 
   const processedStudents = useMemo(() => {
       let result = [...students];
@@ -388,7 +411,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     let finalFamilyId, finalFamilyName;
     if (linkFamily === 'new') { 
         finalFamilyId = Math.floor(Date.now() / 1000); 
-        finalFamilyName = `عائلة ${newS.name.split(' ').slice(-1)[0]}`; 
+        // --- التعديل الثاني: إصلاح توليد اسم العائلة (إزالة المسافات الزائدة) ---
+        finalFamilyName = `عائلة ${newS.name.trim().split(/\s+/).pop()}`; 
     } else { 
         finalFamilyId = parseInt(linkFamily); 
         finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
@@ -599,7 +623,7 @@ https://bravetkd.bar/
           />
       )}
 
-      {/* Quick Renewal Modal (معدل) */}
+      {/* Quick Renewal Modal */}
       {renewingStudent && (
           <SubscriptionModal 
               student={renewingStudent}
@@ -774,7 +798,6 @@ https://bravetkd.bar/
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                 <td className="p-4">
                                     <div className="flex gap-1">
-                                        {/* زر التجديد السريع الجديد */}
                                         <button onClick={() => setRenewingStudent(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-600 hover:text-white transition" title="تجديد الاشتراك">
                                             <CalendarClock size={16}/>
                                         </button>
@@ -923,12 +946,17 @@ https://bravetkd.bar/
                              </select>
                         </div>
 
+                        {/* --- التعديل الثالث: استخدام القائمة الجديدة للعائلات --- */}
                         {!editingStudent && (
                             <div className="md:col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
                                 <label className="block text-xs font-bold text-blue-800 mb-1">العائلة (للخصومات)</label>
                                 <select className="w-full border border-blue-200 p-2 rounded-lg bg-white focus:ring-2 focus:ring-blue-200 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
                                     <option value="new">تسجيل كعائلة جديدة</option>
-                                    {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>انضمام لـ {name}</option>)}
+                                    {uniqueFamilies.map((f) => (
+                                        <option key={f.id} value={f.id}>
+                                            انضمام لـ {f.displayName}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         )}
