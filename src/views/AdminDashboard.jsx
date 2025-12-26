@@ -81,9 +81,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
         .slice(0, 50); 
   }, [activityLogsData, selectedBranch]);
 
-  const totalIncome = branchPayments.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalExpense = branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const netProfit = totalIncome - totalExpense;
+  const totalIncome = branchPayments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+const totalExpense = branchExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+const netProfit = totalIncome - totalExpense;
   const activeStudentsCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'active').length;
   const nearEndCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
   const expiredCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'expired').length;
