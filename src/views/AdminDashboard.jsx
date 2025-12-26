@@ -4,7 +4,8 @@ import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; // ✅ استيراد الهوك
-
+import AdminNotesManager from './dashboard/AdminNotesManager';
+import { NotebookPen } from 'lucide-react'; // أيقونة جديدة
 // Import Managers
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
@@ -138,6 +139,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     {id:'schedule',icon:Clock,label:'الجدول'},
     {id:'archive',icon:Archive,label:'الأرشيف'},
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
+    { id: 'notes', label: 'ملاحظات الإدارة', icon: NotebookPen, component: <AdminNotesManager /> },
   ];
 
   return (
