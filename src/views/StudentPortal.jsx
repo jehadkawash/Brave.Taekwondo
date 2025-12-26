@@ -23,12 +23,32 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const currentUserData = students.find(s => s.id === user.id) || user;
   const myStudents = students.filter(s => s.familyId === user.familyId);
   
+  // --- منطق استنتاج اسم العائلة (الجديد) ---
+  let displayFamilyName = currentUserData.familyName || 'عائلة';
+  // التحقق مما إذا كان الاسم عاماً (مثل "عائلة" فقط)
+  if (displayFamilyName.trim() === 'عائلة' || displayFamilyName.trim().toLowerCase() === 'family') {
+      const lastNames = {};
+      // البحث عن اللقب الأكثر تكراراً بين الأبناء
+      myStudents.forEach(s => {
+          const parts = s.name.trim().split(/\s+/);
+          if (parts.length > 1) {
+              const last = parts[parts.length - 1];
+              lastNames[last] = (lastNames[last] || 0) + 1;
+          }
+      });
+      const entries = Object.entries(lastNames).sort((a,b) => b[1] - a[1]);
+      if (entries.length > 0) {
+          displayFamilyName = `عائلة ${entries[0][0]}`;
+      }
+  }
+  // ----------------------------------------
+
   // ترتيب الدفعات
   const myPayments = payments
     .filter(p => myStudents.some(s => s.id === p.studentId))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   
-  // ✅ (جديد) فلترة الأخبار: العامة أو الخاصة بفروع أبناء العائلة
+  // ✅ فلترة الأخبار: العامة أو الخاصة بفروع أبناء العائلة
   const studentBranches = [...new Set(myStudents.map(s => s.branch))];
   const relevantNews = (news || [])
     .filter(n => !n.branch || n.branch === 'الكل' || studentBranches.includes(n.branch))
@@ -81,7 +101,11 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
              <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 bg-white rounded-full p-1" />
-             <div><h1 className="font-bold text-lg">مرحباً {user.name}</h1><p className="text-xs text-gray-400">بوابة العائلة</p></div>
+             <div>
+                 {/* تم التعديل هنا لعرض اسم العائلة */}
+                 <h1 className="font-bold text-lg">مرحباً {displayFamilyName}</h1>
+                 <p className="text-xs text-gray-400">بوابة العائلة</p>
+             </div>
           </div>
           
           <div className="flex gap-2">
@@ -102,7 +126,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       
       <div className="container mx-auto p-4 md:p-8 max-w-5xl space-y-8">
         
-        {/* ✅ (جديد) قسم الأخبار والإعلانات */}
+        {/* ✅ قسم الأخبار والإعلانات */}
         {relevantNews.length > 0 && (
             <div className="bg-white rounded-2xl shadow-lg border-r-4 border-yellow-500 overflow-hidden">
                 <div className="p-4 bg-gradient-to-r from-yellow-50 to-white border-b border-yellow-100 flex items-center gap-2">
