@@ -1,12 +1,13 @@
 // src/views/AdminDashboard.jsx
 import React, { useState, useMemo } from 'react';
-import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, NotebookPen } from 'lucide-react';
+// 1. تم استبدال NotebookPen بـ FileText لضمان التوافق
+import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, FileText } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-import { useCollection } from '../hooks/useCollection'; // ✅ استيراد الهوك
+import { useCollection } from '../hooks/useCollection'; 
 
 // Import Managers
-import AdminNotesManager from './dashboard/AdminNotesManager'; // ✅ استيراد صفحة الملاحظات الجديدة
+import AdminNotesManager from './dashboard/AdminNotesManager';
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
 import ArchiveManager from './dashboard/ArchiveManager';
@@ -37,12 +38,10 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// 🚀 حذفنا الـ Collections الإدارية من الـ Props وسنجلبها في الداخل
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleCollection, handleLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // 1. 🚀 جلب البيانات الإدارية هنا (Lazy Loading عند دخول الأدمن فقط)
   const paymentsCollection = useCollection('payments');
   const expensesCollection = useCollection('expenses');
   const archiveCollection = useCollection('archive');
@@ -56,7 +55,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const schedule = scheduleCollection?.data || [];
   const captains = captainsCollection?.data || [];
 
-  // 2. جلب الكولكشنز الإضافية
   const groupsCollection = useCollection('groups');
   const groupsData = groupsCollection?.data || [];
   
@@ -69,7 +67,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const activityLogsCollection = useCollection('activity_logs');
   const activityLogsData = activityLogsCollection?.data || [];
 
-  // 3. فلترة البيانات حسب الفرع
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
@@ -84,7 +81,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
         .slice(0, 50); 
   }, [activityLogsData, selectedBranch]);
 
-  // الحسابات
   const totalIncome = branchPayments.reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpense = branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalIncome - totalExpense;
@@ -102,7 +98,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
 
   const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
 
-  // --- دالة تحميل النسخة الاحتياطية (Backup) ---
   const handleBackup = () => {
     if (!confirm("هل تريد تحميل نسخة كاملة من قاعدة البيانات؟")) return;
 
@@ -139,7 +134,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     {id:'schedule',icon:Clock,label:'الجدول'},
     {id:'archive',icon:Archive,label:'الأرشيف'},
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
-    {id: 'notes', label: 'ملاحظات الإدارة', icon: NotebookPen }, // ✅ تم إضافة العنصر هنا
+    // 2. استخدام FileText بدلاً من NotebookPen
+    {id: 'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
   ];
 
   return (
@@ -236,7 +232,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
 
          {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
 
-         {/* ✅ تم إضافة شرط العرض لصفحة الملاحظات الجديدة */}
          {activeTab === 'notes' && <AdminNotesManager />}
       </main>
     </div>
