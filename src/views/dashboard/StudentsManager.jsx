@@ -341,7 +341,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [newS, setNewS] = useState(defaultForm);
   const [linkFamily, setLinkFamily] = useState('new');
   
-  // --- التعديل الأول: تحسين تجميع العائلات مع الأسماء ---
+  // --- التعديل الذكي: تجميع العائلات + استنتاج الاسم المفقود ---
   const uniqueFamilies = useMemo(() => {
       const familiesMap = {};
       
@@ -349,22 +349,51 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           if (s.familyId && s.familyId !== 'new') { 
               if (!familiesMap[s.familyId]) {
                   familiesMap[s.familyId] = {
-                      name: s.familyName || 'عائلة',
-                      members: []
+                      name: s.familyName, // نبدأ بالاسم المسجل
+                      members: [],
+                      lastNames: {} // لتتبع الألقاب الأكثر تكراراً لاستنتاج اسم العائلة
                   };
               }
-              // نضيف اسم الطالب للقائمة (بحد أقصى 3 أسماء لتجنب الطول)
+              
+              // تقسيم الاسم للحصول على الاسم الأول واللقب
+              const nameParts = s.name.trim().split(/\s+/);
+              const firstName = nameParts[0];
+              const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+
+              // إضافة اسم العضو للقائمة (بحد أقصى 3 أسماء)
               if (familiesMap[s.familyId].members.length < 3) {
-                   familiesMap[s.familyId].members.push(s.name.split(' ')[0]); 
+                   familiesMap[s.familyId].members.push(firstName); 
+              }
+              
+              // تسجيل اللقب لتصحيح اسم العائلة لاحقاً إذا لزم الأمر
+              if (lastName) {
+                  familiesMap[s.familyId].lastNames[lastName] = (familiesMap[s.familyId].lastNames[lastName] || 0) + 1;
               }
           }
       });
 
-      return Object.entries(familiesMap).map(([id, data]) => ({
-          id,
-          // النص الذي سيظهر في القائمة
-          displayName: `${data.name} (يشمل: ${data.members.join('، ')}...)`
-      }));
+      return Object.entries(familiesMap).map(([id, data]) => {
+          let finalName = data.name || 'عائلة';
+          
+          // إذا كان الاسم المسجل "عائلة" أو "Family" أو فارغ، نستنتج الاسم من ألقاب الطلاب
+          const isGenericName = !finalName || finalName.trim() === 'عائلة' || finalName.trim().toLowerCase() === 'family';
+          
+          if (isGenericName) {
+              // نجد اللقب الأكثر تكراراً في هذه العائلة
+              const entries = Object.entries(data.lastNames);
+              if (entries.length > 0) {
+                  // ترتيب تنازلي حسب التكرار وأخذ الأول
+                  const bestLastName = entries.sort((a,b) => b[1] - a[1])[0][0];
+                  finalName = `عائلة ${bestLastName}`;
+              }
+          }
+
+          return {
+              id,
+              // النص النهائي الذي سيظهر في القائمة
+              displayName: `${finalName} (يشمل: ${data.members.join('، ')}...)`
+          };
+      });
   }, [students]);
 
   const processedStudents = useMemo(() => {
@@ -411,11 +440,18 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     let finalFamilyId, finalFamilyName;
     if (linkFamily === 'new') { 
         finalFamilyId = Math.floor(Date.now() / 1000); 
-        // --- التعديل الثاني: إصلاح توليد اسم العائلة (إزالة المسافات الزائدة) ---
+        // --- إصلاح توليد اسم العائلة للطلاب الجدد ---
         finalFamilyName = `عائلة ${newS.name.trim().split(/\s+/).pop()}`; 
     } else { 
         finalFamilyId = parseInt(linkFamily); 
-        finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
+        // هنا نستخدم الاسم من القائمة المحسنة إذا أمكن، أو نبقيه كما هو
+        const existingFamily = uniqueFamilies.find(f => f.id === linkFamily.toString());
+        // نأخذ الجزء الأول من الاسم المحسن (قبل القوس) ليكون هو اسم العائلة الرسمي في الداتابيز
+        if (existingFamily) {
+             finalFamilyName = existingFamily.displayName.split(' (')[0];
+        } else {
+             finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
+        }
     }
 
     let subEnd = newS.subEnd;
@@ -946,7 +982,7 @@ https://bravetkd.bar/
                              </select>
                         </div>
 
-                        {/* --- التعديل الثالث: استخدام القائمة الجديدة للعائلات --- */}
+                        {/* --- القائمة الجديدة للعائلات --- */}
                         {!editingStudent && (
                             <div className="md:col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
                                 <label className="block text-xs font-bold text-blue-800 mb-1">العائلة (للخصومات)</label>
