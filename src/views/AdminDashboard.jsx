@@ -129,11 +129,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     {id:'finance',icon:DollarSign,label:'المالية'},
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
     {id:'tests',icon:Award,label:'فحوصات الترفيع'}, // ✅ العنصر الجديد
-    {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
     {id: 'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
-
-    {id:'schedule',icon:Clock,label:'الجدول'},
     {id:'archive',icon:Archive,label:'الأرشيف'},
+    {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
+    {id:'schedule',icon:Clock,label:'الجدول'},
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
   ];
 
