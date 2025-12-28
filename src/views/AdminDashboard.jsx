@@ -1,6 +1,5 @@
 // src/views/AdminDashboard.jsx
 import React, { useState, useMemo } from 'react';
-// ✅ تمت إضافة Award للأيقونات
 import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, FileText, MapPin, Award } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
@@ -17,7 +16,8 @@ import RegistrationsManager from './dashboard/RegistrationsManager';
 import ScheduleManager from './dashboard/ScheduleManager';
 import CaptainsManager from './dashboard/CaptainsManager';
 import NewsManager from './dashboard/NewsManager';
-import BeltTestsManager from './dashboard/BeltTestsManager'; // ✅ استيراد المكون الجديد
+import BeltTestsManager from './dashboard/BeltTestsManager';
+import ReportsManager from './dashboard/ReportsManager'; 
 
 const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
@@ -53,6 +53,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const newsCollection = useCollection('news');
   const financeReasonsCollection = useCollection('finance_reasons');
   const activityLogsCollection = useCollection('activity_logs');
+  // ✅ 1. جلب ملاحظات الإدارة لتمريرها للتقرير
+  const adminNotesCollection = useCollection('admin_notes');
 
   const students = studentsCollection?.data || [];
   const payments = paymentsCollection?.data || [];
@@ -64,6 +66,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const newsData = newsCollection?.data || [];
   const financeReasonsData = financeReasonsCollection?.data || [];
   const activityLogsData = activityLogsCollection?.data || [];
+  const adminNotesData = adminNotesCollection?.data || [];
 
   // فلترة البيانات حسب الفرع المختار
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
@@ -72,12 +75,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
   const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
+  // لا توجد فلترة لملاحظات الإدارة عادة لأنها عامة، لكن يمكن فلترتها إذا كان لها فرع
+  const branchAdminNotes = adminNotesData; 
 
   const branchActivityLogs = useMemo(() => {
       return activityLogsData
         .filter(l => l.branch === selectedBranch)
-        .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 50); 
+        .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
   }, [activityLogsData, selectedBranch]);
 
   // الحسابات
@@ -111,7 +115,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
       news: newsData,
       groups: branchGroups,
       captains: captains,
-      activityLogs: branchActivityLogs 
+      activityLogs: branchActivityLogs,
+      adminNotes: branchAdminNotes
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
     const downloadAnchorNode = document.createElement('a');
@@ -127,8 +132,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
     {id:'students',icon:Users,label:'الطلاب'},
     {id:'finance',icon:DollarSign,label:'المالية'},
+    {id:'reports', icon: FileText, label: 'التقارير الشاملة'}, 
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
-    {id:'tests',icon:Award,label:'فحوصات الترفيع'}, // ✅ العنصر الجديد
+    {id:'tests',icon:Award,label:'فحوصات الترفيع'},
     {id: 'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
     {id:'archive',icon:Archive,label:'الأرشيف'},
     {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
@@ -217,11 +223,21 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
              logActivity={handleLog}
          />}
          
-         {/* ✅ الشاشة الجديدة تظهر هنا */}
          {activeTab === 'tests' && <BeltTestsManager 
              students={branchStudents}
              studentsCollection={studentsCollection}
              logActivity={handleLog}
+         />}
+
+         {/* ✅ 2. تمرير adminNotes للتقرير */}
+         {activeTab === 'reports' && <ReportsManager 
+            students={branchStudents}
+            payments={branchPayments}
+            expenses={branchExpenses}
+            activityLogs={branchActivityLogs}
+            registrations={branchRegistrations}
+            adminNotes={branchAdminNotes}
+            selectedBranch={selectedBranch}
          />}
 
          {activeTab === 'finance' && <FinanceManager 
