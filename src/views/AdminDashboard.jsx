@@ -1,7 +1,7 @@
 // src/views/AdminDashboard.jsx
 import React, { useState, useMemo } from 'react';
-// 1. تم استبدال NotebookPen بـ FileText لضمان التوافق
-import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, FileText } from 'lucide-react';
+// ✅ تمت إضافة Award للأيقونات
+import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, FileText, MapPin, Award } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; 
@@ -17,6 +17,7 @@ import RegistrationsManager from './dashboard/RegistrationsManager';
 import ScheduleManager from './dashboard/ScheduleManager';
 import CaptainsManager from './dashboard/CaptainsManager';
 import NewsManager from './dashboard/NewsManager';
+import BeltTestsManager from './dashboard/BeltTestsManager'; // ✅ استيراد المكون الجديد
 
 const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
@@ -38,15 +39,20 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleCollection, handleLogout }) => {
+const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleCollection, handleLogout, onSwitchBranch }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // جلب البيانات
   const paymentsCollection = useCollection('payments');
   const expensesCollection = useCollection('expenses');
   const archiveCollection = useCollection('archive');
   const registrationsCollection = useCollection('registrations');
   const captainsCollection = useCollection('captains');
+  const groupsCollection = useCollection('groups');
+  const newsCollection = useCollection('news');
+  const financeReasonsCollection = useCollection('finance_reasons');
+  const activityLogsCollection = useCollection('activity_logs');
 
   const students = studentsCollection?.data || [];
   const payments = paymentsCollection?.data || [];
@@ -54,19 +60,12 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const registrations = registrationsCollection?.data || [];
   const schedule = scheduleCollection?.data || [];
   const captains = captainsCollection?.data || [];
-
-  const groupsCollection = useCollection('groups');
   const groupsData = groupsCollection?.data || [];
-  
-  const newsCollection = useCollection('news');
   const newsData = newsCollection?.data || [];
-
-  const financeReasonsCollection = useCollection('finance_reasons');
   const financeReasonsData = financeReasonsCollection?.data || [];
-
-  const activityLogsCollection = useCollection('activity_logs');
   const activityLogsData = activityLogsCollection?.data || [];
 
+  // فلترة البيانات حسب الفرع المختار
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
@@ -81,9 +80,10 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
         .slice(0, 50); 
   }, [activityLogsData, selectedBranch]);
 
+  // الحسابات
   const totalIncome = branchPayments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-const totalExpense = branchExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-const netProfit = totalIncome - totalExpense;
+  const totalExpense = branchExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const netProfit = totalIncome - totalExpense;
   const activeStudentsCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'active').length;
   const nearEndCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
   const expiredCount = branchStudents.filter(s => calculateStatus(s.subEnd) === 'expired').length;
@@ -100,7 +100,6 @@ const netProfit = totalIncome - totalExpense;
 
   const handleBackup = () => {
     if (!confirm("هل تريد تحميل نسخة كاملة من قاعدة البيانات؟")) return;
-
     const backupData = {
       date: new Date().toISOString(),
       branch: selectedBranch,
@@ -114,7 +113,6 @@ const netProfit = totalIncome - totalExpense;
       captains: captains,
       activityLogs: branchActivityLogs 
     };
-
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -129,12 +127,12 @@ const netProfit = totalIncome - totalExpense;
     {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
     {id:'registrations',icon:Inbox,label:'الطلبات', badge: branchRegistrations.length},
     {id:'students',icon:Users,label:'الطلاب'},
+    {id:'tests',icon:Award,label:'فحوصات الترفيع'}, // ✅ العنصر الجديد
     {id:'finance',icon:DollarSign,label:'المالية'},
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
     {id:'schedule',icon:Clock,label:'الجدول'},
     {id:'archive',icon:Archive,label:'الأرشيف'},
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
-    // 2. استخدام FileText بدلاً من NotebookPen
     {id: 'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
   ];
 
@@ -178,6 +176,23 @@ const netProfit = totalIncome - totalExpense;
             <h2 className="font-bold text-gray-800">أكاديمية الشجاع</h2>
          </div>
          
+         {onSwitchBranch && (
+            <div className="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-yellow-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <MapPin className="text-yellow-600" />
+                    <span className="font-bold text-gray-700">أنت تشاهد بيانات فرع:</span>
+                </div>
+                <select 
+                    value={selectedBranch} 
+                    onChange={(e) => onSwitchBranch(e.target.value)}
+                    className="bg-yellow-50 border-2 border-yellow-400 text-yellow-900 text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block p-2.5 font-bold outline-none cursor-pointer"
+                >
+                    <option value="شفا بدران">شفا بدران</option>
+                    <option value="أبو نصير">أبو نصير</option>
+                </select>
+            </div>
+         )}
+         
          {activeTab === 'dashboard' && <DashboardStats 
              user={user} 
              selectedBranch={selectedBranch} 
@@ -199,6 +214,13 @@ const netProfit = totalIncome - totalExpense;
              studentsCollection={studentsCollection} 
              archiveCollection={archiveCollection} 
              selectedBranch={selectedBranch} 
+             logActivity={handleLog}
+         />}
+         
+         {/* ✅ الشاشة الجديدة تظهر هنا */}
+         {activeTab === 'tests' && <BeltTestsManager 
+             students={branchStudents}
+             studentsCollection={studentsCollection}
              logActivity={handleLog}
          />}
 
