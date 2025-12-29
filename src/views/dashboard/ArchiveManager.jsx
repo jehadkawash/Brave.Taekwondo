@@ -1,11 +1,12 @@
-// src/views/dashboard/ArchiveManager.js
+// src/views/dashboard/ArchiveManager.jsx
 import React, { useState } from 'react';
-import { Archive, DollarSign, Printer, MessageCircle, CheckCircle, FileText, ArrowRight, Trash2 } from 'lucide-react';
+import { Archive, DollarSign, Printer, MessageCircle, CheckCircle, FileText, ArrowRight, Trash2, Eye, User, Calendar, MapPin, Lock, Shield } from 'lucide-react';
 // We assume your UI components are here based on your folder structure
 import { Card, Button } from '../../components/UIComponents'; 
 
 const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logActivity }) => {
   const [selectedStudentForFinance, setSelectedStudentForFinance] = useState(null); 
+  const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null); // ✅ حالة جديدة لعرض التفاصيل
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filter archive by search
@@ -13,14 +14,16 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
 
   // Function to restore student
   const restoreStudent = async (archivedStudent) => {
-      if(!window.confirm(`هل تريد إعادة تفعيل اشتراك الطالب ${archivedStudent.name}؟`)) return;
+      if(!window.confirm(`هل تريد إعادة تفعيل اشتراك الطالب ${archivedStudent.name}؟\n\n(سيتم الحفاظ على تاريخ الالتحاق الأصلي)`)) return;
       
       // 1. Add back to active students
       const { archivedAt, originalId, id, ...studentData } = archivedStudent;
+      
       await studentsCollection.add({
           ...studentData,
           status: 'active',
-          joinDate: new Date().toISOString().split('T')[0]
+          // ✅ التصحيح هنا: نستخدم التاريخ الأصلي إذا وجد، وإلا نستخدم تاريخ اليوم فقط إذا كان غير موجود
+          joinDate: studentData.joinDate || new Date().toISOString().split('T')[0]
       });
 
       // 2. Remove from archive
@@ -53,6 +56,89 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
 
   return (
     <div className="space-y-6">
+
+      {/* ✅ مودال عرض التفاصيل الكاملة للطالب المؤرشف (الجديد) */}
+      {selectedStudentForDetails && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" title={`بطاقة الطالب المؤرشف: ${selectedStudentForDetails.name}`}>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      {/* المعلومات الأساسية */}
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                          <h4 className="font-bold text-gray-800 border-b pb-2 mb-3 flex items-center gap-2">
+                              <User size={16} className="text-blue-600"/> البيانات الشخصية
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                              <p><span className="text-gray-500 font-bold">الاسم:</span> {selectedStudentForDetails.name}</p>
+                              <p><span className="text-gray-500 font-bold">الهاتف:</span> {selectedStudentForDetails.phone}</p>
+                              <p><span className="text-gray-500 font-bold">الحزام:</span> {selectedStudentForDetails.belt}</p>
+                              <p><span className="text-gray-500 font-bold">المجموعة:</span> {selectedStudentForDetails.group || 'غير محدد'}</p>
+                              <p><span className="text-gray-500 font-bold">تاريخ الميلاد:</span> {selectedStudentForDetails.dob || 'غير مدخل'}</p>
+                          </div>
+                      </div>
+
+                      {/* التواريخ والعناوين */}
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                          <h4 className="font-bold text-gray-800 border-b pb-2 mb-3 flex items-center gap-2">
+                              <Calendar size={16} className="text-green-600"/> التواريخ والعنوان
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                              <p><span className="text-gray-500 font-bold">تاريخ الالتحاق الأصلي:</span> {selectedStudentForDetails.joinDate}</p>
+                              <p><span className="text-gray-500 font-bold">تاريخ الأرشفة:</span> {selectedStudentForDetails.archivedAt}</p>
+                              <p><span className="text-gray-500 font-bold">تاريخ انتهاء الاشتراك (عند الأرشفة):</span> {selectedStudentForDetails.subEnd}</p>
+                              <div className="flex gap-1">
+                                  <MapPin size={14} className="text-gray-400 mt-1"/>
+                                  <span className="text-gray-800">{selectedStudentForDetails.address || 'لا يوجد عنوان مسجل'}</span>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* بيانات الدخول */}
+                      <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                          <h4 className="font-bold text-gray-800 border-b border-yellow-200 pb-2 mb-3 flex items-center gap-2">
+                              <Lock size={16} className="text-yellow-600"/> بيانات الدخول
+                          </h4>
+                          <div className="space-y-2 text-sm font-mono dir-ltr text-right">
+                              <p><span className="text-gray-500 font-sans font-bold float-right ml-2">:Username</span> {selectedStudentForDetails.username}</p>
+                              <p><span className="text-gray-500 font-sans font-bold float-right ml-2">:Password</span> {selectedStudentForDetails.password}</p>
+                          </div>
+                      </div>
+
+                      {/* الملاحظات */}
+                      <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+                          <h4 className="font-bold text-gray-800 border-b border-red-200 pb-2 mb-3 flex items-center gap-2">
+                              <Shield size={16} className="text-red-600"/> ملاحظات إدارية
+                          </h4>
+                          <div className="max-h-32 overflow-y-auto custom-scrollbar text-sm">
+                              {selectedStudentForDetails.internalNotes && selectedStudentForDetails.internalNotes.length > 0 ? (
+                                  <ul className="list-disc list-inside space-y-1">
+                                      {selectedStudentForDetails.internalNotes.map((n, i) => (
+                                          <li key={i} className="text-gray-700">{n.text} <span className="text-xs text-gray-400">({n.date})</span></li>
+                                      ))}
+                                  </ul>
+                              ) : (
+                                  <p className="text-gray-400 italic">لا يوجد ملاحظات</p>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-2">
+                      <Button onClick={() => setSelectedStudentForDetails(null)}>إغلاق</Button>
+                      <Button 
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => {
+                              restoreStudent(selectedStudentForDetails);
+                              setSelectedStudentForDetails(null);
+                          }}
+                      >
+                          <ArrowRight size={16} className="ml-2"/> استعادة الطالب
+                      </Button>
+                  </div>
+              </Card>
+          </div>
+      )}
+
       {/* Modal: Financial File */}
       {selectedStudentForFinance && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
@@ -155,6 +241,15 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                                   )}
                               </td>
                               <td className="p-4 flex gap-2">
+                                  {/* ✅ زر عرض التفاصيل الجديد */}
+                                  <button 
+                                      onClick={() => setSelectedStudentForDetails(s)} 
+                                      className="bg-gray-50 text-gray-600 p-2 rounded hover:bg-gray-200 border border-gray-200" 
+                                      title="عرض كافة المعلومات"
+                                  >
+                                      <Eye size={16}/>
+                                  </button>
+
                                   <Button 
                                       variant="outline" 
                                       className="py-1 px-3 text-xs border-gray-300 hover:bg-gray-100 text-gray-700"
