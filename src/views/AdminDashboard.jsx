@@ -1,6 +1,7 @@
 // src/views/AdminDashboard.jsx
 import React, { useState, useMemo } from 'react';
-import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, FileText, MapPin, Award } from 'lucide-react';
+// ✅ ADDED "Calendar" to the imports below
+import { Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, Shield, Menu, LogOut, Megaphone, Download, Database, FileText, MapPin, Award, Calendar } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; 
@@ -44,7 +45,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // جلب البيانات
+  // Fetch Data
   const paymentsCollection = useCollection('payments');
   const expensesCollection = useCollection('expenses');
   const archiveCollection = useCollection('archive');
@@ -54,7 +55,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const newsCollection = useCollection('news');
   const financeReasonsCollection = useCollection('finance_reasons');
   const activityLogsCollection = useCollection('activity_logs');
-  // ✅ 1. جلب ملاحظات الإدارة لتمريرها للتقرير
   const adminNotesCollection = useCollection('admin_notes');
 
   const students = studentsCollection?.data || [];
@@ -69,14 +69,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const activityLogsData = activityLogsCollection?.data || [];
   const adminNotesData = adminNotesCollection?.data || [];
 
-  // فلترة البيانات حسب الفرع المختار
+  // Filter Data by Branch
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
   const branchGroups = useMemo(() => groupsData.filter(g => g.branch === selectedBranch), [groupsData, selectedBranch]);
   const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
-  // لا توجد فلترة لملاحظات الإدارة عادة لأنها عامة، لكن يمكن فلترتها إذا كان لها فرع
   const branchAdminNotes = adminNotesData; 
 
   const branchActivityLogs = useMemo(() => {
@@ -85,7 +84,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
         .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
   }, [activityLogsData, selectedBranch]);
 
-  // الحسابات
+  // Calculations
   const totalIncome = branchPayments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpense = branchExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const netProfit = totalIncome - totalExpense;
@@ -134,14 +133,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     {id:'students',icon:Users,label:'الطلاب'},
     {id:'finance',icon:DollarSign,label:'المالية'},
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
-    {id:'subscriptions', icon: Calendar, label: 'إدارة الاشتراكات'}, // Add this line
+    {id:'subscriptions', icon: Calendar, label: 'إدارة الاشتراكات'}, 
     {id:'tests',icon:Award,label:'فحوصات الترفيع'},
     {id: 'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
     {id:'archive',icon:Archive,label:'الأرشيف'},
     {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
     {id:'schedule',icon:Clock,label:'الجدول'},
     {id:'reports', icon: FileText, label: 'التقارير الشاملة'}, 
-
     {id:'captains',icon:Shield,label:'الكباتن', role: 'admin'}, 
   ];
 
@@ -232,7 +230,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
              logActivity={handleLog}
          />}
 
-         {/* ✅ 2. تمرير adminNotes للتقرير */}
          {activeTab === 'reports' && <ReportsManager 
             students={branchStudents}
             payments={branchPayments}
@@ -244,10 +241,11 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
          />}
 
          {activeTab === 'subscriptions' && <SubscriptionsManager 
-    students={branchStudents} 
-    studentsCollection={studentsCollection} 
-    logActivity={handleLog} 
-/>}
+            students={branchStudents} 
+            studentsCollection={studentsCollection} 
+            logActivity={handleLog} 
+            selectedBranch={selectedBranch}
+         />}
 
          {activeTab === 'finance' && <FinanceManager 
              students={branchStudents} 
