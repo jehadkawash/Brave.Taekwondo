@@ -45,12 +45,11 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// --- مكون القائمة المنسدلة (للكمبيوتر) ---
+// --- مكون القائمة المنسدلة (تم تحديثه ليدعم الأزرار العادية مثل النسخ الاحتياطي) ---
 const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
 
-    // إغلاق القائمة عند النقر خارجها
     useEffect(() => {
         function handleClickOutside(event) {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -76,15 +75,21 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
             </button>
 
             {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
-                    {items.map(item => (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+                    {items.map((item, idx) => (
                         <button
-                            key={item.id}
-                            onClick={() => { onSelect(item.id); setIsOpen(false); }}
+                            key={idx}
+                            onClick={() => { 
+                                if (item.action) item.action(); // تشغيل دالة (مثل الباك اب)
+                                else onSelect(item.id); // تبديل التبويب
+                                setIsOpen(false); 
+                            }}
                             className={`w-full text-right px-4 py-3 flex items-center gap-3 transition-colors text-sm font-bold border-b border-gray-50 last:border-0
-                                ${activeTab === item.id ? 'bg-yellow-50 text-yellow-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                                ${activeTab === item.id ? 'bg-yellow-50 text-yellow-700' : 'text-gray-600 hover:bg-gray-50'}
+                                ${item.special ? 'text-green-600 bg-green-50 hover:bg-green-100' : ''}
+                            `}
                         >
-                            <item.icon size={16} className={activeTab === item.id ? 'text-yellow-600' : 'text-gray-400'}/>
+                            <item.icon size={16} className={activeTab === item.id ? 'text-yellow-600' : item.special ? 'text-green-600' : 'text-gray-400'}/>
                             {item.label}
                             {item.badge > 0 && <span className="mr-auto bg-red-500 text-white text-[10px] px-1.5 rounded-full">{item.badge}</span>}
                         </button>
@@ -123,7 +128,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const activityLogsData = activityLogsCollection?.data || [];
   const adminNotesData = adminNotesCollection?.data || [];
 
-  // فلترة البيانات
   const branchStudents = useMemo(() => students.filter(s => s.branch === selectedBranch), [students, selectedBranch]);
   const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
   const branchExpenses = useMemo(() => expenses.filter(e => e.branch === selectedBranch), [expenses, selectedBranch]);
@@ -138,7 +142,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
         .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
   }, [activityLogsData, selectedBranch]);
 
-  // الحسابات السريعة
   const totalIncome = branchPayments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpense = branchExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const netProfit = totalIncome - totalExpense;
@@ -156,7 +159,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
 
   const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
 
-  // النسخ الاحتياطي
+  // دالة النسخ الاحتياطي
   const handleBackup = () => {
     if (!confirm("هل تريد تحميل نسخة كاملة من قاعدة البيانات؟")) return;
     const backupData = {
@@ -182,32 +185,37 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     downloadAnchorNode.remove();
   };
 
-  // --- تعريف هيكلية القوائم ---
+  // --- تعريف المجموعات الجديدة ---
+  
+  // المجموعة الأولى: طلاب
   const studentGroups = [
-      {id:'students',icon:Users,label:'جميع الطلاب'},
-      {id:'registrations',icon:Inbox,label:'طلبات التسجيل', badge: branchRegistrations.length},
-      {id:'subscriptions', icon: Calendar, label: 'إدارة الاشتراكات'},
-      {id:'tests',icon:Award,label:'فحوصات الترفيع'},
+      {id:'students', icon:Users, label:'الطلاب'}, // جميع الطلاب -> الطلاب
+      {id:'subscriptions', icon:Calendar, label:'اشتراكات'}, // إدارة الاشتراكات -> اشتراكات
+      {id:'tests', icon:Award, label:'فحص'}, // فحوصات الترفيع -> فحص
+      {id:'finance', icon:DollarSign, label:'وصولات'}, // المالية -> وصولات
+      {id:'archive', icon:Archive, label:'الأرشيف'}, // نقل الأرشيف هنا
   ];
 
+  // المجموعة الثانية: الإدارة
   const adminGroups = [
-      {id:'finance',icon:DollarSign,label:'المالية والمصاريف'},
-      {id:'reports', icon: FileText, label: 'التقارير الشاملة'},
-      {id:'schedule',icon:Clock,label:'الجدول الدراسي'},
-      {id:'captains',icon:Shield,label:'الكباتن والصلاحيات', role: 'admin'},
-      {id:'archive',icon:Archive,label:'الأرشيف'},
-      {id:'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
-      {id:'news',icon:Megaphone,label:'الأخبار والعروض'},
+      {id:'registrations', icon:Inbox, label:'طلبات التسجيل', badge: branchRegistrations.length},
+      {id:'schedule', icon:Clock, label:'جدول الحصص'}, // الجدول -> جدول الحصص
+      {id:'notes', label: 'ملاحظات الإدارة', icon: FileText },
+      {id:'news', icon:Megaphone, label:'الاخبار والعروض'},
+      {id:'reports', icon:FileText, label:'التقارير الشاملة'},
+      {id:'captains', icon:Shield, label:'الكباتن والصلاحيات', role: 'admin'},
+      // زر الباك اب كخيار في القائمة
+      {id:'backup', icon:Database, label:'باك اب داتابيس', role: 'admin', action: handleBackup, special: true}, 
   ].filter(i => !i.role || i.role === user.role);
 
   return (
     <div className="min-h-screen bg-gray-50 text-right font-sans flex flex-col" dir="rtl">
       
-      {/* --- الشريط العلوي (Header) --- */}
+      {/* --- الشريط العلوي --- */}
       <header className="bg-black text-white shadow-lg sticky top-0 z-40">
           <div className="container mx-auto px-4 h-16 flex justify-between items-center">
               
-              {/* الشعار والعنوان */}
+              {/* الشعار */}
               <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center text-black font-black text-xl">
                       B
@@ -222,10 +230,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                   </div>
               </div>
 
-              {/* القائمة الرئيسية (للكمبيوتر) */}
-              <nav className="hidden md:flex items-center gap-1">
-                  
-                  {/* 1. الرئيسية */}
+              {/* القائمة الرئيسية (لابتوب) */}
+              <nav className="hidden md:flex items-center gap-2">
                   <button 
                       onClick={() => setActiveTab('dashboard')}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-sm ${activeTab === 'dashboard' ? 'text-yellow-400 bg-gray-800' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
@@ -235,35 +241,32 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
 
                   <div className="w-px h-6 bg-gray-700 mx-2"></div>
 
-                  {/* 2. مجموعة الطلاب */}
                   <NavDropdown 
-                      title="شؤون الطلاب" 
+                      title="طلاب" 
                       icon={Users} 
                       items={studentGroups} 
                       activeTab={activeTab} 
                       onSelect={setActiveTab}
                   />
 
-                  {/* 3. الحضور (زر بارز) */}
+                  {/* زر الحضور والغياب (أساسي) */}
                   <button 
                       onClick={() => setActiveTab('attendance')}
                       className={`flex items-center gap-2 px-4 py-2 mx-2 rounded-xl transition-all font-bold text-sm border-2 border-yellow-500 ${activeTab === 'attendance' ? 'bg-yellow-500 text-black' : 'text-yellow-500 hover:bg-yellow-500 hover:text-black'}`}
                   >
-                      <CheckCircle size={18}/> تسجيل الحضور
+                      <CheckCircle size={18}/> حضور وغياب
                   </button>
 
-                  {/* 4. مجموعة الإدارة */}
                   <NavDropdown 
-                      title="الإدارة والمالية" 
+                      title="الادارة" 
                       icon={Shield} 
                       items={adminGroups} 
                       activeTab={activeTab} 
                       onSelect={setActiveTab}
                   />
-
               </nav>
 
-              {/* أدوات إضافية (تبديل فرع + خروج) */}
+              {/* أدوات إضافية (موبايل + خروج) */}
               <div className="flex items-center gap-3">
                   {onSwitchBranch && (
                       <div className="hidden md:block relative group">
@@ -283,21 +286,19 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       <LogOut size={20}/>
                   </button>
 
-                  {/* زر القائمة للموبايل */}
                   <button className="md:hidden p-2 text-white" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                       {mobileMenuOpen ? <X size={24}/> : <Menu size={24}/>}
                   </button>
               </div>
           </div>
 
-          {/* --- قائمة الموبايل المنسدلة --- */}
+          {/* --- قائمة الموبايل --- */}
           {mobileMenuOpen && (
               <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 space-y-4 animate-fade-in absolute w-full left-0 z-50 shadow-2xl h-[calc(100vh-64px)] overflow-y-auto">
                   
-                  {/* تبديل الفرع للموبايل */}
                   {onSwitchBranch && (
                       <div className="bg-gray-800 p-3 rounded-xl flex items-center justify-between mb-4">
-                          <span className="text-gray-400 text-sm">عرض بيانات فرع:</span>
+                          <span className="text-gray-400 text-sm">الفرع الحالي:</span>
                           <select 
                               value={selectedBranch} 
                               onChange={(e) => onSwitchBranch(e.target.value)}
@@ -310,15 +311,16 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                   )}
 
                   <button onClick={() => {setActiveTab('dashboard'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-800 text-white font-bold">
-                      <Activity size={20} className="text-yellow-500"/> لوحة التحكم الرئيسية
+                      <Activity size={20} className="text-yellow-500"/> الرئيسية
                   </button>
 
                   <button onClick={() => {setActiveTab('attendance'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-yellow-600 text-white font-bold shadow-lg shadow-yellow-900/20">
-                      <CheckCircle size={20}/> تسجيل الحضور
+                      <CheckCircle size={20}/> حضور وغياب
                   </button>
 
+                  {/* مجموعة الطلاب (موبايل) */}
                   <div>
-                      <h3 className="text-xs font-bold text-gray-500 mb-2 px-2 uppercase">الطلاب</h3>
+                      <h3 className="text-xs font-bold text-gray-500 mb-2 px-2 uppercase">طلاب</h3>
                       <div className="grid grid-cols-2 gap-2">
                           {studentGroups.map(item => (
                               <button key={item.id} onClick={() => {setActiveTab(item.id); setMobileMenuOpen(false);}} className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl text-xs font-bold border transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-800 text-gray-300 border-gray-700'}`}>
@@ -328,28 +330,34 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       </div>
                   </div>
 
+                  {/* مجموعة الإدارة (موبايل) */}
                   <div>
-                      <h3 className="text-xs font-bold text-gray-500 mb-2 px-2 uppercase">الإدارة</h3>
+                      <h3 className="text-xs font-bold text-gray-500 mb-2 px-2 uppercase">الادارة</h3>
                       <div className="grid grid-cols-2 gap-2">
                           {adminGroups.map(item => (
-                              <button key={item.id} onClick={() => {setActiveTab(item.id); setMobileMenuOpen(false);}} className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl text-xs font-bold border transition-all ${activeTab === item.id ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-800 text-gray-300 border-gray-700'}`}>
+                              <button 
+                                  key={item.id} 
+                                  onClick={() => { 
+                                      if (item.action) item.action();
+                                      else setActiveTab(item.id); 
+                                      setMobileMenuOpen(false);
+                                  }} 
+                                  className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl text-xs font-bold border transition-all 
+                                      ${item.special ? 'text-green-400 border-green-900 bg-green-900/20' : 
+                                        activeTab === item.id ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-800 text-gray-300 border-gray-700'}`}
+                              >
                                   <item.icon size={20}/> {item.label}
                               </button>
                           ))}
                       </div>
                   </div>
-                  
-                  {user.role === 'admin' && (
-                      <button onClick={handleBackup} className="w-full flex items-center justify-center gap-2 p-3 text-green-500 border border-gray-700 rounded-xl mt-4">
-                          <Database size={18}/> نسخ احتياطي للبيانات
-                      </button>
-                  )}
               </div>
           )}
       </header>
 
-      {/* --- المحتوى الرئيسي --- */}
-      <main className="flex-1 p-4 md:p-8 container mx-auto max-w-7xl animate-fade-in">
+      {/* --- المحتوى الرئيسي (تم تعديل القياسات هنا لإصلاح اللابتوب) --- */}
+      {/* تم تغيير container mx-auto max-w-7xl إلى w-full px-4 md:px-8 */}
+      <main className="flex-1 w-full px-4 md:px-8 py-6 animate-fade-in mx-auto">
          {activeTab === 'dashboard' && <DashboardStats 
              user={user} 
              selectedBranch={selectedBranch} 
