@@ -180,7 +180,7 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
     );
 };
 
-// --- 2. Notes Manager Modal ---
+// --- 2. Notes Manager Modal (Updated with Legacy Support) ---
 const NotesManagerModal = ({ student, onClose, onSave }) => {
     const [activeTab, setActiveTab] = useState('private'); 
     const [noteText, setNoteText] = useState('');
@@ -197,12 +197,29 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
         setNoteText('');
     };
 
-    const handleDelete = (noteId) => {
+    const handleDelete = (noteId, isLegacy) => {
         if (!confirm("حذف الملاحظة؟")) return;
-        onSave(student.id, activeTab, 'delete', { id: noteId });
+        onSave(student.id, activeTab, 'delete', { id: noteId, isLegacy });
     };
 
-    const notesList = activeTab === 'private' ? (student.internalNotes || []) : (student.notes || []);
+    // ✅ دمج الملاحظات القديمة (note) مع الجديدة (internalNotes) للملاحظات الخاصة
+    const notesList = useMemo(() => {
+        if (activeTab === 'private') {
+            let list = student.internalNotes || [];
+            // إذا وجدنا ملاحظة قديمة نصية، نضيفها للقائمة
+            if (student.note && student.note.trim() !== '') {
+                list = [...list, {
+                    id: 'legacy_note',
+                    text: student.note,
+                    date: 'سجل قديم',
+                    isLegacy: true // علامة لتمييزها
+                }];
+            }
+            return list;
+        } else {
+            return student.notes || []; // الإعلانات العامة كما هي
+        }
+    }, [student, activeTab]);
 
     return (
         <ModalOverlay onClose={onClose}>
@@ -238,12 +255,15 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {notesList.map((note) => (
-                                <div key={note.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group">
+                            {notesList.map((note, idx) => (
+                                <div key={note.id || idx} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group">
                                     <p className="text-gray-800 text-sm whitespace-pre-wrap">{note.text}</p>
                                     <div className="mt-2 flex justify-between items-center">
-                                        <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{note.date}</span>
-                                        <button onClick={() => handleDelete(note.id)} className="text-red-400 hover:text-red-600 p-1">
+                                        <div className="flex gap-1">
+                                            <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{note.date}</span>
+                                            {note.isLegacy && <span className="text-[10px] text-red-600 bg-red-100 px-2 py-1 rounded-full font-bold">قديم</span>}
+                                        </div>
+                                        <button onClick={() => handleDelete(note.id, note.isLegacy)} className="text-red-400 hover:text-red-600 p-1">
                                             <Trash2 size={16}/>
                                         </button>
                                     </div>
@@ -536,9 +556,17 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
+  // --- ✅ التعامل مع الملاحظات (إضافة وحذف) ---
   const handleNoteAction = async (studentId, type, action, noteObj) => {
       const student = students.find(s => s.id === studentId);
       if (!student) return;
+
+      // ✅ التعامل مع حذف الملاحظة القديمة
+      if (action === 'delete' && noteObj.isLegacy) {
+          await studentsCollection.update(studentId, { note: "" }); 
+          // تحديث الحالة المحلية للمودال إذا لزم الأمر (عادةً يتم عبر إعادة التصيير)
+          return;
+      }
 
       const field = type === 'private' ? 'internalNotes' : 'notes';
       let currentNotes = student[field] || [];
@@ -600,7 +628,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const handleRenewSave = async (studentId, newDate) => {
       await studentsCollection.update(studentId, { subEnd: newDate });
       
-      // ✅ التعديل هنا: تمت إضافة ${renewingStudent.name} ليظهر الاسم في السجل
       if(logActivity && renewingStudent) {
           logActivity("تجديد اشتراك", `تجديد اشتراك للطالب ${renewingStudent.name} (تاريخ جديد: ${newDate})`);
       }
@@ -658,9 +685,9 @@ https://bravetkd.bar/
       {/* Single Student Notes Modal */}
       {studentForNotes && (
           <NotesManagerModal 
-             student={studentForNotes}
-             onClose={() => setStudentForNotes(null)}
-             onSave={handleNoteAction}
+              student={studentForNotes}
+              onClose={() => setStudentForNotes(null)}
+              onSave={handleNoteAction}
           />
       )}
 
@@ -776,7 +803,9 @@ https://bravetkd.bar/
                 <tbody className="divide-y divide-gray-100 bg-white">
                     {processedStudents.map(s => {
                         const isNew = isNewStudent(s.joinDate);
-                        const hasPrivateNotes = s.internalNotes && s.internalNotes.length > 0;
+                        
+                        // ✅ التحقق من الملاحظات (القديمة والجديدة) لظهور الأيقونة
+                        const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
                         const hasPublicNotes = s.notes && s.notes.length > 0;
 
                         return (
@@ -807,7 +836,6 @@ https://bravetkd.bar/
                                         {s.group || 'غير محدد'}
                                     </span>
                                 </td>
-
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
                                         <a href={`tel:${s.phone}`} className="font-mono text-gray-600 hover:text-blue-600 font-bold flex items-center gap-1" title="اتصال">
@@ -865,7 +893,7 @@ https://bravetkd.bar/
         {processedStudents.map(s => {
              const isNew = isNewStudent(s.joinDate);
              const status = calculateStatus(s.subEnd);
-             const hasPrivateNotes = s.internalNotes && s.internalNotes.length > 0;
+             const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
 
              return (
                  <div key={s.id} className={`bg-white p-4 rounded-xl shadow-sm border ${hasPrivateNotes ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100'} flex flex-col gap-3 relative`}>
