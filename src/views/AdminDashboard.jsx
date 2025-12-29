@@ -18,6 +18,7 @@ import CaptainsManager from './dashboard/CaptainsManager';
 import NewsManager from './dashboard/NewsManager';
 import BeltTestsManager from './dashboard/BeltTestsManager';
 import ReportsManager from './dashboard/ReportsManager'; 
+import SubscriptionsManager from './dashboard/SubscriptionsManager';
 
 const calculateStatus = (dateString) => {
   if (!dateString) return 'expired';
@@ -133,6 +134,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     {id:'students',icon:Users,label:'الطلاب'},
     {id:'finance',icon:DollarSign,label:'المالية'},
     {id:'attendance',icon:CheckCircle,label:'الحضور'},
+    {id:'subscriptions', icon: Calendar, label: 'إدارة الاشتراكات'}, // Add this line
     {id:'tests',icon:Award,label:'فحوصات الترفيع'},
     {id: 'notes', label: 'ملاحظات الإدارة', icon: FileText }, 
     {id:'archive',icon:Archive,label:'الأرشيف'},
@@ -240,6 +242,12 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
             adminNotes={branchAdminNotes}
             selectedBranch={selectedBranch}
          />}
+
+         {activeTab === 'subscriptions' && <SubscriptionsManager 
+    students={branchStudents} 
+    studentsCollection={studentsCollection} 
+    logActivity={handleLog} 
+/>}
 
          {activeTab === 'finance' && <FinanceManager 
              students={branchStudents} 
