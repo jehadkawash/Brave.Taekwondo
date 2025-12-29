@@ -2,8 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
     FileText, MessageCircle, Lock, Send, Trash2, 
-    Printer, Search, User, Edit3, MoreVertical, 
-    AlertCircle, CheckCircle, X
+    Printer, Search, User, Edit3, X, CheckCircle 
 } from 'lucide-react';
 import { StudentSearch, Button } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
@@ -19,31 +18,52 @@ export default function NotesManager({ students, studentsCollection, logActivity
         if (!student) return [];
         let allNotes = [];
 
-        // أ: الملاحظة القديمة (من صفحة الطلاب)
-        if (student.note && student.note.trim() !== "") {
+        // أ: الملاحظة القديمة (من صفحة الطلاب - الحقل النصي)
+        if (student.note && typeof student.note === 'string' && student.note.trim() !== "") {
             allNotes.push({
                 id: 'legacy_note', // معرف ثابت للملاحظة القديمة
                 text: student.note,
                 type: 'private', // نفترض أنها خاصة لأنها من النظام القديم
-                date: 'ملاحظة الملف الرئيسي',
+                date: 'سجل قديم',
                 isLegacy: true // علامة لتمييزها
             });
         }
 
-        // ب: الملاحظات الجديدة
-        if (student.notes && Array.isArray(student.notes)) {
-            allNotes = [...allNotes, ...student.notes];
+        // ب: الملاحظات الجديدة (المصفوفة)
+        // ملاحظة: قد تكون باسم 'notes' أو 'internalNotes' حسب التسمية في قاعدة البيانات. 
+        // هنا سنفترض أنك توحدها في 'notes' أو سنقرأ الاثنين للأمان.
+        const modernNotes = student.notes || []; 
+        const internalNotes = student.internalNotes || []; // قراءة الملاحظات الداخلية من صفحة الطلاب إذا وجدت
+        
+        // دمج المصفوفات وتوحيد الهيكل
+        if (Array.isArray(modernNotes)) {
+            allNotes = [...allNotes, ...modernNotes];
+        }
+        
+        // إذا كان هناك اختلاف في التسمية (internalNotes)، نضيفها ونحدد نوعها
+        if (Array.isArray(internalNotes)) {
+             // نتأكد من عدم التكرار (قد يكون نفس الكائن مكرر)
+             const existingIds = new Set(allNotes.map(n => n.id));
+             internalNotes.forEach(n => {
+                 if (!existingIds.has(n.id)) {
+                     allNotes.push({ ...n, type: 'private' }); // نعتبرها خاصة افتراضياً
+                 }
+             });
         }
 
-        // ترتيب حسب التاريخ (الأحدث أولاً إذا كان هناك تواريخ)
-        return allNotes.sort((a, b) => (b.id > a.id ? 1 : -1));
+        // ترتيب حسب التاريخ (الأحدث أولاً إذا كان هناك تواريخ، القديم في الآخر)
+        return allNotes.sort((a, b) => {
+            if (a.isLegacy) return 1; // القديم في الأسفل
+            if (b.isLegacy) return -1;
+            return (b.id > a.id ? 1 : -1);
+        });
     };
 
     // --- 2. تصفية القائمة الجانبية ---
     const studentsWithNotes = useMemo(() => {
         return students.filter(s => {
             const hasLegacy = s.note && s.note.trim().length > 0;
-            const hasModern = s.notes && s.notes.length > 0;
+            const hasModern = (s.notes && s.notes.length > 0) || (s.internalNotes && s.internalNotes.length > 0);
             return hasLegacy || hasModern;
         });
     }, [students]);
@@ -62,7 +82,10 @@ export default function NotesManager({ students, studentsCollection, logActivity
                 logActivity('تعديل ملاحظة', `تعديل الملاحظة الرئيسية للطالب ${selectedStudent.name}`);
             } else {
                 // تعديل ملاحظة جديدة (تحديث المصفوفة)
-                const newNotesArray = selectedStudent.notes.map(n => 
+                // يجب معرفة أي مصفوفة نحدث (notes أو internalNotes) بناءً على مكان الملاحظة
+                // للتبسيط، سنفترض أننا نستخدم 'notes' كمخزن رئيسي للملاحظات الجديدة من هذه الصفحة
+                const currentNotes = selectedStudent.notes || [];
+                const newNotesArray = currentNotes.map(n => 
                     n.id === editingNote.id ? { ...n, text: noteText, type: noteType } : n
                 );
                 updatedData = { notes: newNotesArray };
@@ -78,8 +101,9 @@ export default function NotesManager({ students, studentsCollection, logActivity
                 date: new Date().toISOString().split('T')[0],
                 branch: selectedBranch
             };
+            // نضيف دائماً للمصفوفة 'notes'
             const currentNotes = selectedStudent.notes || [];
-            updatedData = { notes: [...currentNotes, newNoteObj] };
+            updatedData = { notes: [newNoteObj, ...currentNotes] };
             logActivity('ملاحظة جديدة', `إضافة ملاحظة (${noteType === 'private' ? 'خاصة' : 'عامة'}) للطالب ${selectedStudent.name}`);
         }
 
@@ -103,12 +127,23 @@ export default function NotesManager({ students, studentsCollection, logActivity
             updatedData = { note: "" };
         } else {
             // حذف من المصفوفة
-            const newNotesArray = selectedStudent.notes.filter(n => n.id !== note.id);
+            const currentNotes = selectedStudent.notes || [];
+            const newNotesArray = currentNotes.filter(n => n.id !== note.id);
             updatedData = { notes: newNotesArray };
+            
+            // تحقق أيضاً من internalNotes إذا كانت الملاحظة هناك
+            if (selectedStudent.internalNotes) {
+                 const newInternal = selectedStudent.internalNotes.filter(n => n.id !== note.id);
+                 if (newInternal.length !== selectedStudent.internalNotes.length) {
+                     updatedData.internalNotes = newInternal;
+                 }
+            }
         }
 
         await studentsCollection.update(selectedStudent.id, updatedData);
         logActivity('حذف ملاحظة', `حذف ملاحظة للطالب ${selectedStudent.name}`);
+        
+        // تحديث الحالة المحلية
         setSelectedStudent(prev => ({ ...prev, ...updatedData }));
         
         // إذا كنا نعدل هذه الملاحظة وحذفناها، نلغي وضع التعديل
@@ -122,7 +157,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
     const startEdit = (note) => {
         setEditingNote(note);
         setNoteText(note.text);
-        setNoteType(note.type);
+        setNoteType(note.type || 'private');
     };
 
     // --- 6. الطباعة ---
@@ -230,7 +265,11 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                         <p className="text-[10px] text-gray-400">{s.belt}</p>
                                     </div>
                                 </div>
-                                {(s.note || (s.notes && s.notes.length > 0)) && <div className="w-2 h-2 rounded-full bg-red-500"></div>}
+                                <div className="flex gap-1">
+                                    {/* مؤشرات بصرية لنوع الملاحظات */}
+                                    {getCombinedNotes(s).some(n=>n.type === 'private') && <div className="w-2 h-2 rounded-full bg-red-500"></div>}
+                                    {getCombinedNotes(s).some(n=>n.type === 'public') && <div className="w-2 h-2 rounded-full bg-green-500"></div>}
+                                </div>
                             </button>
                         )) : (
                             <div className="text-center py-10 text-gray-400 text-xs">لا يوجد ملاحظات مسجلة</div>
@@ -287,7 +326,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                                 </span>
                                             )}
                                             <span className="text-[10px] text-gray-400 font-bold">{note.date}</span>
-                                            {note.isLegacy && <span className="bg-gray-200 text-gray-600 text-[9px] px-1.5 py-0.5 rounded">سجل الطلاب</span>}
+                                            {note.isLegacy && <span className="bg-gray-200 text-gray-600 text-[9px] px-1.5 py-0.5 rounded">سجل قديم</span>}
                                         </div>
                                         
                                         {/* Actions */}
