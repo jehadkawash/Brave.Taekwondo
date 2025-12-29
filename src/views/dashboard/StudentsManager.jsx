@@ -599,7 +599,12 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   // --- حفظ التجديد السريع ---
   const handleRenewSave = async (studentId, newDate) => {
       await studentsCollection.update(studentId, { subEnd: newDate });
-      if(logActivity) logActivity("تجديد اشتراك", `تجديد اشتراك للطالب (تاريخ جديد: ${newDate})`);
+      
+      // ✅ التعديل هنا: تمت إضافة ${renewingStudent.name} ليظهر الاسم في السجل
+      if(logActivity && renewingStudent) {
+          logActivity("تجديد اشتراك", `تجديد اشتراك للطالب ${renewingStudent.name} (تاريخ جديد: ${newDate})`);
+      }
+      
       setRenewingStudent(null);
   };
 
