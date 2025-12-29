@@ -26,12 +26,12 @@ const getStatusLabel = (status) => {
 };
 
 export default function SubscriptionsManager({ students, studentsCollection, logActivity, selectedBranch }) {
-    const [filterStudentId, setFilterStudentId] = useState(null); // For Dropdown Search
-    const [statusFilter, setStatusFilter] = useState('all'); // all, active, near_end, expired
+    const [filterStudentId, setFilterStudentId] = useState(null); 
+    const [statusFilter, setStatusFilter] = useState('all'); 
     const [editingId, setEditingId] = useState(null);
     const [editDate, setEditDate] = useState('');
 
-    // --- Fast Update Function ---
+    // --- Fast Update Function (Fixed Log) ---
     const addMonths = async (student, months) => {
         const currentEnd = student.subEnd ? new Date(student.subEnd) : new Date();
         const baseDate = currentEnd < new Date() ? new Date() : currentEnd;
@@ -41,15 +41,24 @@ export default function SubscriptionsManager({ students, studentsCollection, log
 
         if (window.confirm(`تجديد اشتراك ${student.name} لمدة ${months} شهر؟\nتاريخ الانتهاء الجديد: ${newDate}`)) {
             await studentsCollection.update(student.id, { subEnd: newDate });
-            if (logActivity) logActivity("تجديد سريع", `تجديد اشتراك ${student.name} (+${months} شهر) إلى ${newDate}`);
+            // ✅ تم التأكد من استخدام student.name هنا
+            if (logActivity) logActivity("تجديد سريع", `تجديد اشتراك للطالب ${student.name} (+${months} شهر) ليصبح ${newDate}`);
         }
     };
 
-    // --- Manual Save Function ---
+    // --- Manual Save Function (Fixed Log) ---
     const saveManualDate = async (studentId) => {
         if (!editDate) return;
+        
+        // ✅ البحث عن اسم الطالب لإضافته للسجل
+        const student = students.find(s => s.id === studentId);
+        const studentName = student ? student.name : 'طالب غير معروف';
+
         await studentsCollection.update(studentId, { subEnd: editDate });
-        if (logActivity) logActivity("تعديل اشتراك", `تعديل تاريخ اشتراك طالب إلى ${editDate}`);
+        
+        // ✅ تم إضافة studentName للنص
+        if (logActivity) logActivity("تعديل اشتراك", `تعديل تاريخ اشتراك للطالب ${studentName} يدوياً إلى ${editDate}`);
+        
         setEditingId(null);
     };
 
@@ -61,13 +70,9 @@ export default function SubscriptionsManager({ students, studentsCollection, log
     // --- Filtering ---
     const filteredStudents = useMemo(() => {
         return students.filter(s => {
-            // 1. Filter by specific student (Dropdown)
             const matchesStudent = filterStudentId ? s.id === filterStudentId : true;
-            
-            // 2. Filter by Status
             const status = calculateStatus(s.subEnd);
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            
             return matchesStudent && matchesStatus;
         }).sort((a, b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0)); 
     }, [students, filterStudentId, statusFilter]);
@@ -163,13 +168,13 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                         الكل
                     </button>
                     <button onClick={() => setStatusFilter('active')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'active' ? 'bg-green-600 text-white' : 'bg-green-50 text-green-600'}`}>
-                        ساري المفعول (Working)
+                        ساري المفعول
                     </button>
                     <button onClick={() => setStatusFilter('near_end')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'near_end' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600'}`}>
-                        قرب ينتهي (About to finish)
+                        قرب ينتهي
                     </button>
                     <button onClick={() => setStatusFilter('expired')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'expired' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'}`}>
-                        منتهي (Finished)
+                        منتهي
                     </button>
                 </div>
 

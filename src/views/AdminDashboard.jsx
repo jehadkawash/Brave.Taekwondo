@@ -3,11 +3,12 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, 
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin, 
-  Award, Calendar, ChevronDown, X 
-} from 'lucide-react';
+  Award, Calendar, ChevronDown, X, MessageSquare 
+} from 'lucide-react'; // ✅ تمت إضافة MessageSquare لأيقونة الملاحظات
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; 
+import { IMAGES } from '../lib/constants'; // ✅ استيراد الصور
 
 // Import Managers
 import AdminNotesManager from './dashboard/AdminNotesManager';
@@ -23,6 +24,7 @@ import NewsManager from './dashboard/NewsManager';
 import BeltTestsManager from './dashboard/BeltTestsManager';
 import ReportsManager from './dashboard/ReportsManager'; 
 import SubscriptionsManager from './dashboard/SubscriptionsManager';
+import NotesManager from './dashboard/NotesManager'; // ✅ استيراد صفحة الملاحظات الجديدة
 
 // --- دوال مساعدة ---
 const calculateStatus = (dateString) => {
@@ -45,7 +47,7 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// --- مكون القائمة المنسدلة (تم تحديثه ليدعم الأزرار العادية مثل النسخ الاحتياطي) ---
+// --- مكون القائمة المنسدلة ---
 const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -80,8 +82,8 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
                         <button
                             key={idx}
                             onClick={() => { 
-                                if (item.action) item.action(); // تشغيل دالة (مثل الباك اب)
-                                else onSelect(item.id); // تبديل التبويب
+                                if (item.action) item.action(); 
+                                else onSelect(item.id); 
                                 setIsOpen(false); 
                             }}
                             className={`w-full text-right px-4 py-3 flex items-center gap-3 transition-colors text-sm font-bold border-b border-gray-50 last:border-0
@@ -189,17 +191,18 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   
   // المجموعة الأولى: طلاب
   const studentGroups = [
-      {id:'students', icon:Users, label:'الطلاب'}, // جميع الطلاب -> الطلاب
-      {id:'subscriptions', icon:Calendar, label:'اشتراكات'}, // إدارة الاشتراكات -> اشتراكات
-      {id:'tests', icon:Award, label:'فحص'}, // فحوصات الترفيع -> فحص
-      {id:'finance', icon:DollarSign, label:'وصولات'}, // المالية -> وصولات
-      {id:'archive', icon:Archive, label:'الأرشيف'}, // نقل الأرشيف هنا
+      {id:'students', icon:Users, label:'الطلاب'}, 
+      {id:'student_notes', icon:MessageSquare, label:'الملاحظات والرسائل'}, // ✅ الصفحة الجديدة هنا
+      {id:'subscriptions', icon:Calendar, label:'اشتراكات'},
+      {id:'tests', icon:Award, label:'فحص'},
+      {id:'finance', icon:DollarSign, label:'وصولات'},
+      {id:'archive', icon:Archive, label:'الأرشيف'},
   ];
 
   // المجموعة الثانية: الإدارة
   const adminGroups = [
       {id:'registrations', icon:Inbox, label:'طلبات التسجيل', badge: branchRegistrations.length},
-      {id:'schedule', icon:Clock, label:'جدول الحصص'}, // الجدول -> جدول الحصص
+      {id:'schedule', icon:Clock, label:'جدول الحصص'},
       {id:'notes', label: 'ملاحظات الإدارة', icon: FileText },
       {id:'news', icon:Megaphone, label:'الاخبار والعروض'},
       {id:'reports', icon:FileText, label:'التقارير الشاملة'},
@@ -217,9 +220,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
               
               {/* الشعار */}
               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center text-black font-black text-xl">
-                      B
-                  </div>
+                  {/* ✅ تم استبدال حرف B بالصورة */}
+                  <img 
+                      src={IMAGES.LOGO} 
+                      alt="Logo" 
+                      className="w-10 h-10 rounded-lg object-contain bg-white"
+                      onError={(e) => {e.target.style.display='none';}} // إخفاء إذا لم توجد الصورة
+                  />
                   <div>
                       <h1 className="font-bold text-lg hidden md:block">أكاديمية الشجاع</h1>
                       <div className="text-xs text-yellow-500 font-bold flex items-center gap-1">
@@ -436,6 +443,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
          {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
 
          {activeTab === 'notes' && <AdminNotesManager />}
+
+         {/* ✅ عرض صفحة الملاحظات عند اختيارها */}
+         {activeTab === 'student_notes' && <NotesManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
       </main>
     </div>
   );
