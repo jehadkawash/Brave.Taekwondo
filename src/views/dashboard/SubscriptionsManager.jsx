@@ -1,7 +1,8 @@
 // src/views/dashboard/SubscriptionsManager.jsx
 import React, { useState, useMemo } from 'react';
-import { Calendar, Search, Filter, CheckCircle, AlertCircle, XCircle, Clock, Edit3, Save } from 'lucide-react';
-import { Card, StatusBadge } from '../../components/UIComponents';
+import { Search, CheckCircle, AlertCircle, XCircle, Clock, Edit3, Printer } from 'lucide-react';
+import { Card, StatusBadge, StudentSearch, Button } from '../../components/UIComponents';
+import { IMAGES } from '../../lib/constants';
 
 const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
@@ -15,8 +16,17 @@ const calculateStatus = (dateString) => {
     return 'active';
 };
 
-export default function SubscriptionsManager({ students, studentsCollection, logActivity }) {
-    const [searchTerm, setSearchTerm] = useState('');
+const getStatusLabel = (status) => {
+    switch (status) {
+        case 'active': return 'فعال (Working)';
+        case 'near_end': return 'قارب على الانتهاء (About to finish)';
+        case 'expired': return 'منتهي (Finished)';
+        default: return '-';
+    }
+};
+
+export default function SubscriptionsManager({ students, studentsCollection, logActivity, selectedBranch }) {
+    const [filterStudentId, setFilterStudentId] = useState(null); // For Dropdown Search
     const [statusFilter, setStatusFilter] = useState('all'); // all, active, near_end, expired
     const [editingId, setEditingId] = useState(null);
     const [editDate, setEditDate] = useState('');
@@ -24,7 +34,6 @@ export default function SubscriptionsManager({ students, studentsCollection, log
     // --- Fast Update Function ---
     const addMonths = async (student, months) => {
         const currentEnd = student.subEnd ? new Date(student.subEnd) : new Date();
-        // If expired, start from today. If active, add to current end date.
         const baseDate = currentEnd < new Date() ? new Date() : currentEnd;
         
         baseDate.setMonth(baseDate.getMonth() + months);
@@ -52,33 +61,122 @@ export default function SubscriptionsManager({ students, studentsCollection, log
     // --- Filtering ---
     const filteredStudents = useMemo(() => {
         return students.filter(s => {
-            const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+            // 1. Filter by specific student (Dropdown)
+            const matchesStudent = filterStudentId ? s.id === filterStudentId : true;
+            
+            // 2. Filter by Status
             const status = calculateStatus(s.subEnd);
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            return matchesSearch && matchesStatus;
-        }).sort((a, b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0)); // Sort by date (oldest first)
-    }, [students, searchTerm, statusFilter]);
+            
+            return matchesStudent && matchesStatus;
+        }).sort((a, b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0)); 
+    }, [students, filterStudentId, statusFilter]);
+
+    // --- Print Report Function ---
+    const handlePrintReport = () => {
+        const printWin = window.open('', 'PRINT', 'height=800,width=1000');
+        const logoUrl = window.location.origin + IMAGES.LOGO;
+        const dateNow = new Date().toLocaleDateString('ar-EG');
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>تقرير الاشتراكات - ${selectedBranch || ''}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+                    body { font-family: 'Cairo', sans-serif; padding: 20px; }
+                    .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+                    .logo { height: 80px; margin-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                    th { background-color: #f3f4f6; }
+                    .status-active { color: green; font-weight: bold; }
+                    .status-near_end { color: orange; font-weight: bold; }
+                    .status-expired { color: red; font-weight: bold; }
+                    @media print { button { display: none; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+                    <h2>تقرير متابعة الاشتراكات</h2>
+                    <p>التاريخ: ${dateNow}</p>
+                    <p>عدد الطلاب في القائمة: ${filteredStudents.length}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>الطالب</th>
+                            <th>الحزام</th>
+                            <th>تاريخ الانتهاء</th>
+                            <th>الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredStudents.map((s, i) => {
+                            const status = calculateStatus(s.subEnd);
+                            const statusText = getStatusLabel(status);
+                            const statusClass = `status-${status}`;
+                            return `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${s.name}</td>
+                                    <td>${s.belt}</td>
+                                    <td style="direction:ltr; text-align:right">${s.subEnd || '-'}</td>
+                                    <td class="${statusClass}">${statusText}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                <script>window.onload = function() { window.print(); }</script>
+            </body>
+            </html>
+        `;
+        printWin.document.write(htmlContent);
+        printWin.document.close();
+    };
 
     return (
         <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
             {/* Toolbar */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-20">
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-end sticky top-0 z-20">
+                
+                {/* 1. Search Dropdown */}
                 <div className="relative w-full md:w-1/3">
-                    <Search size={18} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-400 pointer-events-none"/>
-                    <input 
-                        className="w-full pl-4 pr-10 py-2.5 border-2 border-gray-100 rounded-xl focus:border-green-500 outline-none transition-all"
-                        placeholder="ابحث عن طالب..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                    <label className="text-xs font-bold text-gray-500 mb-1 block">بحث عن طالب (Thinker Search)</label>
+                    <StudentSearch 
+                        students={students} 
+                        onSelect={(s) => setFilterStudentId(s.id)} 
+                        onClear={() => setFilterStudentId(null)}
+                        placeholder="اكتب اسم الطالب..."
+                        showAllOption={true}
                     />
                 </div>
 
-                <div className="flex gap-2 w-full md:w-auto">
-                    <button onClick={() => setStatusFilter('all')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>الكل</button>
-                    <button onClick={() => setStatusFilter('active')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusFilter === 'active' ? 'bg-green-600 text-white' : 'bg-green-50 text-green-600'}`}>فعال</button>
-                    <button onClick={() => setStatusFilter('near_end')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusFilter === 'near_end' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600'}`}>قرب ينتهي</button>
-                    <button onClick={() => setStatusFilter('expired')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusFilter === 'expired' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'}`}>منتهي</button>
+                {/* 2. Filters */}
+                <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                    <button onClick={() => setStatusFilter('all')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        الكل
+                    </button>
+                    <button onClick={() => setStatusFilter('active')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'active' ? 'bg-green-600 text-white' : 'bg-green-50 text-green-600'}`}>
+                        ساري المفعول (Working)
+                    </button>
+                    <button onClick={() => setStatusFilter('near_end')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'near_end' ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-600'}`}>
+                        قرب ينتهي (About to finish)
+                    </button>
+                    <button onClick={() => setStatusFilter('expired')} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${statusFilter === 'expired' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'}`}>
+                        منتهي (Finished)
+                    </button>
                 </div>
+
+                {/* 3. Print Button */}
+                <Button onClick={handlePrintReport} className="bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200">
+                    <Printer size={18} className="ml-2"/> طباعة القائمة
+                </Button>
             </div>
 
             {/* Desktop Table */}
@@ -132,6 +230,11 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                                     </td>
                                 </tr>
                             ))}
+                            {filteredStudents.length === 0 && (
+                                <tr>
+                                    <td colSpan="5" className="text-center p-8 text-gray-400">لا يوجد طلاب مطابقين للبحث</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </Card>
@@ -179,6 +282,11 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                         </div>
                     );
                 })}
+                {filteredStudents.length === 0 && (
+                    <div className="text-center p-10 text-gray-400 bg-white rounded-xl border border-dashed">
+                        لا يوجد نتائج
+                    </div>
+                )}
             </div>
         </div>
     );
