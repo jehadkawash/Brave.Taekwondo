@@ -261,7 +261,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       onClick={() => setActiveTab('attendance')}
                       className={`flex items-center gap-2 px-4 py-2 mx-2 rounded-xl transition-all font-bold text-sm border-2 border-yellow-500 ${activeTab === 'attendance' ? 'bg-yellow-500 text-black' : 'text-yellow-500 hover:bg-yellow-500 hover:text-black'}`}
                   >
-                      <CheckCircle size={18}/> حضور وغياب
+                      <CheckCircle size={22}/> حضور وغياب
                   </button>
 
                   <NavDropdown 

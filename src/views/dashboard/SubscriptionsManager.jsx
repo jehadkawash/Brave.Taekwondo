@@ -31,32 +31,39 @@ export default function SubscriptionsManager({ students, studentsCollection, log
     const [editingId, setEditingId] = useState(null);
     const [editDate, setEditDate] = useState('');
 
-    // --- Fast Update Function (Fixed Log) ---
+    // --- Fast Update Function (تم التعديل: يضيف بناءً على التاريخ الموجود فقط) ---
     const addMonths = async (student, months) => {
+        // نأخذ تاريخ انتهاء الطالب الحالي. إذا لم يوجد (طالب جديد)، نأخذ تاريخ اليوم.
         const currentEnd = student.subEnd ? new Date(student.subEnd) : new Date();
-        const baseDate = currentEnd < new Date() ? new Date() : currentEnd;
         
-        baseDate.setMonth(baseDate.getMonth() + months);
-        const newDate = baseDate.toISOString().split('T')[0];
+        // نقوم بإنشاء كائن تاريخ جديد بناءً على التاريخ الحالي للاشتراك
+        const newDateObj = new Date(currentEnd);
+        
+        // نضيف الأشهر للتاريخ الموجود (سواء كان في الماضي أو المستقبل)
+        newDateObj.setMonth(newDateObj.getMonth() + months);
+        
+        // تنسيق التاريخ للنص (YYYY-MM-DD)
+        const newDateString = newDateObj.toISOString().split('T')[0];
 
-        if (window.confirm(`تجديد اشتراك ${student.name} لمدة ${months} شهر؟\nتاريخ الانتهاء الجديد: ${newDate}`)) {
-            await studentsCollection.update(student.id, { subEnd: newDate });
-            // ✅ تم التأكد من استخدام student.name هنا
-            if (logActivity) logActivity("تجديد سريع", `تجديد اشتراك للطالب ${student.name} (+${months} شهر) ليصبح ${newDate}`);
+        if (window.confirm(`تجديد اشتراك ${student.name} لمدة ${months} شهر؟\nمن: ${student.subEnd || 'اليوم'}\nإلى: ${newDateString}`)) {
+            await studentsCollection.update(student.id, { subEnd: newDateString });
+            
+            // تسجيل النشاط باسم الطالب
+            if (logActivity) logActivity("تجديد سريع", `تجديد اشتراك للطالب ${student.name} (+${months} شهر) ليصبح ${newDateString}`);
         }
     };
 
-    // --- Manual Save Function (Fixed Log) ---
+    // --- Manual Save Function ---
     const saveManualDate = async (studentId) => {
         if (!editDate) return;
         
-        // ✅ البحث عن اسم الطالب لإضافته للسجل
+        // البحث عن اسم الطالب لإضافته للسجل
         const student = students.find(s => s.id === studentId);
         const studentName = student ? student.name : 'طالب غير معروف';
 
         await studentsCollection.update(studentId, { subEnd: editDate });
         
-        // ✅ تم إضافة studentName للنص
+        // تسجيل النشاط
         if (logActivity) logActivity("تعديل اشتراك", `تعديل تاريخ اشتراك للطالب ${studentName} يدوياً إلى ${editDate}`);
         
         setEditingId(null);
