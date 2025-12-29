@@ -1,54 +1,82 @@
 // src/views/dashboard/NotesManager.jsx
 import React, { useState, useMemo } from 'react';
-import { FileText, MessageCircle, Lock, Plus, Trash2, Printer, Search, User } from 'lucide-react';
-import { Card, Button, StudentSearch } from '../../components/UIComponents';
+import { FileText, MessageCircle, Lock, Plus, Trash2, Printer, Search, User, AlertCircle } from 'lucide-react';
+import { Button, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
 export default function NotesManager({ students, studentsCollection, logActivity, selectedBranch }) {
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [noteText, setNoteText] = useState('');
-    const [noteType, setNoteType] = useState('private'); // 'private' or 'public'
+    const [noteType, setNoteType] = useState('private'); // 'private' = إدارية, 'public' = للطالب
 
-    // --- تصفية الطلاب الذين لديهم ملاحظات فقط ---
+    // --- دالة مساعدة لدمج الملاحظات القديمة والجديدة ---
+    const getStudentNotes = (student) => {
+        let allNotes = student.notes || [];
+        
+        // إذا كان هناك ملاحظة قديمة (نصية)، نعرضها كملاحظة إدارية
+        if (student.note && typeof student.note === 'string' && student.note.trim() !== '') {
+            allNotes = [...allNotes, {
+                id: 'legacy',
+                text: student.note,
+                type: 'private',
+                date: 'سجل قديم',
+                isLegacy: true // علامة لتمييزها
+            }];
+        }
+        return allNotes;
+    };
+
+    // --- تصفية الطلاب الذين لديهم أي نوع من الملاحظات ---
     const studentsWithNotes = useMemo(() => {
-        return students.filter(s => s.notes && s.notes.length > 0);
+        return students.filter(s => {
+            const hasNewNotes = s.notes && s.notes.length > 0;
+            const hasOldNote = s.note && s.note.trim().length > 0;
+            return hasNewNotes || hasOldNote;
+        });
     }, [students]);
 
-    // --- إضافة ملاحظة ---
+    // --- إضافة ملاحظة جديدة ---
     const handleAddNote = async () => {
         if (!selectedStudent || !noteText) return;
 
         const newNote = {
             id: Date.now().toString(),
             text: noteText,
-            type: noteType, // 'private' = إدارية, 'public' = للطالب
+            type: noteType,
             date: new Date().toISOString().split('T')[0],
             branch: selectedBranch
         };
 
         const updatedNotes = [...(selectedStudent.notes || []), newNote];
         
+        // تحديث قاعدة البيانات
         await studentsCollection.update(selectedStudent.id, { notes: updatedNotes });
         
         logActivity('ملاحظة جديدة', `إضافة ملاحظة (${noteType === 'private' ? 'خاصة' : 'عامة'}) للطالب ${selectedStudent.name}`);
         
-        // تحديث الحالة المحلية
+        // تحديث الواجهة
         setSelectedStudent({ ...selectedStudent, notes: updatedNotes });
         setNoteText('');
     };
 
     // --- حذف ملاحظة ---
-    const handleDeleteNote = async (noteId) => {
+    const handleDeleteNote = async (noteId, isLegacy) => {
         if (!confirm("هل أنت متأكد من حذف الملاحظة؟")) return;
         
-        const updatedNotes = selectedStudent.notes.filter(n => n.id !== noteId);
-        await studentsCollection.update(selectedStudent.id, { notes: updatedNotes });
-        
+        if (isLegacy) {
+            // حذف الملاحظة القديمة (تصفير الحقل)
+            await studentsCollection.update(selectedStudent.id, { note: "" });
+            setSelectedStudent({ ...selectedStudent, note: "" });
+        } else {
+            // حذف من المصفوفة الجديدة
+            const updatedNotes = selectedStudent.notes.filter(n => n.id !== noteId);
+            await studentsCollection.update(selectedStudent.id, { notes: updatedNotes });
+            setSelectedStudent({ ...selectedStudent, notes: updatedNotes });
+        }
         logActivity('حذف ملاحظة', `حذف ملاحظة للطالب ${selectedStudent.name}`);
-        setSelectedStudent({ ...selectedStudent, notes: updatedNotes });
     };
 
-    // --- طباعة التقرير (فقط للطلاب الذين لديهم ملاحظات) ---
+    // --- طباعة التقرير ---
     const handlePrintNotes = () => {
         const printWin = window.open('', 'PRINT', 'height=800,width=1000');
         const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -58,51 +86,43 @@ export default function NotesManager({ students, studentsCollection, logActivity
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>سجل الملاحظات والرسائل</title>
+                <title>سجل الملاحظات - ${selectedBranch}</title>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-                    body { font-family: 'Cairo', sans-serif; padding: 20px; }
+                    body { font-family: 'Cairo', sans-serif; padding: 20px; font-size: 12px; }
                     .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                    .logo { height: 80px; margin-bottom: 10px; }
-                    .student-block { border: 1px solid #ddd; margin-bottom: 20px; padding: 15px; border-radius: 8px; page-break-inside: avoid; }
-                    .student-header { background: #f9fafb; padding: 10px; font-weight: bold; font-size: 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
-                    .note-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 10px; font-size: 14px; }
-                    .tag { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-                    .tag-private { background: #fee2e2; color: #991b1b; } /* أحمر للخاص */
-                    .tag-public { background: #dcfce7; color: #166534; } /* أخضر للعام */
-                    @media print { button { display: none; } }
+                    .logo { height: 70px; margin-bottom: 10px; }
+                    .student-card { border: 1px solid #ddd; margin-bottom: 15px; padding: 10px; border-radius: 8px; page-break-inside: avoid; }
+                    .student-name { font-weight: bold; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #b45309; }
+                    .note-row { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px dotted #eee; }
+                    .note-type { font-weight: bold; min-width: 80px; }
+                    .type-private { color: #991b1b; }
+                    .type-public { color: #166534; }
                 </style>
             </head>
             <body>
                 <div class="header">
                     <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-                    <h2>سجل الملاحظات والرسائل (فرع ${selectedBranch})</h2>
-                    <p>عدد الطلاب في القائمة: ${studentsWithNotes.length}</p>
+                    <h2>سجل الملاحظات والرسائل</h2>
+                    <p>الفرع: ${selectedBranch}</p>
                 </div>
-
-                ${studentsWithNotes.map(s => `
-                    <div class="student-block">
-                        <div class="student-header">
-                            <span>${s.name} (${s.belt})</span>
-                            <span style="font-size:12px; color:#666">عدد الملاحظات: ${s.notes.length}</span>
-                        </div>
-                        <div>
-                            ${s.notes.map(n => `
-                                <div class="note-item">
-                                    <span class="tag ${n.type === 'private' ? 'tag-private' : 'tag-public'}">
-                                        ${n.type === 'private' ? 'إدارية (خاص)' : 'رسالة للطالب'}
-                                    </span>
-                                    <span style="font-weight:bold; color:#555;">${n.date}:</span>
-                                    <span>${n.text}</span>
-                                </div>
-                            `).join('')}
-                        </div>
+                ${studentsWithNotes.map(s => {
+                    const allNotes = getStudentNotes(s);
+                    return `
+                    <div class="student-card">
+                        <div class="student-name">${s.name} (${s.belt})</div>
+                        ${allNotes.map(n => `
+                            <div class="note-row">
+                                <span class="note-type ${n.type === 'private' ? 'type-private' : 'type-public'}">
+                                    [${n.type === 'private' ? 'إدارية' : 'للطالب'}]
+                                </span>
+                                <span style="color:#666; font-size:10px;">${n.date}:</span>
+                                <span>${n.text}</span>
+                            </div>
+                        `).join('')}
                     </div>
-                `).join('')}
-
-                ${studentsWithNotes.length === 0 ? '<p style="text-align:center">لا يوجد ملاحظات مسجلة.</p>' : ''}
-
-                <script>window.onload = function() { window.print(); }</script>
+                    `;
+                }).join('')}
             </body>
             </html>
         `;
@@ -110,9 +130,11 @@ export default function NotesManager({ students, studentsCollection, logActivity
         printWin.document.close();
     };
 
+    const currentStudentNotes = selectedStudent ? getStudentNotes(selectedStudent) : [];
+
     return (
         <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
-            {/* Header & Search */}
+            {/* Header */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                 <div className="flex-1 w-full md:w-auto">
                     <h2 className="text-xl font-black text-gray-800 flex items-center gap-2 mb-2">
@@ -123,18 +145,17 @@ export default function NotesManager({ students, studentsCollection, logActivity
                             students={students} 
                             onSelect={setSelectedStudent} 
                             onClear={() => setSelectedStudent(null)}
-                            placeholder="ابحث عن طالب لإضافة/عرض ملاحظاته..." 
+                            placeholder="ابحث عن طالب..." 
                         />
                     </div>
                 </div>
                 <Button onClick={handlePrintNotes} className="bg-gray-800 text-white w-full md:w-auto">
-                    <Printer size={18} className="ml-2"/> طباعة سجل الملاحظات
+                    <Printer size={18} className="ml-2"/> طباعة السجل
                 </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* 1. إضافة وعرض ملاحظات الطالب المحدد */}
+                {/* 1. Main Content */}
                 <div className="lg:col-span-2 space-y-6">
                     {selectedStudent ? (
                         <div className="bg-white p-6 rounded-2xl shadow-sm border border-yellow-200 animate-fade-in">
@@ -145,7 +166,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                 <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{selectedStudent.belt}</span>
                             </div>
 
-                            {/* نموذج الإضافة */}
+                            {/* Add Note Form */}
                             <div className="bg-gray-50 p-4 rounded-xl mb-6">
                                 <label className="text-xs font-bold text-gray-600 mb-2 block">إضافة ملاحظة جديدة</label>
                                 <div className="flex gap-2 mb-2">
@@ -166,50 +187,51 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                 </div>
                                 <textarea 
                                     className="w-full border p-3 rounded-xl outline-none focus:border-yellow-500 text-sm min-h-[80px]"
-                                    placeholder={noteType === 'private' ? "اكتب ملاحظة سرية للإدارة فقط..." : "اكتب رسالة ستظهر للطالب في تطبيقه..."}
+                                    placeholder={noteType === 'private' ? "ملاحظة للإدارة فقط..." : "رسالة ستظهر في تطبيق الطالب..."}
                                     value={noteText}
                                     onChange={e => setNoteText(e.target.value)}
                                 />
                                 <div className="mt-2 flex justify-end">
                                     <Button onClick={handleAddNote} className="bg-yellow-500 text-black text-xs">
-                                        <Plus size={16}/> حفظ الملاحظة
+                                        <Plus size={16}/> حفظ
                                     </Button>
                                 </div>
                             </div>
 
-                            {/* قائمة الملاحظات */}
+                            {/* Notes List */}
                             <div className="space-y-3">
-                                {selectedStudent.notes && selectedStudent.notes.length > 0 ? (
-                                    selectedStudent.notes.slice().reverse().map((note, index) => (
-                                        <div key={note.id || index} className={`p-4 rounded-xl border-r-4 flex justify-between items-start ${note.type === 'private' ? 'bg-red-50 border-red-400' : 'bg-green-50 border-green-400'}`}>
+                                {currentStudentNotes.length > 0 ? (
+                                    currentStudentNotes.slice().reverse().map((note, index) => (
+                                        <div key={index} className={`p-4 rounded-xl border-r-4 flex justify-between items-start ${note.type === 'private' ? 'bg-red-50 border-red-400' : 'bg-green-50 border-green-400'}`}>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${note.type === 'private' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
                                                         {note.type === 'private' ? 'إدارية' : 'للطالب'}
                                                     </span>
                                                     <span className="text-xs text-gray-400 font-bold">{note.date}</span>
+                                                    {note.isLegacy && <span className="text-[10px] bg-gray-200 text-gray-600 px-1 rounded">قديم</span>}
                                                 </div>
                                                 <p className="text-gray-800 text-sm font-medium">{note.text}</p>
                                             </div>
-                                            <button onClick={() => handleDeleteNote(note.id)} className="text-gray-400 hover:text-red-500">
+                                            <button onClick={() => handleDeleteNote(note.id, note.isLegacy)} className="text-gray-400 hover:text-red-500">
                                                 <Trash2 size={16}/>
                                             </button>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-8 text-gray-400">لا يوجد ملاحظات لهذا الطالب</div>
+                                    <div className="text-center py-8 text-gray-400">لا يوجد ملاحظات</div>
                                 )}
                             </div>
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-gray-300 p-10 text-gray-400">
                             <Search size={48} className="mb-4 text-gray-200"/>
-                            <p>اختر طالباً من البحث في الأعلى لعرض ملفه وإضافة الملاحظات</p>
+                            <p>اختر طالباً لعرض ملاحظاته</p>
                         </div>
                     )}
                 </div>
 
-                {/* 2. القائمة الجانبية: طلاب لديهم ملاحظات */}
+                {/* 2. Sidebar List */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 h-fit">
                     <h3 className="font-bold text-gray-800 mb-4 border-b pb-2 flex justify-between items-center">
                         <span>طلاب لديهم ملاحظات</span>
@@ -224,10 +246,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                     ${selectedStudent?.id === s.id ? 'bg-yellow-50 border-yellow-400' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}`}
                             >
                                 <span className="font-bold text-sm text-gray-700">{s.name}</span>
-                                <div className="flex gap-1">
-                                    {s.notes.some(n => n.type === 'private') && <div className="w-2 h-2 rounded-full bg-red-500" title="يوجد ملاحظات خاصة"></div>}
-                                    {s.notes.some(n => n.type === 'public') && <div className="w-2 h-2 rounded-full bg-green-500" title="يوجد رسائل للطالب"></div>}
-                                </div>
+                                {s.note && <AlertCircle size={14} className="text-gray-400"/>}
                             </button>
                         )) : (
                             <p className="text-center text-xs text-gray-400 py-4">القائمة فارغة</p>
