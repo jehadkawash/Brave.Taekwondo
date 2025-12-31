@@ -130,7 +130,7 @@ export default function App() {
         } else if (email === 'shafa@brave.com') {
           userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
         } else if (email === 'abunseir@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'جهاد كعوس  ', branch: BRANCHES.ABU_NSEIR };
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'جهاد كعوش  ', branch: BRANCHES.ABU_NSEIR };
         }
 
         try {
