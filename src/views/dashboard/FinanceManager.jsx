@@ -263,7 +263,7 @@ export default function FinanceManager({
             </table>
 
             <div style="margin-top: 40px; display: flex; justify-content: space-between; padding: 0 50px;">
-                <div>توقيع المحاسب</div>
+                <div> </div>
                 <div>توقيع الإدارة</div>
             </div>
             
@@ -363,7 +363,7 @@ export default function FinanceManager({
               <div class="signatures">
                 <div class="sign-box">
                   <div class="sign-line"></div>
-                  <div class="sign-title">توقيع المحاسب</div>
+                  <div class="sign-title">توقيع الادارة</div>
                 </div>
                 <div class="sign-box">
                   <div class="sign-line"></div>
