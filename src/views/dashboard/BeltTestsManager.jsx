@@ -1,64 +1,10 @@
 // src/views/dashboard/BeltTestsManager.jsx
-import React, { useState, useMemo, forwardRef } from 'react';
-import { Search, Filter, ArrowUp, Calendar, CheckCircle, Award, Edit3, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, Filter, ArrowUp, Calendar, CheckCircle, Award, Edit3 } from 'lucide-react';
 import { Card } from '../../components/UIComponents';
-import { BELTS } from '../../lib/constants';
+import { BELTS } from '../../lib/constants'; 
 
-// --- Imports for the new Date Picker ---
-import DatePicker, { registerLocale } from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import { ar } from 'date-fns/locale'; // Import Arabic locale
-registerLocale('ar', ar); // Register it
-
-// --- Styles for the DatePicker to match your Yellow Theme ---
-// Add this CSS to your global css file or keep it here if using styled-components/embedded styles
-const datePickerStyles = `
-  .react-datepicker {
-    font-family: inherit;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-  }
-  .react-datepicker__header {
-    background-color: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-    padding-top: 10px;
-  }
-  .react-datepicker__current-month {
-    font-weight: 800;
-    color: #1f2937;
-    margin-bottom: 5px;
-  }
-  .react-datepicker__day-name {
-    color: #9ca3af;
-    font-weight: 700;
-  }
-  .react-datepicker__day {
-    margin: 0.2rem;
-    border-radius: 8px;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
-  .react-datepicker__day--selected {
-    background-color: #fbbf24 !important; /* Yellow-400 */
-    color: #1f2937 !important;
-    font-weight: bold;
-  }
-  .react-datepicker__day--keyboard-selected {
-    background-color: #fef3c7 !important;
-    color: #1f2937 !important;
-  }
-  .react-datepicker__day:hover {
-    background-color: #fef3c7 !important;
-    border-radius: 8px;
-  }
-  .react-datepicker__triangle {
-    display: none;
-  }
-`;
-
-// Helper for Belt Colors
+// دالة مساعدة لتلوين الأحزمة
 const getBeltColor = (beltName) => {
     if (!beltName) return 'bg-gray-100 text-gray-800 border-gray-200';
     if (beltName.includes('أبيض')) return 'bg-white text-gray-800 border-gray-200 border';
@@ -71,33 +17,13 @@ const getBeltColor = (beltName) => {
     return 'bg-gray-100 text-gray-800';
 };
 
-// --- Custom Input Component for the Date Picker ---
-const CustomDateInput = forwardRef(({ value, onClick, placeholder }, ref) => (
-    <button 
-        className="flex items-center gap-2 bg-white border border-gray-200 hover:border-yellow-400 focus:ring-2 focus:ring-yellow-100 transition-all rounded-lg px-3 py-1.5 w-full group"
-        onClick={onClick}
-        ref={ref}
-    >
-        <Calendar size={15} className="text-gray-400 group-hover:text-yellow-500 transition-colors" />
-        <span className={`text-xs font-bold font-mono ${value ? 'text-gray-700' : 'text-gray-400'}`}>
-            {value || placeholder || "اختر التاريخ"}
-        </span>
-    </button>
-));
-
 export default function BeltTestsManager({ students, studentsCollection, logActivity }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOption, setSortOption] = useState('dateAsc'); 
 
-    // Inject Styles
-    React.useEffect(() => {
-        const style = document.createElement('style');
-        style.innerHTML = datePickerStyles;
-        document.head.appendChild(style);
-        return () => document.head.removeChild(style);
-    }, []);
-
-    // --- Actions ---
+    // --- العمليات ---
+    
+    // 1. ترفيع الطالب للحزام التالي (الزر الذكي)
     const handlePromote = async (student) => {
         const currentIdx = BELTS.indexOf(student.belt);
         if (currentIdx === -1 || currentIdx >= BELTS.length - 1) return alert("هذا الطالب في أعلى حزام مسجل أو الحزام غير معروف");
@@ -109,25 +35,30 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
         }
     };
 
+    // 2. تغيير الحزام يدوياً (للتصحيح)
     const handleManualBeltChange = async (student, newBelt) => {
         if(student.belt === newBelt) return;
+        
         if (confirm(`تغيير حزام الطالب ${student.name} يدوياً إلى ${newBelt}؟`)) {
             await studentsCollection.update(student.id, { belt: newBelt });
             if (logActivity) logActivity("تعديل حزام يدوي", `تغيير حزام ${student.name} من ${student.belt} إلى ${newBelt}`);
         }
     };
 
-    // Updated Date Handler for DatePicker
-    const handleDateChange = async (studentId, date) => {
-        // Convert JS Date object to YYYY-MM-DD string for storage
-        const dateString = date ? date.toISOString().split('T')[0] : '';
-        await studentsCollection.update(studentId, { nextTestDate: dateString });
+    // 3. تحديث تاريخ الفحص القادم (الطريقة الأصلية المستقرة)
+    const handleDateChange = async (studentId, newDate) => {
+        // newDate تأتي مباشرة من الـ input بصيغة yyyy-mm-dd أو نص فارغ
+        await studentsCollection.update(studentId, { nextTestDate: newDate });
     };
 
+    // --- الفلترة والترتيب ---
     const processedStudents = useMemo(() => {
         let result = [...students];
-        if (searchTerm) result = result.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        
+
+        if (searchTerm) {
+            result = result.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        }
+
         result.sort((a, b) => {
             if (sortOption === 'dateAsc' || sortOption === 'dateDesc') {
                 const dateA = a.nextTestDate ? new Date(a.nextTestDate) : new Date('2099-12-31');
@@ -138,13 +69,15 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
             if (sortOption === 'beltDesc') return BELTS.indexOf(b.belt) - BELTS.indexOf(a.belt); 
             return 0;
         });
+
         return result;
     }, [students, searchTerm, sortOption]);
 
     return (
         <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
-            {/* Toolbar */}
+            {/* شريط الأدوات العلوي */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-20">
+                {/* البحث */}
                 <div className="relative w-full md:w-1/3">
                     <Search size={18} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-400 pointer-events-none"/>
                     <input 
@@ -154,6 +87,8 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
+
+                {/* الفرز */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                         <select 
@@ -171,16 +106,16 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                 </div>
             </div>
 
-            {/* --- DESKTOP VIEW --- */}
+            {/* --- عرض الجدول (للحواسيب) --- */}
             <div className="hidden md:block">
                 <Card className="p-0 overflow-hidden">
                     <table className="w-full text-sm text-right">
                         <thead className="bg-gray-50 text-gray-600 border-b">
                             <tr>
                                 <th className="p-4">الطالب</th>
-                                <th className="p-4">الحزام الحالي</th>
-                                <th className="p-4 w-64">تاريخ الفحص القادم</th>
-                                <th className="p-4 text-center">إجراءات</th>
+                                <th className="p-4">الحزام الحالي (تعديل يدوي)</th>
+                                <th className="p-4">تاريخ الفحص القادم</th>
+                                <th className="p-4 text-center">إجراءات سريعة</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -191,7 +126,9 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                 return (
                                     <tr key={student.id} className="hover:bg-yellow-50/30 transition-colors">
                                         <td className="p-4 font-bold text-gray-800">{student.name}</td>
+                                        
                                         <td className="p-4">
+                                            {/* القائمة المنسدلة للتعديل اليدوي */}
                                             <div className="relative w-fit">
                                                 <select 
                                                     className={`appearance-none pl-8 pr-3 py-1.5 rounded-lg font-bold text-xs shadow-sm border cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-400 ${getBeltColor(student.belt)}`}
@@ -205,20 +142,18 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                                 <Edit3 size={12} className="absolute top-1/2 -translate-y-1/2 left-2 opacity-50 pointer-events-none"/>
                                             </div>
                                         </td>
-                                        
-                                        {/* New Date Picker Desktop */}
+
                                         <td className="p-4">
-                                            <DatePicker 
-                                                selected={student.nextTestDate ? new Date(student.nextTestDate) : null}
-                                                onChange={(date) => handleDateChange(student.id, date)}
-                                                dateFormat="yyyy/MM/dd"
-                                                locale="ar"
-                                                placeholderText="حدد موعد الفحص"
-                                                customInput={<CustomDateInput />}
-                                                popperPlacement="bottom-start"
-                                                isClearable
-                                                showPopperArrow={false}
-                                            />
+                                            {/* ✅ منتقي التاريخ الأصلي (Native Picker) */}
+                                            <div className="flex items-center gap-2 bg-gray-50 w-fit p-1 rounded-lg border border-gray-200 hover:border-yellow-400 transition-colors">
+                                                <Calendar size={16} className="text-gray-400 mr-1"/>
+                                                <input 
+                                                    type="date" 
+                                                    className="bg-transparent outline-none text-gray-700 font-mono text-xs cursor-pointer focus:text-black"
+                                                    value={student.nextTestDate || ''}
+                                                    onChange={(e) => handleDateChange(student.id, e.target.value)}
+                                                />
+                                            </div>
                                         </td>
 
                                         <td className="p-4 text-center">
@@ -230,9 +165,10 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                                                         : 'bg-green-100 text-green-700 hover:bg-green-600 hover:text-white hover:shadow-lg hover:shadow-green-500/20'
                                                     }`}
+                                                title="ترفيع للحزام التالي مباشرة"
                                             >
                                                 {isMaxBelt ? <CheckCircle size={14}/> : <ArrowUp size={14}/>}
-                                                {isMaxBelt ? 'أعلى رتبة' : 'ترفيع'}
+                                                {isMaxBelt ? 'أعلى رتبة' : 'ترفيع تلقائي'}
                                             </button>
                                         </td>
                                     </tr>
@@ -243,7 +179,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                 </Card>
             </div>
 
-            {/* --- MOBILE VIEW --- */}
+            {/* --- عرض البطاقات (للموبايل) --- */}
             <div className="md:hidden grid gap-4">
                 {processedStudents.map(student => {
                       const beltIdx = BELTS.indexOf(student.belt);
@@ -254,6 +190,8 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="font-bold text-gray-800 text-lg">{student.name}</h3>
+                                    
+                                    {/* تعديل يدوي للموبايل */}
                                     <div className="mt-2 relative inline-block">
                                          <select 
                                             className={`appearance-none pl-8 pr-4 py-1 rounded text-[10px] font-bold border w-full ${getBeltColor(student.belt)}`}
@@ -272,20 +210,16 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                 </div>
                             </div>
 
+                            {/* ✅ منتقي التاريخ للموبايل (الأصلي) */}
                             <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                                 <label className="text-[10px] font-bold text-gray-500 mb-1 block">تاريخ الفحص القادم</label>
-                                {/* New Date Picker Mobile */}
-                                <div className="w-full">
-                                    <DatePicker 
-                                        selected={student.nextTestDate ? new Date(student.nextTestDate) : null}
-                                        onChange={(date) => handleDateChange(student.id, date)}
-                                        dateFormat="yyyy/MM/dd"
-                                        locale="ar"
-                                        placeholderText="--/--/----"
-                                        customInput={<CustomDateInput />}
-                                        withPortal // Opens as a modal on mobile for better UX
-                                        isClearable
-                                        portalId="root-portal" 
+                                <div className="flex items-center gap-2">
+                                    <Calendar size={16} className="text-gray-400"/>
+                                    <input 
+                                        type="date" 
+                                        className="bg-transparent w-full outline-none text-gray-800 font-bold text-sm"
+                                        value={student.nextTestDate || ''}
+                                        onChange={(e) => handleDateChange(student.id, e.target.value)}
                                     />
                                 </div>
                             </div>
