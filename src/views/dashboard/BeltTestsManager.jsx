@@ -4,9 +4,7 @@ import { Search, Filter, ArrowUp, Calendar, CheckCircle, Award, Edit3 } from 'lu
 import { Card } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants'; 
 
-// --- دوال مساعدة ---
-
-// 1. تلوين الأحزمة
+// دالة مساعدة لتلوين الأحزمة
 const getBeltColor = (beltName) => {
     if (!beltName) return 'bg-gray-100 text-gray-800 border-gray-200';
     if (beltName.includes('أبيض')) return 'bg-white text-gray-800 border-gray-200 border';
@@ -19,20 +17,13 @@ const getBeltColor = (beltName) => {
     return 'bg-gray-100 text-gray-800';
 };
 
-// 2. تنسيق التاريخ (DD/MM/YYYY)
-const formatDate = (isoDate) => {
-    if (!isoDate) return 'حدد التاريخ'; // النص الافتراضي
-    const [year, month, day] = isoDate.split('-');
-    return `${day}/${month}/${year}`;
-};
-
 export default function BeltTestsManager({ students, studentsCollection, logActivity }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOption, setSortOption] = useState('dateAsc'); 
 
     // --- العمليات ---
     
-    // 1. ترفيع الطالب
+    // 1. ترفيع الطالب للحزام التالي (الزر الذكي)
     const handlePromote = async (student) => {
         const currentIdx = BELTS.indexOf(student.belt);
         if (currentIdx === -1 || currentIdx >= BELTS.length - 1) return alert("هذا الطالب في أعلى حزام مسجل أو الحزام غير معروف");
@@ -44,7 +35,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
         }
     };
 
-    // 2. تغيير الحزام يدوياً
+    // 2. تغيير الحزام يدوياً (للتصحيح)
     const handleManualBeltChange = async (student, newBelt) => {
         if(student.belt === newBelt) return;
         
@@ -54,7 +45,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
         }
     };
 
-    // 3. تحديث تاريخ الفحص
+    // 3. تحديث تاريخ الفحص القادم
     const handleDateChange = async (studentId, newDate) => {
         await studentsCollection.update(studentId, { nextTestDate: newDate });
     };
@@ -152,19 +143,12 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                         </td>
 
                                         <td className="p-4">
-                                            {/* ✅ اختيار التاريخ بالشكل الجديد (DD/MM/YYYY) */}
-                                            <div className="relative bg-white hover:bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-fit min-w-[140px] flex items-center gap-2 cursor-pointer transition-colors group">
-                                                <Calendar size={16} className="text-gray-400 group-hover:text-yellow-500 transition-colors"/>
-                                                
-                                                {/* النص الظاهر (بالصيغة المطلوبة) */}
-                                                <span className={`text-sm font-bold font-mono ${student.nextTestDate ? 'text-gray-800' : 'text-gray-400'}`}>
-                                                    {formatDate(student.nextTestDate)}
-                                                </span>
-
-                                                {/* المدخل المخفي (لتشغيل الـ Date Picker الأصلي) */}
+                                            <div className="flex items-center gap-2 bg-gray-50 w-fit p-1 rounded-lg border border-gray-200">
+                                                <Calendar size={16} className="text-gray-400 mr-1"/>
+                                                {/* ✅ الشكل الأصلي لحقل التاريخ */}
                                                 <input 
                                                     type="date" 
-                                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                                                    className="bg-transparent outline-none text-gray-700 font-mono text-xs cursor-pointer"
                                                     value={student.nextTestDate || ''}
                                                     onChange={(e) => handleDateChange(student.id, e.target.value)}
                                                 />
@@ -225,24 +209,18 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                 </div>
                             </div>
 
-                            {/* ✅ اختيار التاريخ بالشكل الجديد للموبايل */}
-                            <div className="relative bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center justify-between cursor-pointer active:bg-gray-100 transition-colors">
+                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <label className="text-[10px] font-bold text-gray-500 mb-1 block">تاريخ الفحص القادم</label>
                                 <div className="flex items-center gap-2">
-                                    <Calendar size={18} className="text-gray-400"/>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-gray-500 block leading-none mb-1">تاريخ الفحص</label>
-                                        <span className={`text-sm font-bold font-mono ${student.nextTestDate ? 'text-gray-800' : 'text-gray-400'}`}>
-                                            {formatDate(student.nextTestDate)}
-                                        </span>
-                                    </div>
+                                    <Calendar size={16} className="text-gray-400"/>
+                                    {/* ✅ الشكل الأصلي لحقل التاريخ للموبايل */}
+                                    <input 
+                                        type="date" 
+                                        className="bg-transparent w-full outline-none text-gray-800 font-bold text-sm"
+                                        value={student.nextTestDate || ''}
+                                        onChange={(e) => handleDateChange(student.id, e.target.value)}
+                                    />
                                 </div>
-                                
-                                <input 
-                                    type="date" 
-                                    className="absolute inset-0 opacity-0 w-full h-full z-10"
-                                    value={student.nextTestDate || ''}
-                                    onChange={(e) => handleDateChange(student.id, e.target.value)}
-                                />
                             </div>
 
                             <button 
