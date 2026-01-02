@@ -127,11 +127,17 @@ export default function App() {
 
         if (email === 'admin@brave.com') {
           userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
-        } else if (email === 'shafa@brave.com') {
+        }
+         else if (email === 'shafa@brave.com') {
           userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
-        } else if (email === 'abunseir@brave.com') {
+        } 
+        else if (email === 'nseir@brave.com') {
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'كمال كعوش', branch: BRANCHES.ABU_NSEIR };
+        }
+        else if (email === 'jehad@yahoo.com') {
           userData = { ...userData, role: 'admin', isSuper: false, name: 'جهاد كعوش  ', branch: BRANCHES.ABU_NSEIR };
         }
+        
 
         try {
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
