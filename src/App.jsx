@@ -41,9 +41,6 @@ export default function App() {
   const scheduleCollection = useCollection('schedule');
   const newsCollection = useCollection('news'); 
   
-  // 🚀 تم إزالة: payments, expenses, archive, registrations, captains
-  // سيتم جلبهم داخل AdminDashboard أو StudentPortal عند الحاجة فقط
-
   // --- دالة التنقل الذكي ---
   const navigateTo = (newView) => {
      setView(newView);
@@ -67,6 +64,7 @@ export default function App() {
   // --- تسجيل الدخول ---
   const handleLogin = async (username, password) => {
     try {
+      // 1. البحث في الطلاب
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
       const qStudent = query(studentsRef, where("username", "==", username), where("password", "==", password));
       const studentSnap = await getDocs(qStudent);
@@ -87,6 +85,7 @@ export default function App() {
         return;
       }
 
+      // 2. البحث في الكباتن
       const captainsRef = collection(db, 'artifacts', appId, 'public', 'data', 'captains');
       const qCaptain = query(captainsRef, where("username", "==", username), where("password", "==", password));
       const captainSnap = await getDocs(qCaptain);
@@ -103,6 +102,7 @@ export default function App() {
          return;
       }
 
+      // 3. البحث في الإدارة (Firebase Auth)
       if (username.includes('@') || username === 'admin1') {
           let email = username;
           if (username === 'admin1') email = 'admin@brave.com';
@@ -118,27 +118,33 @@ export default function App() {
     }
   };
 
-  // --- مراقبة حالة فايربيس ---
+  // --- مراقبة حالة فايربيس وتحديد الصلاحيات ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email;
         let userData = { email };
 
+        // توزيع الصلاحيات والفروع حسب الإيميل
         if (email === 'admin@brave.com') {
           userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
-        }
-         else if (email === 'shafa@brave.com') {
+        } 
+        else if (email === 'shafa@brave.com') {
           userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
         } 
-        else if (email === 'nseir@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'كمال كعوش', branch: BRANCHES.ABU_NSEIR };
+        else if (email === 'abunseir@brave.com') {
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR };
         }
         else if (email === 'jehad@yahoo.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'جهاد كعوش  ', branch: BRANCHES.ABU_NSEIR };
+          // ✅ تم التأكد من استخدام الثابت BRANCHES.ABU_NSEIR
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'جهاد كعوش', branch: BRANCHES.ABU_NSEIR };
         }
-        
+        else if (email === 'nseir@brave.com') {
+          // ✅ تم التأكد من استخدام الثابت BRANCHES.ABU_NSEIR
+          userData = { ...userData, role: 'admin', isSuper: false, name: 'كمال كعوش', branch: BRANCHES.ABU_NSEIR };
+        }
 
+        // جلب الاسم من البروفايل إذا وجد
         try {
             const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
             const profileSnap = await getDoc(profileRef);
@@ -178,7 +184,7 @@ export default function App() {
       
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
       
-      {/* 🚀 Portal يجلب دفعاته بنفسه الآن */}
+      {/* بوابة الطالب */}
       {view === 'student_portal' && user && <StudentPortal 
           user={user} 
           students={studentsCollection.data} 
@@ -187,7 +193,7 @@ export default function App() {
           handleLogout={handleLogout} 
       />}
       
-      {/* 🚀 Dashboard يجلب بياناته الإدارية بنفسه الآن */}
+      {/* لوحة الإدارة */}
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
