@@ -1,6 +1,6 @@
 // src/views/dashboard/ReportsManager.jsx
 import React, { useState } from 'react';
-import { FileText, Printer, TrendingUp, TrendingDown, Users, Calendar, AlertCircle, Activity } from 'lucide-react';
+import { FileText, Printer, TrendingUp, TrendingDown, Users, AlertCircle, Activity } from 'lucide-react';
 import { Card } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
@@ -10,11 +10,26 @@ export default function ReportsManager({
 }) {
     // الفترة الافتراضية: من أول الشهر الحالي إلى اليوم
     const date = new Date();
+    // Keep these as YYYY-MM-DD for logic and input values
     const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
     const currentDay = new Date().toISOString().split('T')[0];
 
     const [startDate, setStartDate] = useState(firstDay);
     const [endDate, setEndDate] = useState(currentDay);
+
+    // --- HELPER: Date Formatter (dd/mm/yyyy) ---
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const d = new Date(dateString);
+        // Check if date is valid
+        if (isNaN(d.getTime())) return dateString; 
+        
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        
+        return `${day}/${month}/${year}`;
+    };
 
     // --- دالة التحقق من التاريخ (للمالية والحضور فقط) ---
     const isInRange = (dateStr) => {
@@ -48,7 +63,6 @@ export default function ReportsManager({
     const netProfit = totalIncome - totalExpense;
 
     // --- 2. سجل الحركات/النشاطات (مرتبط بالتاريخ) ---
-    // لعرض الحركات المالية والإدارية التي تمت في الفترة المحددة
     const filteredLogs = activityLogs 
         ? activityLogs.filter(l => l.branch === selectedBranch && isInRange(l.timestamp))
         : [];
@@ -72,7 +86,7 @@ export default function ReportsManager({
             .sort((a, b) => new Date(b.date) - new Date(a.date));
         const lastPaymentDate = studentPayments.length > 0 ? studentPayments[0].date : '-';
 
-        // ج. تجميع الملاحظات (الكل - لا نحذف أي ملاحظة موجودة)
+        // ج. تجميع الملاحظات
         let allNotes = [];
         if (s.note) allNotes.push(`[قديم: ${s.note}]`);
         if (s.notes && s.notes.length > 0) s.notes.forEach(n => allNotes.push(n.text));
@@ -130,12 +144,12 @@ export default function ReportsManager({
             <body>
                 <div class="header">
                     <div style="font-size:10px; text-align:right;">
-                        التاريخ: ${new Date().toLocaleDateString('ar-EG')}<br>
+                        التاريخ: ${formatDate(new Date())}<br>
                         الفرع: <strong>${selectedBranch}</strong>
                     </div>
                     <div class="header-content">
                         <h1>التقرير الإداري والمالي الشامل</h1>
-                        <p style="margin:2px 0 0 0; color:#666;">الفترة: من ${startDate} إلى ${endDate}</p>
+                        <p style="margin:2px 0 0 0; color:#666;">الفترة: من ${formatDate(startDate)} إلى ${formatDate(endDate)}</p>
                     </div>
                     <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
                 </div>
@@ -162,7 +176,7 @@ export default function ReportsManager({
                         <table>
                             <thead><tr><th>التاريخ</th><th>الطالب</th><th>المبلغ</th><th>البيان</th></tr></thead>
                             <tbody>
-                                ${filteredIncome.map(p => `<tr><td>${p.date}</td><td>${p.name}</td><td>${p.amount}</td><td>${p.reason || '-'}</td></tr>`).join('')}
+                                ${filteredIncome.map(p => `<tr><td>${formatDate(p.date)}</td><td>${p.name}</td><td>${p.amount}</td><td>${p.reason || '-'}</td></tr>`).join('')}
                                 ${filteredIncome.length === 0 ? '<tr><td colspan="4" style="text-align:center">-</td></tr>' : ''}
                             </tbody>
                         </table>
@@ -172,7 +186,7 @@ export default function ReportsManager({
                         <table>
                             <thead><tr><th>التاريخ</th><th>البند</th><th>المبلغ</th></tr></thead>
                             <tbody>
-                                ${filteredExpenses.map(e => `<tr><td>${e.date}</td><td>${e.title}</td><td>${e.amount}</td></tr>`).join('')}
+                                ${filteredExpenses.map(e => `<tr><td>${formatDate(e.date)}</td><td>${e.title}</td><td>${e.amount}</td></tr>`).join('')}
                                 ${filteredExpenses.length === 0 ? '<tr><td colspan="3" style="text-align:center">-</td></tr>' : ''}
                             </tbody>
                         </table>
@@ -183,7 +197,7 @@ export default function ReportsManager({
                 <table>
                     <thead><tr><th width="15%">تاريخ الإضافة</th><th>الملاحظة</th></tr></thead>
                     <tbody>
-                        ${finalAdminNotes.map(n => `<tr><td>${n.date || '-'}</td><td>${n.text || n.content}</td></tr>`).join('')}
+                        ${finalAdminNotes.map(n => `<tr><td>${formatDate(n.date)}</td><td>${n.text || n.content}</td></tr>`).join('')}
                         ${finalAdminNotes.length === 0 ? '<tr><td colspan="2" style="text-align:center">لا يوجد ملاحظات إدارية</td></tr>' : ''}
                     </tbody>
                 </table>
@@ -231,15 +245,15 @@ export default function ReportsManager({
                                         ${s.statusInfo.label}
                                     </span>
                                 </td>
-                                <td>${s.subEnd || '-'}</td>
+                                <td>${formatDate(s.subEnd)}</td>
                                 <td>
                                     ${Number(s.balance) > 0 
                                         ? `<span style="color:red; font-weight:bold;">عليه ${s.balance}</span>` 
                                         : '<span style="color:green;">خالص</span>'}
                                 </td>
-                                <td>${s.lastPaymentDate}</td>
+                                <td>${formatDate(s.lastPaymentDate)}</td>
                                 <td style="text-align:center; font-weight:bold;">${s.attendanceCount}</td>
-                                <td>${s.nextTestDate || '-'}</td>
+                                <td>${formatDate(s.nextTestDate)}</td>
                                 <td style="font-size:9px; color:#555;">${s.notesString}</td>
                             </tr>
                         `).join('')}
@@ -353,7 +367,7 @@ export default function ReportsManager({
                             <tbody className="divide-y divide-gray-50">
                                 {filteredIncome.map(p => (
                                     <tr key={p.id} className="hover:bg-gray-50">
-                                        <td className="p-3 text-gray-500">{p.date}</td>
+                                        <td className="p-3 text-gray-500">{formatDate(p.date)}</td>
                                         <td className="p-3 font-bold text-gray-700">{p.name}</td>
                                         <td className="p-3 font-bold text-green-600">{p.amount}</td>
                                     </tr>
@@ -381,7 +395,7 @@ export default function ReportsManager({
                             <tbody className="divide-y divide-gray-50">
                                 {filteredExpenses.map(e => (
                                     <tr key={e.id} className="hover:bg-gray-50">
-                                        <td className="p-3 text-gray-500">{e.date}</td>
+                                        <td className="p-3 text-gray-500">{formatDate(e.date)}</td>
                                         <td className="p-3 font-bold text-gray-700">{e.title}</td>
                                         <td className="p-3 font-bold text-red-600">{e.amount}</td>
                                     </tr>
@@ -410,7 +424,7 @@ export default function ReportsManager({
                         <tbody className="divide-y divide-gray-50">
                             {finalAdminNotes.map((n, i) => (
                                 <tr key={i} className="hover:bg-gray-50">
-                                    <td className="p-3 text-gray-500">{n.date || '-'}</td>
+                                    <td className="p-3 text-gray-500">{formatDate(n.date)}</td>
                                     <td className="p-3 text-gray-700">{n.text || n.content}</td>
                                 </tr>
                             ))}
@@ -439,7 +453,7 @@ export default function ReportsManager({
                         <tbody className="divide-y divide-gray-50">
                             {filteredLogs.map((l, i) => (
                                 <tr key={i} className="hover:bg-gray-50">
-                                    <td className="p-3 text-gray-500 dir-ltr text-right">{new Date(l.timestamp).toLocaleDateString('ar-EG')}</td>
+                                    <td className="p-3 text-gray-500 dir-ltr text-right">{new Date(l.timestamp).toLocaleString('ar-EG')}</td>
                                     <td className="p-3 font-bold text-gray-700">{l.action}</td>
                                     <td className="p-3 text-gray-600">{l.details}</td>
                                     <td className="p-3 text-blue-600">{l.performedBy}</td>
@@ -482,13 +496,13 @@ export default function ReportsManager({
                                             {s.statusInfo.label}
                                         </span>
                                     </td>
-                                    <td className="p-3 dir-ltr text-right text-gray-500">{s.subEnd || '-'}</td>
+                                    <td className="p-3 dir-ltr text-right text-gray-500">{formatDate(s.subEnd)}</td>
                                     <td className="p-3">
                                         {Number(s.balance) > 0 
                                             ? <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">عليه {s.balance}</span> 
                                             : <span className="text-green-600">خالص</span>}
                                     </td>
-                                    <td className="p-3 text-gray-500">{s.lastPaymentDate}</td>
+                                    <td className="p-3 text-gray-500">{formatDate(s.lastPaymentDate)}</td>
                                     <td className="p-3 font-bold text-center">{s.attendanceCount}</td>
                                     <td className="p-3 text-gray-500 max-w-xs truncate" title={s.notesString}>{s.notesString !== '-' ? s.notesString : ''}</td>
                                 </tr>
