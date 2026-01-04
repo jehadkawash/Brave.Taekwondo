@@ -29,13 +29,27 @@ const HomeView = ({ setView, schedule }) => {
   }, [newsItems]);
   // -------------------------
 
+  // --- Helper: Format Date to dd/mm/yyyy ---
+  const formatDate = (dateInput) => {
+    if (!dateInput) return '';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return dateInput;
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registrations'), {
         ...regForm,
-        date: new Date().toLocaleDateString('ar-JO'),
+        dob: formatDate(regForm.dob), // Convert the YYYY-MM-DD input to dd/mm/yyyy
+        date: formatDate(new Date()), // Save registration date as dd/mm/yyyy
         status: 'new',
         createdAt: new Date().toISOString()
       });
@@ -284,8 +298,8 @@ const HomeView = ({ setView, schedule }) => {
         
         <div className="container mx-auto px-6 relative z-10">
            <div className="flex flex-col items-center mb-16">
-              <h2 className="text-4xl font-black mb-4">جدول الحصص الأسبوعي</h2>
-              <div className="w-20 h-1.5 bg-yellow-500 rounded-full"></div>
+             <h2 className="text-4xl font-black mb-4">جدول الحصص الأسبوعي</h2>
+             <div className="w-20 h-1.5 bg-yellow-500 rounded-full"></div>
            </div>
            
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
