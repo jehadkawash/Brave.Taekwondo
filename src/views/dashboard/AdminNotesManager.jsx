@@ -15,24 +15,22 @@ const AdminNotesManager = () => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   
-  // نموذج الإضافة
   const [newItem, setNewItem] = useState({ text: '', amount: '', type: 'note', transactionType: 'expense' });
 
-  // حساب مفتاح الشهر (مثل: "10-2023")
   const monthKey = `${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
   
   const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
-  // جلب البيانات عند تغيير الشهر
   useEffect(() => {
     fetchItems();
   }, [monthKey]);
 
+  // ✅ 1. تصحيح المسار في جلب البيانات
   const fetchItems = async () => {
     setLoading(true);
     try {
       const q = query(
-        collection(db, 'admin_notes'),
+        collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), // تم التعديل هنا
         where('monthKey', '==', monthKey),
         orderBy('createdAt', 'desc')
       );
@@ -45,12 +43,13 @@ const AdminNotesManager = () => {
     setLoading(false);
   };
 
+  // ✅ 2. تصحيح المسار في الإضافة
   const handleAddItem = async (e) => {
     e.preventDefault();
     if (!newItem.text) return;
 
     try {
-      await addDoc(collection(db, 'admin_notes'), {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), { // تم التعديل هنا
         ...newItem,
         monthKey,
         createdAt: new Date().toISOString(),
@@ -61,27 +60,27 @@ const AdminNotesManager = () => {
       fetchItems();
     } catch (error) {
       console.error("Error adding item:", error);
+      alert("حدث خطأ أثناء الحفظ. تأكد من الصلاحيات.");
     }
   };
 
+  // ✅ 3. تصحيح المسار في الحذف
   const handleDelete = async (id) => {
     if(!confirm("هل أنت متأكد من الحذف؟")) return;
     try {
-      await deleteDoc(doc(db, 'admin_notes', id));
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'admin_notes', id)); // تم التعديل هنا
       setItems(items.filter(i => i.id !== id));
     } catch (error) {
       console.error("Error deleting:", error);
     }
   };
 
-  // تغيير الشهر
   const changeMonth = (inc) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + inc);
     setCurrentDate(newDate);
   };
 
-  // حسابات المالية للشهر الحالي
   const financials = useMemo(() => {
     const accounts = items.filter(i => i.type === 'account');
     const income = accounts.filter(i => i.transactionType === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -112,7 +111,7 @@ const AdminNotesManager = () => {
         </div>
       </div>
 
-      {/* --- ملخص مالي (يظهر دائماً) --- */}
+      {/* --- ملخص مالي --- */}
       <div className="grid grid-cols-3 gap-4">
          <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex flex-col items-center">
             <span className="text-green-600 text-xs font-bold mb-1 flex items-center gap-1"><TrendingUp size={12}/> الدخل</span>
@@ -159,12 +158,12 @@ const AdminNotesManager = () => {
                  item.type === 'note' ? 'bg-yellow-50/50 border-yellow-100' : 'bg-white border-gray-100'
                }`}>
                   <div className="flex justify-between items-start mb-2">
-                     <span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded-full border">{item.date}</span>
-                     {item.type === 'account' && (
-                       <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.transactionType === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                         {item.transactionType === 'income' ? 'دخل +' : 'صرف -'}
-                       </span>
-                     )}
+                      <span className="text-[10px] text-gray-400 bg-white px-2 py-1 rounded-full border">{item.date}</span>
+                      {item.type === 'account' && (
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.transactionType === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {item.transactionType === 'income' ? 'دخل +' : 'صرف -'}
+                        </span>
+                      )}
                   </div>
                   
                   <p className="text-gray-800 font-bold mb-2 whitespace-pre-wrap">{item.text}</p>
@@ -218,16 +217,16 @@ const AdminNotesManager = () => {
                  </div>
 
                  {newItem.type === 'account' && (
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">المبلغ (JD)</label>
-                      <input 
-                        type="number"
-                        className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-yellow-500 outline-none font-bold text-lg"
-                        value={newItem.amount}
-                        onChange={e => setNewItem({...newItem, amount: e.target.value})}
-                        placeholder="0.00"
-                      />
-                    </div>
+                   <div>
+                     <label className="block text-sm font-bold text-gray-700 mb-1">المبلغ (JD)</label>
+                     <input 
+                       type="number"
+                       className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-yellow-500 outline-none font-bold text-lg"
+                       value={newItem.amount}
+                       onChange={e => setNewItem({...newItem, amount: e.target.value})}
+                       placeholder="0.00"
+                     />
+                   </div>
                  )}
 
                  <div className="flex gap-2 pt-2">
