@@ -1,6 +1,6 @@
 // src/views/dashboard/ReportsManager.jsx
 import React, { useState } from 'react';
-import { FileText, Printer, TrendingUp, TrendingDown, Users, AlertCircle, Activity } from 'lucide-react';
+import { FileText, Printer, TrendingUp, TrendingDown, Users, AlertCircle } from 'lucide-react';
 import { Card } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
@@ -62,15 +62,10 @@ export default function ReportsManager({
     const totalExpense = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     const netProfit = totalIncome - totalExpense;
 
-    // --- 2. سجل الحركات/النشاطات (مرتبط بالتاريخ) ---
-    const filteredLogs = activityLogs 
-        ? activityLogs.filter(l => l.branch === selectedBranch && isInRange(l.timestamp))
-        : [];
-
-    // --- 3. ملاحظات الإدارة (الكل - بدون فلتر تاريخ) ---
+    // --- 2. ملاحظات الإدارة (الكل - بدون فلتر تاريخ) ---
     const finalAdminNotes = adminNotes || [];
 
-    // --- 4. بيانات الطلاب (الملاحظات كاملة بدون فلتر) ---
+    // --- 3. بيانات الطلاب (الملاحظات كاملة بدون فلتر) ---
     const studentReportData = students.filter(s => s.branch === selectedBranch).map(s => {
         // أ. عدد أيام الحضور (مرتبط بالتاريخ المختار)
         let attendanceCount = 0;
@@ -202,23 +197,7 @@ export default function ReportsManager({
                     </tbody>
                 </table>
 
-                <h2>ثالثاً: سجل الحركات المالية والإدارية (Logs)</h2>
-                <table>
-                    <thead><tr><th width="15%">الوقت والتاريخ</th><th>نوع الحركة</th><th>التفاصيل</th><th>المستخدم</th></tr></thead>
-                    <tbody>
-                        ${filteredLogs.map(l => `
-                            <tr>
-                                <td dir="ltr" style="text-align:right">${new Date(l.timestamp).toLocaleString('ar-EG')}</td>
-                                <td>${l.action}</td>
-                                <td>${l.details}</td>
-                                <td>${l.performedBy}</td>
-                            </tr>
-                        `).join('')}
-                        ${filteredLogs.length === 0 ? '<tr><td colspan="4" style="text-align:center">لا يوجد حركات في هذه الفترة</td></tr>' : ''}
-                    </tbody>
-                </table>
-
-                <h2>رابعاً: سجل الطلاب الشامل (الوضع الحالي)</h2>
+                <h2>ثالثاً: سجل الطلاب الشامل (الوضع الحالي)</h2>
                 <table>
                     <thead>
                         <tr>
@@ -429,37 +408,6 @@ export default function ReportsManager({
                                 </tr>
                             ))}
                             {finalAdminNotes.length === 0 && <tr><td colSpan="2" className="p-4 text-center text-gray-400">لا يوجد ملاحظات إدارية</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Logs Section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-4 border-b border-gray-50 bg-gray-50 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2"><Activity size={18}/> سجل الحركات (خلال الفترة)</h3>
-                    <span className="text-xs font-bold bg-gray-200 text-gray-800 px-2 py-1 rounded-full">{filteredLogs.length} حركة</span>
-                </div>
-                <div className="max-h-60 overflow-y-auto custom-scrollbar p-0">
-                    <table className="w-full text-xs text-right">
-                        <thead className="bg-gray-50 text-gray-500 sticky top-0">
-                            <tr>
-                                <th className="p-3">الوقت</th>
-                                <th className="p-3">الحدث</th>
-                                <th className="p-3">التفاصيل</th>
-                                <th className="p-3">المستخدم</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredLogs.map((l, i) => (
-                                <tr key={i} className="hover:bg-gray-50">
-                                    <td className="p-3 text-gray-500 dir-ltr text-right">{new Date(l.timestamp).toLocaleString('ar-EG')}</td>
-                                    <td className="p-3 font-bold text-gray-700">{l.action}</td>
-                                    <td className="p-3 text-gray-600">{l.details}</td>
-                                    <td className="p-3 text-blue-600">{l.performedBy}</td>
-                                </tr>
-                            ))}
-                            {filteredLogs.length === 0 && <tr><td colSpan="4" className="p-4 text-center text-gray-400">لا يوجد حركات في هذه الفترة</td></tr>}
                         </tbody>
                     </table>
                 </div>
