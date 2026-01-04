@@ -453,7 +453,7 @@ export default function FinanceManager({
               
               {/* ✅ الحقل الجديد: اسم إضافي */}
               <div className="col-span-1">
-                 <label className="text-xs block mb-1 font-bold text-gray-700">اسم مرافق / إضافي (اختياري)</label>
+                 <label className="text-xs block mb-1 font-bold text-gray-700">اسم الاخ (اختياري)</label>
                  <input 
                     className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none placeholder-gray-300 text-xs h-[45px]" 
                     value={payForm.extraName} 
