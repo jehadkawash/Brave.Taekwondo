@@ -458,7 +458,7 @@ export default function FinanceManager({
                     className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none placeholder-gray-300 text-xs h-[45px]" 
                     value={payForm.extraName} 
                     onChange={e=>setPayForm({...payForm, extraName:e.target.value})} 
-                    placeholder="مثال: + أخوه أحمد" 
+                    placeholder="اكتب الاسم الثاني هنا" 
                  />
               </div>
 
