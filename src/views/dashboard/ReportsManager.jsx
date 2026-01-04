@@ -228,7 +228,7 @@ export default function ReportsManager({
                                 <td>
                                     ${Number(s.balance) > 0 
                                         ? `<span style="color:red; font-weight:bold;">عليه ${s.balance}</span>` 
-                                        : '<span style="color:green;">خالص</span>'}
+                                        : '<span style="color:green;">مدفوع</span>'}
                                 </td>
                                 <td>${formatDate(s.lastPaymentDate)}</td>
                                 <td style="text-align:center; font-weight:bold;">${s.attendanceCount}</td>
@@ -448,7 +448,7 @@ export default function ReportsManager({
                                     <td className="p-3">
                                         {Number(s.balance) > 0 
                                             ? <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">عليه {s.balance}</span> 
-                                            : <span className="text-green-600">خالص</span>}
+                                            : <span className="text-green-600">مدفوع</span>}
                                     </td>
                                     <td className="p-3 text-gray-500">{formatDate(s.lastPaymentDate)}</td>
                                     <td className="p-3 font-bold text-center">{s.attendanceCount}</td>

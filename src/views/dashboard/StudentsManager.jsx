@@ -861,7 +861,7 @@ https://bravetkd.bar/
                                 <td className="p-4">
                                     {s.balance > 0 ? 
                                         <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-xs">عليه {s.balance}</span> : 
-                                        <span className="text-green-600 font-bold text-xs">خالص</span>
+                                        <span className="text-green-600 font-bold text-xs">مدفوع</span>
                                     }
                                 </td>
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
@@ -926,7 +926,7 @@ https://bravetkd.bar/
                          </div>
                          <div className={`p-2 rounded-lg ${s.balance > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
                              <span className="text-xs block opacity-70">الرصيد</span>
-                             <span className="font-bold">{s.balance > 0 ? `عليه ${s.balance}` : 'خالص'}</span>
+                             <span className="font-bold">{s.balance > 0 ? `عليه ${s.balance}` : 'مدفوع'}</span>
                          </div>
                      </div>
 
