@@ -23,6 +23,21 @@ const generateCredentials = () => {
   return { username, password };
 };
 
+// --- Helper: Date Formatter (dd/mm/yyyy) ---
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  // Check if it's a Date object
+  const d = new Date(dateString);
+  // Check if date is valid
+  if (isNaN(d.getTime())) return dateString;
+  
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  
+  return `${day}/${month}/${year}`;
+};
+
 const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
     const today = new Date();
@@ -190,7 +205,7 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
         const newNote = {
             id: Date.now().toString(),
             text: noteText,
-            date: new Date().toLocaleDateString('ar-JO'),
+            date: formatDate(new Date()), // Use formatDate here for dd/mm/yyyy
             timestamp: new Date().toISOString()
         };
         onSave(student.id, activeTab, 'add', newNote);
@@ -599,7 +614,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       const newNote = {
           id: Date.now().toString(),
           text: text,
-          date: new Date().toLocaleDateString('ar-JO'),
+          date: formatDate(new Date()), // Use formatDate here
           timestamp: new Date().toISOString()
       };
 
@@ -629,7 +644,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       await studentsCollection.update(studentId, { subEnd: newDate });
       
       if(logActivity && renewingStudent) {
-          logActivity("تجديد اشتراك", `تجديد اشتراك للطالب ${renewingStudent.name} (تاريخ جديد: ${newDate})`);
+          logActivity("تجديد اشتراك", `تجديد اشتراك للطالب ${renewingStudent.name} (تاريخ جديد: ${formatDate(newDate)})`);
       }
       
       setRenewingStudent(null);
@@ -828,7 +843,7 @@ https://bravetkd.bar/
                                             <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold border border-red-200 animate-pulse">NEW</span>
                                         )}
                                     </div>
-                                    <div className="text-xs text-gray-400 mt-1">{s.joinDate}</div>
+                                    <div className="text-xs text-gray-400 mt-1">{formatDate(s.joinDate)}</div>
                                 </td>
                                 
                                 <td className="p-4">
@@ -910,7 +925,7 @@ https://bravetkd.bar/
                                 <h3 className="font-bold text-gray-800 text-lg">{s.name}</h3>
                                 {isNew && <span className="text-[10px] bg-red-100 text-red-600 px-2 rounded-full animate-pulse">NEW</span>}
                              </div>
-                             <p className="text-xs text-gray-400 mt-0.5">منذ: {s.joinDate}</p>
+                             <p className="text-xs text-gray-400 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
                              <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
                                  {s.group || 'غير محدد'}
                              </span>

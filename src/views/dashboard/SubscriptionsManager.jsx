@@ -4,6 +4,19 @@ import { Search, CheckCircle, AlertCircle, XCircle, Clock, Edit3, Printer } from
 import { Card, StatusBadge, StudentSearch, Button } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
+// --- Helper: Date Formatter (dd/mm/yyyy) ---
+const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+};
+
 const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
     const today = new Date();
@@ -42,14 +55,18 @@ export default function SubscriptionsManager({ students, studentsCollection, log
         // نضيف الأشهر للتاريخ الموجود (سواء كان في الماضي أو المستقبل)
         newDateObj.setMonth(newDateObj.getMonth() + months);
         
-        // تنسيق التاريخ للنص (YYYY-MM-DD)
+        // تنسيق التاريخ للنص (YYYY-MM-DD) للحفظ في الداتابيز
         const newDateString = newDateObj.toISOString().split('T')[0];
 
-        if (window.confirm(`تجديد اشتراك ${student.name} لمدة ${months} شهر؟\nمن: ${student.subEnd || 'اليوم'}\nإلى: ${newDateString}`)) {
+        // عرض التواريخ للمستخدم بتنسيق dd/mm/yyyy
+        const displayCurrentEnd = student.subEnd ? formatDate(student.subEnd) : 'اليوم';
+        const displayNewEnd = formatDate(newDateString);
+
+        if (window.confirm(`تجديد اشتراك ${student.name} لمدة ${months} شهر؟\nمن: ${displayCurrentEnd}\nإلى: ${displayNewEnd}`)) {
             await studentsCollection.update(student.id, { subEnd: newDateString });
             
             // تسجيل النشاط باسم الطالب
-            if (logActivity) logActivity("تجديد سريع", `تجديد اشتراك للطالب ${student.name} (+${months} شهر) ليصبح ${newDateString}`);
+            if (logActivity) logActivity("تجديد سريع", `تجديد اشتراك للطالب ${student.name} (+${months} شهر) ليصبح ${displayNewEnd}`);
         }
     };
 
@@ -61,16 +78,18 @@ export default function SubscriptionsManager({ students, studentsCollection, log
         const student = students.find(s => s.id === studentId);
         const studentName = student ? student.name : 'طالب غير معروف';
 
+        // editDate هو القيمة من input type="date" وهي دائماً YYYY-MM-DD، وهذا صحيح للحفظ
         await studentsCollection.update(studentId, { subEnd: editDate });
         
-        // تسجيل النشاط
-        if (logActivity) logActivity("تعديل اشتراك", `تعديل تاريخ اشتراك للطالب ${studentName} يدوياً إلى ${editDate}`);
+        // تسجيل النشاط (نعرض التاريخ الجديد بتنسيق مألوف)
+        if (logActivity) logActivity("تعديل اشتراك", `تعديل تاريخ اشتراك للطالب ${studentName} يدوياً إلى ${formatDate(editDate)}`);
         
         setEditingId(null);
     };
 
     const startEditing = (student) => {
         setEditingId(student.id);
+        // عند البدء بالتعديل، نضع القيمة في الـ input (يجب أن تكون YYYY-MM-DD لـ input type="date")
         setEditDate(student.subEnd || new Date().toISOString().split('T')[0]);
     };
 
@@ -88,7 +107,7 @@ export default function SubscriptionsManager({ students, studentsCollection, log
     const handlePrintReport = () => {
         const printWin = window.open('', 'PRINT', 'height=800,width=1000');
         const logoUrl = window.location.origin + IMAGES.LOGO;
-        const dateNow = new Date().toLocaleDateString('ar-EG');
+        const dateNow = formatDate(new Date());
 
         const htmlContent = `
             <!DOCTYPE html>
@@ -137,7 +156,7 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                                     <td>${i + 1}</td>
                                     <td>${s.name}</td>
                                     <td>${s.belt}</td>
-                                    <td style="direction:ltr; text-align:right">${s.subEnd || '-'}</td>
+                                    <td style="direction:ltr; text-align:right">${formatDate(s.subEnd)}</td>
                                     <td class="${statusClass}">${statusText}</td>
                                 </tr>
                             `;
@@ -211,7 +230,7 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                                     <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                     
                                     <td className="p-4 font-mono text-gray-600 dir-ltr text-right">
-                                        {s.subEnd || 'غير محدد'}
+                                        {formatDate(s.subEnd)}
                                     </td>
 
                                     <td className="p-4">
@@ -264,7 +283,7 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                                 <div>
                                     <h3 className="font-bold text-gray-800 text-lg">{s.name}</h3>
                                     <div className="flex items-center gap-2 mt-1 text-gray-500 text-xs">
-                                        <Clock size={12}/> ينتهي: {s.subEnd || 'غير محدد'}
+                                        <Clock size={12}/> ينتهي: {formatDate(s.subEnd)}
                                     </div>
                                 </div>
                                 <StatusBadge status={status}/>
@@ -283,8 +302,9 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                                     className="flex-1 bg-white border border-gray-200 rounded p-1 text-xs outline-none focus:border-blue-500"
                                     defaultValue={s.subEnd}
                                     onBlur={(e) => {
+                                        // e.target.value comes from date input as YYYY-MM-DD
                                         if (e.target.value !== s.subEnd) {
-                                            if(window.confirm("حفظ التاريخ الجديد؟")) {
+                                            if(window.confirm(`حفظ التاريخ الجديد (${formatDate(e.target.value)})؟`)) {
                                                 studentsCollection.update(s.id, { subEnd: e.target.value });
                                             }
                                         }
