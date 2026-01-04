@@ -101,12 +101,12 @@ export default function FinanceManager({
     financeReasons = [], financeReasonsCollection 
 }) {
   const [viewMode, setViewMode] = useState('income'); 
-  // ✅ إضافة method للحالة الافتراضية
-  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
+  // ✅ أضفنا extraName للحالة
+  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '' }); 
   const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T')[0] }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
-  const [showReportModal, setShowReportModal] = useState(false); // ✅ حالة نافذة التقرير
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
@@ -136,22 +136,28 @@ export default function FinanceManager({
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     
-    // ✅ حفظ طريقة الدفع (method)
+    // ✅ منطق دمج الأسماء: إذا وجد اسم إضافي، ندمجه مع اسم الطالب
+    const paymentName = payForm.extraName 
+        ? `${selectedStudent.name} و ${payForm.extraName}` 
+        : selectedStudent.name;
+
     const newPay = { 
         id: Date.now().toString(), 
         studentId: selectedStudent.id, 
-        name: selectedStudent.name, 
+        name: paymentName, // نستخدم الاسم المدمج هنا
         amount: Number(payForm.amount), 
         reason: finalReason, 
         details: payForm.details, 
-        method: payForm.method || 'cash', // Default to cash
+        method: payForm.method || 'cash', 
         date: new Date().toISOString().split('T')[0], 
         branch: selectedBranch 
     }; 
     
     await paymentsCollection.add(newPay); 
-    logActivity("قبض مالي", `استلام ${payForm.amount} (${payForm.method === 'cliq' ? 'كليك' : 'كاش'}) من ${selectedStudent.name}`); 
-    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash' }); 
+    logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`); 
+    
+    // تصفير النموذج
+    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '' }); 
   };
 
   const handleAddExpense = async (e) => { 
@@ -282,7 +288,6 @@ export default function FinanceManager({
   const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
-    // ✅ تحديد نص طريقة الدفع للوصل
     const methodText = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
 
     const htmlContent = `
@@ -445,12 +450,23 @@ export default function FinanceManager({
                  <label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label>
                  <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." />
               </div>
+              
+              {/* ✅ الحقل الجديد: اسم إضافي */}
+              <div className="col-span-1">
+                 <label className="text-xs block mb-1 font-bold text-gray-700">اسم مرافق / إضافي (اختياري)</label>
+                 <input 
+                    className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none placeholder-gray-300 text-xs h-[45px]" 
+                    value={payForm.extraName} 
+                    onChange={e=>setPayForm({...payForm, extraName:e.target.value})} 
+                    placeholder="مثال: + أخوه أحمد" 
+                 />
+              </div>
+
               <div>
                  <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
                  <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
               
-              {/* ✅ حقل طريقة الدفع الجديد */}
               <div>
                  <label className="text-xs block mb-1 font-bold text-gray-700">طريقة الدفع</label>
                  <select 
@@ -597,7 +613,7 @@ export default function FinanceManager({
         <>
           {/* Expenses Form */}
           <Card title="تسجيل مصروف" className="border-red-100 shadow-red-50">
-             <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="col-span-1 md:col-span-2">
                     <label className="text-xs block mb-1 font-bold text-gray-700">البند (سبب الصرف)</label>
                     <input className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.title} onChange={e=>setExpForm({...expForm, title:e.target.value})} required placeholder="مثال: فاتورة كهرباء" />
@@ -609,7 +625,7 @@ export default function FinanceManager({
                 <div>
                     <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 py-2.5">حفظ</Button>
                 </div>
-             </form>
+              </form>
           </Card>
           
           {/* --- DESKTOP VIEW (Expenses Table) --- */}
