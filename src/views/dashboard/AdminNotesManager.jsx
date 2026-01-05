@@ -1,10 +1,10 @@
 // src/views/dashboard/AdminNotesManager.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  ChevronLeft, ChevronRight, Plus, StickyNote, DollarSign, 
-  Trash2, TrendingUp, TrendingDown, Wallet, Calendar 
+  ChevronLeft, ChevronRight, StickyNote, DollarSign, 
+  Trash2, TrendingUp, TrendingDown, Wallet 
 } from 'lucide-react';
-import { Button, Card } from '../../components/UIComponents';
+import { Button } from '../../components/UIComponents';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
 
@@ -25,12 +25,12 @@ const AdminNotesManager = () => {
     fetchItems();
   }, [monthKey]);
 
-  // ✅ 1. تصحيح المسار في جلب البيانات
+  // ✅ 1. Correct Path + Filtering (Requires Index)
   const fetchItems = async () => {
     setLoading(true);
     try {
       const q = query(
-        collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), // تم التعديل هنا
+        collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'),
         where('monthKey', '==', monthKey),
         orderBy('createdAt', 'desc')
       );
@@ -39,17 +39,18 @@ const AdminNotesManager = () => {
       setItems(data);
     } catch (error) {
       console.error("Error fetching notes:", error);
+      // NOTE: If you see an error here, click the link in the console to create the index!
     }
     setLoading(false);
   };
 
-  // ✅ 2. تصحيح المسار في الإضافة
+  // ✅ 2. Correct Path for Adding
   const handleAddItem = async (e) => {
     e.preventDefault();
     if (!newItem.text) return;
 
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), { // تم التعديل هنا
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), {
         ...newItem,
         monthKey,
         createdAt: new Date().toISOString(),
@@ -57,18 +58,18 @@ const AdminNotesManager = () => {
       });
       setShowModal(false);
       setNewItem({ text: '', amount: '', type: 'note', transactionType: 'expense' });
-      fetchItems();
+      fetchItems(); // Refresh list after adding
     } catch (error) {
       console.error("Error adding item:", error);
       alert("حدث خطأ أثناء الحفظ. تأكد من الصلاحيات.");
     }
   };
 
-  // ✅ 3. تصحيح المسار في الحذف
+  // ✅ 3. Correct Path for Deleting
   const handleDelete = async (id) => {
     if(!confirm("هل أنت متأكد من الحذف؟")) return;
     try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'admin_notes', id)); // تم التعديل هنا
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'admin_notes', id));
       setItems(items.filter(i => i.id !== id));
     } catch (error) {
       console.error("Error deleting:", error);
@@ -90,7 +91,7 @@ const AdminNotesManager = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* --- الهيدر والتحكم بالشهر --- */}
+      {/* --- Header & Month Control --- */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl">
           <Button variant="ghost" onClick={() => changeMonth(-1)}><ChevronRight /></Button>
@@ -111,23 +112,23 @@ const AdminNotesManager = () => {
         </div>
       </div>
 
-      {/* --- ملخص مالي --- */}
+      {/* --- Financial Summary --- */}
       <div className="grid grid-cols-3 gap-4">
          <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex flex-col items-center">
             <span className="text-green-600 text-xs font-bold mb-1 flex items-center gap-1"><TrendingUp size={12}/> الدخل</span>
-            <span className="text-xl font-bold text-green-800">{financials.income}</span>
+            <span className="text-xl font-bold text-green-800">{financials.income} JD</span>
          </div>
          <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex flex-col items-center">
             <span className="text-red-600 text-xs font-bold mb-1 flex items-center gap-1"><TrendingDown size={12}/> المصاريف</span>
-            <span className="text-xl font-bold text-red-800">{financials.expense}</span>
+            <span className="text-xl font-bold text-red-800">{financials.expense} JD</span>
          </div>
          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center">
             <span className="text-blue-600 text-xs font-bold mb-1 flex items-center gap-1"><Wallet size={12}/> الصافي</span>
-            <span className="text-xl font-bold text-blue-800">{financials.total}</span>
+            <span className="text-xl font-bold text-blue-800">{financials.total} JD</span>
          </div>
       </div>
 
-      {/* --- التبويبات --- */}
+      {/* --- Tabs --- */}
       <div className="flex border-b border-gray-200 mb-4">
         <button 
           onClick={() => setActiveTab('notes')}
@@ -143,7 +144,7 @@ const AdminNotesManager = () => {
         </button>
       </div>
 
-      {/* --- المحتوى --- */}
+      {/* --- Content List --- */}
       <div className="min-h-[300px]">
         {loading ? (
            <p className="text-center text-gray-400 py-10">جاري التحميل...</p>
@@ -186,7 +187,7 @@ const AdminNotesManager = () => {
         )}
       </div>
 
-      {/* --- Modal --- */}
+      {/* --- Add Modal --- */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
            <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all" onClick={e => e.stopPropagation()}>
