@@ -39,7 +39,7 @@ export const DashboardStats = ({ user, selectedBranch, branchStudents, netProfit
                <div><p className="text-gray-500 text-sm mb-1">إجمالي الطلاب</p><h3 className="text-3xl font-bold text-gray-800">{branchStudents.length}</h3></div>
                <div className="bg-blue-100 p-2 rounded-lg"><Users className="text-blue-600" size={24}/></div>
             </div>
-            <div className="mt-4 text-xs text-gray-400 flex items-center gap-1"><ArrowUp size={12} className="text-green-500"/> <span className="text-green-500 font-bold">+3</span> هذا الشهر</div>
+            <div className="mt-4 text-xs text-gray-400 flex items-center gap-1"><ArrowUp size={12} className="text-green-500"/> <span className="text-green-500 font-bold">+100</span> هذا الشهر</div>
          </Card>
          <Card className="border-l-4 border-green-500 transform hover:-translate-y-1 transition-transform">
             <div className="flex justify-between items-start">
