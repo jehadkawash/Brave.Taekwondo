@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronLeft, ChevronRight, StickyNote, DollarSign, 
-  Trash2, TrendingUp, TrendingDown, Wallet, Edit, Printer, X, Save
+  Trash2, TrendingUp, TrendingDown, Wallet, Edit, Printer, X, Save, 
+  Calendar, FileText, ArrowUpCircle, ArrowDownCircle
 } from 'lucide-react';
 import { Button } from '../../components/UIComponents';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy, updateDoc } from "firebase/firestore"; 
@@ -10,14 +11,14 @@ import { db, appId } from '../../lib/firebase';
 
 const AdminNotesManager = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  // ✅ تم إصلاح التسمية لتطابق قاعدة البيانات (note مفرد)
+  // الحالة الافتراضية لعرض الملاحظات
   const [activeTab, setActiveTab] = useState('note'); 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [editId, setEditId] = useState(null); // لتحديد هل نحن في وضع تعديل أم إضافة
+  const [editId, setEditId] = useState(null); 
   const [newItem, setNewItem] = useState({ 
     text: '', 
     amount: '', 
@@ -49,7 +50,6 @@ const AdminNotesManager = () => {
     setLoading(false);
   };
 
-  // --- حفظ (إضافة أو تعديل) ---
   const handleSaveItem = async (e) => {
     e.preventDefault();
     if (!newItem.text) return;
@@ -58,17 +58,14 @@ const AdminNotesManager = () => {
       const dataToSave = {
         ...newItem,
         monthKey,
-        // نحافظ على تاريخ الإنشاء القديم عند التعديل، أو ننشئ جديد عند الإضافة
         createdAt: editId ? newItem.createdAt : new Date().toISOString(),
         date: editId ? newItem.date : new Date().toLocaleDateString('ar-JO'),
         lastUpdated: new Date().toISOString()
       };
 
       if (editId) {
-        // تعديل
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'admin_notes', editId), dataToSave);
       } else {
-        // إضافة جديد
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), dataToSave);
       }
 
@@ -90,14 +87,12 @@ const AdminNotesManager = () => {
     }
   };
 
-  // --- فتح المودال للإضافة ---
   const openAddModal = (type) => {
     setEditId(null);
     setNewItem({ text: '', amount: '', type, transactionType: 'expense' });
     setShowModal(true);
   };
 
-  // --- فتح المودال للتعديل ---
   const openEditModal = (item) => {
     setEditId(item.id);
     setNewItem({ ...item });
@@ -122,7 +117,6 @@ const AdminNotesManager = () => {
     return { income, expense, total: income - expense };
   }, [items]);
 
-  // --- طباعة التقرير الشهري ---
   const handlePrint = () => {
     const printWin = window.open('', 'PRINT', 'height=800,width=1000');
     const notesList = items.filter(i => i.type === 'note');
@@ -133,300 +127,283 @@ const AdminNotesManager = () => {
       <html lang="ar" dir="rtl">
       <head>
         <meta charset="UTF-8">
-        <title>تقرير الإدارة - ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}</title>
+        <title>تقرير الإدارة - ${monthNames[currentDate.getMonth()]}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-          body { font-family: 'Cairo', sans-serif; padding: 40px; color: #333; }
-          .header { text-align: center; border-bottom: 3px solid #fbbf24; padding-bottom: 20px; margin-bottom: 30px; }
-          h2 { margin: 0; color: #1f2937; }
-          .meta { color: #6b7280; font-size: 14px; margin-top: 5px; }
-          
-          .section-title { font-size: 18px; font-weight: bold; margin: 30px 0 15px 0; border-right: 4px solid #fbbf24; padding-right: 10px; }
-          
-          table { wudth: 100%; width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
-          th, td { border: 1px solid #e5e7eb; padding: 10px; text-align: right; }
-          th { background-color: #f9fafb; font-weight: bold; }
-          .amount-col { font-weight: bold; direction: ltr; text-align: left; }
-          .income { color: #166534; }
-          .expense { color: #991b1b; }
-          
-          .summary-box { display: flex; justify-content: space-between; background: #f3f4f6; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: 10px; }
-          .note-item { background: #fffbeb; border: 1px solid #fcd34d; padding: 10px; margin-bottom: 8px; border-radius: 6px; }
-          .note-date { font-size: 12px; color: #9ca3af; margin-bottom: 4px; }
-
-          @media print {
-            .no-print { display: none; }
-            body { padding: 20px; }
-          }
+          body { font-family: sans-serif; padding: 20px; }
+          .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
+          th { background: #f0f0f0; }
+          .income { color: green; }
+          .expense { color: red; }
+          .total-box { margin-top: 20px; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; font-weight: bold; display: flex; justify-content: space-around; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h2>تقرير سجل الإدارة والمالية</h2>
-          <div class="meta">عن شهر: ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}</div>
+          <h2>سجل الإدارة والمالية</h2>
+          <p>${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}</p>
         </div>
 
-        <div class="section-title">📊 الحركات المالية</div>
-        ${accountsList.length > 0 ? `
-          <table>
-            <thead>
+        <h3>أولاً: الحركات المالية</h3>
+        <table>
+          <thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th>المبلغ</th></tr></thead>
+          <tbody>
+            ${accountsList.map(i => `
               <tr>
-                <th width="15%">التاريخ</th>
-                <th width="15%">النوع</th>
-                <th>البيان / الوصف</th>
-                <th width="20%">المبلغ</th>
+                <td>${i.date}</td>
+                <td>${i.transactionType === 'income' ? 'إيراد' : 'مصروف'}</td>
+                <td>${i.text}</td>
+                <td class="${i.transactionType === 'income' ? 'income' : 'expense'}">${i.amount}</td>
               </tr>
-            </thead>
-            <tbody>
-              ${accountsList.map(item => `
-                <tr>
-                  <td>${item.date}</td>
-                  <td>${item.transactionType === 'income' ? 'إيراد +' : 'مصروف -'}</td>
-                  <td>${item.text}</td>
-                  <td class="amount-col ${item.transactionType === 'income' ? 'income' : 'expense'}">
-                    ${item.amount} JD
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="summary-box">
-             <span class="income">المجموع المقبوض: ${financials.income} JD</span>
-             <span class="expense">المجموع المصروف: ${financials.expense} JD</span>
-             <span style="color: #1e3a8a">الصافي النهائي: ${financials.total} JD</span>
-          </div>
-        ` : '<p style="text-align:center; color:#999;">لا يوجد حركات مالية مسجلة لهذا الشهر.</p>'}
-
-        <div class="section-title">📝 الملاحظات الإدارية</div>
-        ${notesList.length > 0 ? `
-          <div>
-            ${notesList.map(item => `
-              <div class="note-item">
-                <div class="note-date">${item.date}</div>
-                <div>${item.text}</div>
-              </div>
             `).join('')}
-          </div>
-        ` : '<p style="text-align:center; color:#999;">لا يوجد ملاحظات مسجلة لهذا الشهر.</p>'}
-        
-        <script>window.onload = function() { window.print(); }</script>
+          </tbody>
+        </table>
+        <div class="total-box">
+           <span>دخل: ${financials.income}</span>
+           <span>صرف: ${financials.expense}</span>
+           <span>صافي: ${financials.total}</span>
+        </div>
+
+        <h3>ثانياً: الملاحظات</h3>
+        <ul>
+          ${notesList.map(n => `<li><b>${n.date}:</b> ${n.text}</li>`).join('')}
+        </ul>
       </body>
       </html>
     `;
     printWin.document.write(htmlContent);
     printWin.document.close();
+    printWin.print();
   };
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       
-      {/* --- Header Control --- */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+      {/* --- الهيدر والتحكم بالشهر --- */}
+      <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         
-        {/* Month Selector */}
-        <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl border border-gray-200">
-          <Button variant="ghost" onClick={() => changeMonth(-1)} className="hover:bg-white hover:shadow-sm"><ChevronRight /></Button>
+        <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+          <Button variant="ghost" onClick={() => changeMonth(-1)} className="hover:bg-white hover:shadow-sm rounded-xl"><ChevronRight /></Button>
           <div className="text-center min-w-[160px]">
-            <h2 className="text-xl font-black text-gray-800">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Admin Log</p>
+            <h2 className="text-2xl font-black text-gray-800">{monthNames[currentDate.getMonth()]}</h2>
+            <p className="text-xs font-bold text-gray-400">{currentDate.getFullYear()}</p>
           </div>
-          <Button variant="ghost" onClick={() => changeMonth(1)} className="hover:bg-white hover:shadow-sm"><ChevronLeft /></Button>
+          <Button variant="ghost" onClick={() => changeMonth(1)} className="hover:bg-white hover:shadow-sm rounded-xl"><ChevronLeft /></Button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap justify-center gap-2">
-           <Button onClick={() => openAddModal('note')} className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-200 gap-2 font-bold shadow-sm">
+        <div className="flex gap-2">
+           <Button onClick={() => openAddModal('note')} className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-2 border-yellow-200 gap-2 font-bold shadow-sm rounded-xl">
              <StickyNote size={18}/> إضافة ملاحظة
            </Button>
-           <Button onClick={() => openAddModal('account')} className="bg-green-100 text-green-700 hover:bg-green-200 border border-green-200 gap-2 font-bold shadow-sm">
+           <Button onClick={() => openAddModal('account')} className="bg-black text-white hover:bg-gray-800 gap-2 font-bold shadow-lg shadow-gray-200 rounded-xl">
              <DollarSign size={18}/> حركة مالية
            </Button>
-           <div className="w-px h-8 bg-gray-200 mx-1 hidden md:block"></div>
-           <Button onClick={handlePrint} variant="outline" className="gap-2 border-gray-300 text-gray-600 hover:text-black hover:border-black">
-             <Printer size={18}/> طباعة التقرير
+           <Button onClick={handlePrint} variant="outline" className="gap-2 border-gray-200 text-gray-500 hover:text-black rounded-xl">
+             <Printer size={18}/>
            </Button>
         </div>
       </div>
 
-      {/* --- Financial Summary Widget --- */}
+      {/* --- ملخص المالية (يظهر دائماً) --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-         <div className="bg-gradient-to-br from-green-50 to-white p-5 rounded-2xl border border-green-100 shadow-sm flex flex-col items-center justify-center">
-            <span className="text-green-600 text-xs font-black mb-2 flex items-center gap-1 bg-green-100 px-2 py-1 rounded-lg"><TrendingUp size={12}/> الدخل الشهري</span>
-            <span className="text-2xl font-black text-green-800 tracking-tight">{financials.income} <span className="text-sm font-medium">JD</span></span>
+         <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-green-200 transition-all">
+            <div>
+               <span className="text-green-600 text-xs font-bold mb-1 block">الدخل الشهري</span>
+               <span className="text-2xl font-black text-gray-800">{financials.income} <span className="text-sm font-medium text-gray-400">JD</span></span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform"><TrendingUp size={20}/></div>
          </div>
-         <div className="bg-gradient-to-br from-red-50 to-white p-5 rounded-2xl border border-red-100 shadow-sm flex flex-col items-center justify-center">
-            <span className="text-red-600 text-xs font-black mb-2 flex items-center gap-1 bg-red-100 px-2 py-1 rounded-lg"><TrendingDown size={12}/> المصروفات</span>
-            <span className="text-2xl font-black text-red-800 tracking-tight">{financials.expense} <span className="text-sm font-medium">JD</span></span>
+         <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-red-200 transition-all">
+            <div>
+               <span className="text-red-600 text-xs font-bold mb-1 block">المصروفات</span>
+               <span className="text-2xl font-black text-gray-800">{financials.expense} <span className="text-sm font-medium text-gray-400">JD</span></span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform"><TrendingDown size={20}/></div>
          </div>
-         <div className="bg-gradient-to-br from-blue-50 to-white p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-            <span className="text-blue-600 text-xs font-black mb-2 flex items-center gap-1 bg-blue-100 px-2 py-1 rounded-lg"><Wallet size={12}/> الصافي</span>
-            <span className="text-3xl font-black text-blue-900 tracking-tight">{financials.total} <span className="text-sm font-medium">JD</span></span>
+         <div className="bg-blue-600 p-5 rounded-3xl shadow-lg shadow-blue-200 flex items-center justify-between text-white relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full"></div>
+            <div>
+               <span className="text-blue-100 text-xs font-bold mb-1 block">الصافي النهائي</span>
+               <span className="text-3xl font-black">{financials.total} <span className="text-base font-medium opacity-70">JD</span></span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><Wallet size={20}/></div>
          </div>
       </div>
 
-      {/* --- Main Content Area --- */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[400px]">
+      {/* --- التبويبات والمحتوى --- */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 min-h-[500px] overflow-hidden">
         
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100">
+        {/* شريط التبويب */}
+        <div className="flex border-b border-gray-100 p-2 gap-2 bg-gray-50/50">
           <button 
             onClick={() => setActiveTab('note')}
-            className={`flex-1 py-4 font-bold text-sm transition-all flex items-center justify-center gap-2 relative
-              ${activeTab === 'note' ? 'text-yellow-600 bg-yellow-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            className={`flex-1 py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2
+              ${activeTab === 'note' ? 'bg-white shadow-sm text-yellow-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
           >
-            <StickyNote size={18} className={activeTab === 'note' ? 'fill-yellow-600' : ''}/> 
-            سجل الملاحظات 
-            <span className="bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded-full">{items.filter(i => i.type === 'note').length}</span>
-            {activeTab === 'note' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-500"></div>}
+            <StickyNote size={18}/> 
+            الملاحظات ({items.filter(i => i.type === 'note').length})
           </button>
-          
-          <div className="w-px bg-gray-100"></div>
           
           <button 
             onClick={() => setActiveTab('account')}
-            className={`flex-1 py-4 font-bold text-sm transition-all flex items-center justify-center gap-2 relative
-              ${activeTab === 'account' ? 'text-green-600 bg-green-50/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+            className={`flex-1 py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2
+              ${activeTab === 'account' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
           >
-            <DollarSign size={18} className={activeTab === 'account' ? 'fill-green-600' : ''}/> 
-            سجل الحسابات
-            <span className="bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded-full">{items.filter(i => i.type === 'account').length}</span>
-            {activeTab === 'account' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-green-500"></div>}
+            <DollarSign size={18}/> 
+            سجل الحسابات ({items.filter(i => i.type === 'account').length})
           </button>
         </div>
 
-        {/* List */}
+        {/* منطقة المحتوى */}
         <div className="p-6">
           {loading ? (
-             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-               <div className="w-8 h-8 border-4 border-yellow-200 border-t-yellow-500 rounded-full animate-spin mb-4"></div>
-               <p>جاري تحديث البيانات...</p>
+             <div className="flex flex-col items-center justify-center py-20 text-gray-300">
+               <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+               <p>جاري التحميل...</p>
              </div>
           ) : items.length === 0 ? (
-             <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 mx-auto max-w-lg">
-               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                 <StickyNote size={32}/>
-               </div>
-               <h3 className="font-bold text-gray-800">لا يوجد بيانات لهذا الشهر</h3>
-               <p className="text-gray-400 text-sm mt-1">ابدأ بإضافة ملاحظات أو حركات مالية</p>
+             <div className="text-center py-20 text-gray-300">
+               <StickyNote size={48} className="mx-auto mb-2 opacity-50"/>
+               <p>لا يوجد بيانات لعرضها في هذا القسم</p>
              </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {items.filter(i => i.type === activeTab).map(item => (
-                 <div key={item.id} className={`p-5 rounded-2xl border shadow-sm relative group transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${
-                   item.type === 'note' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'
-                 }`}>
-                    
-                    {/* Header */}
-                    <div className="flex justify-between items-start mb-3">
-                        <span className="text-[10px] text-gray-500 font-bold bg-white/60 px-2 py-1 rounded-lg border border-black/5">{item.date}</span>
+            <>
+              {/* عرض الملاحظات (قصاصات) */}
+              {activeTab === 'note' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {items.filter(i => i.type === 'note').map(item => (
+                     <div key={item.id} className="p-5 rounded-2xl bg-yellow-50 border border-yellow-100 relative group transition-all hover:shadow-md hover:-translate-y-1">
+                        <span className="text-[10px] text-yellow-600 font-bold mb-2 block opacity-70">{item.date}</span>
+                        <p className="text-gray-800 font-bold whitespace-pre-wrap leading-relaxed text-sm">{item.text}</p>
                         
-                        {item.type === 'account' && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${item.transactionType === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {item.transactionType === 'income' ? <TrendingUp size={10}/> : <TrendingDown size={10}/>}
-                            {item.transactionType === 'income' ? 'دخل' : 'صرف'}
-                          </span>
-                        )}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="min-h-[60px]">
-                      <p className={`text-gray-800 font-bold whitespace-pre-wrap leading-relaxed ${item.type === 'account' ? 'text-sm' : 'text-base'}`}>
-                        {item.text}
-                      </p>
-                    </div>
-                    
-                    {/* Amount (If Account) */}
-                    {item.type === 'account' && (
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
-                        <span className="text-xl font-black text-gray-900 dir-ltr">{item.amount} <span className="text-xs text-gray-400">JD</span></span>
-                      </div>
-                    )}
+                        <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 p-1 rounded-lg">
+                          <button onClick={() => openEditModal(item)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md"><Edit size={14}/></button>
+                          <button onClick={() => handleDelete(item.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-md"><Trash2 size={14}/></button>
+                        </div>
+                     </div>
+                  ))}
+                </div>
+              )}
 
-                    {/* Actions Overlay */}
-                    <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1 rounded-lg backdrop-blur-sm shadow-sm">
-                      <button 
-                        onClick={() => openEditModal(item)}
-                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
-                        title="تعديل"
-                      >
-                        <Edit size={16}/>
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                        title="حذف"
-                      >
-                        <Trash2 size={16}/>
-                      </button>
-                    </div>
-                 </div>
-              ))}
-            </div>
+              {/* عرض الحسابات (جدول) */}
+              {activeTab === 'account' && (
+                <div className="overflow-x-auto rounded-xl border border-gray-100">
+                  <table className="w-full text-right">
+                    <thead className="bg-gray-50 text-gray-500 text-xs font-bold uppercase">
+                      <tr>
+                        <th className="px-6 py-4 rounded-tr-xl">التاريخ</th>
+                        <th className="px-6 py-4">النوع</th>
+                        <th className="px-6 py-4 w-1/2">البيان / الوصف</th>
+                        <th className="px-6 py-4">المبلغ</th>
+                        <th className="px-6 py-4 rounded-tl-xl text-center">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {items.filter(i => i.type === 'account').map(item => (
+                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="px-6 py-4 text-sm font-bold text-gray-600">{item.date}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${item.transactionType === 'income' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                              {item.transactionType === 'income' ? <ArrowUpCircle size={12}/> : <ArrowDownCircle size={12}/>}
+                              {item.transactionType === 'income' ? 'إيراد' : 'مصروف'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold text-gray-800">{item.text}</td>
+                          <td className={`px-6 py-4 text-sm font-black dir-ltr text-right ${item.transactionType === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                            {item.amount} JD
+                          </td>
+                          <td className="px-6 py-4 flex justify-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => openEditModal(item)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit size={16}/></button>
+                            <button onClick={() => handleDelete(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* --- Add/Edit Modal --- */}
+      {/* --- شاشة الإضافة (Modal) المحسنة --- */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={closeModal}>
-           <div className="bg-white rounded-3xl w-full max-w-md p-0 shadow-2xl transform transition-all overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={closeModal}>
+           <div className={`rounded-3xl w-full max-w-md shadow-2xl transform transition-all overflow-hidden ${newItem.type === 'note' ? 'bg-[#fffbeb]' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
               
-              {/* Modal Header */}
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                 <h3 className="text-lg font-black text-gray-800 flex items-center gap-2">
-                   {editId ? <Edit size={20} className="text-blue-500"/> : (newItem.type === 'note' ? <StickyNote size={20} className="text-yellow-500"/> : <DollarSign size={20} className="text-green-500"/>)}
-                   {editId ? 'تعديل السجل' : (newItem.type === 'note' ? 'ملاحظة جديدة' : 'حركة مالية جديدة')}
+              {/* رأس المودال */}
+              <div className={`px-6 py-5 border-b flex justify-between items-center ${newItem.type === 'note' ? 'border-yellow-200 bg-yellow-50' : 'border-gray-100 bg-gray-50'}`}>
+                 <h3 className={`text-lg font-black flex items-center gap-2 ${newItem.type === 'note' ? 'text-yellow-800' : 'text-gray-800'}`}>
+                   {editId ? 'تعديل السجل' : (newItem.type === 'note' ? '📝 ملاحظة جديدة' : '💰 حركة مالية')}
                  </h3>
-                 <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition-colors"><X size={20}/></button>
+                 <button onClick={closeModal} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors"><X size={20}/></button>
               </div>
               
               <form onSubmit={handleSaveItem} className="p-6 space-y-5">
                  
+                 {/* خيارات النوع (للحسابات فقط) */}
                  {newItem.type === 'account' && (
-                   <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
-                      <button type="button" onClick={() => setNewItem({...newItem, transactionType: 'expense'})} className={`py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${newItem.transactionType === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                        <TrendingDown size={16}/> مصروفات
+                   <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button 
+                        type="button" 
+                        onClick={() => setNewItem({...newItem, transactionType: 'expense'})} 
+                        className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 
+                        ${newItem.transactionType === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'}`}
+                      >
+                        <ArrowDownCircle size={16}/> مصروف
                       </button>
-                      <button type="button" onClick={() => setNewItem({...newItem, transactionType: 'income'})} className={`py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${newItem.transactionType === 'income' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                        <TrendingUp size={16}/> إيرادات
+                      <button 
+                        type="button" 
+                        onClick={() => setNewItem({...newItem, transactionType: 'income'})} 
+                        className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 
+                        ${newItem.transactionType === 'income' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'}`}
+                      >
+                        <ArrowUpCircle size={16}/> إيراد
                       </button>
                    </div>
                  )}
 
+                 {/* حقل النص */}
                  <div>
-                   <label className="block text-xs font-bold text-gray-500 mb-1.5 mr-1">
-                     {newItem.type === 'note' ? 'نص الملاحظة' : 'الوصف / البيان'}
+                   <label className="block text-xs font-bold text-gray-500 mb-2">
+                     {newItem.type === 'note' ? 'محتوى الملاحظة' : 'الوصف / البيان'}
                    </label>
                    <textarea 
-                     className="w-full border-2 border-gray-100 bg-gray-50 p-4 rounded-2xl focus:border-black focus:bg-white outline-none h-32 text-sm font-medium transition-colors resize-none"
-                     placeholder="اكتب التفاصيل هنا..."
+                     className={`w-full p-4 rounded-2xl outline-none font-bold text-gray-700 resize-none h-32 transition-colors border-2
+                       ${newItem.type === 'note' 
+                         ? 'bg-white border-yellow-200 focus:border-yellow-400 placeholder-yellow-300/50' 
+                         : 'bg-gray-50 border-gray-100 focus:bg-white focus:border-blue-500'}`}
+                     placeholder="اكتب هنا..."
                      value={newItem.text}
                      onChange={e => setNewItem({...newItem, text: e.target.value})}
                      autoFocus
                    />
                  </div>
 
+                 {/* حقل المبلغ (للحسابات فقط) */}
                  {newItem.type === 'account' && (
                    <div>
-                     <label className="block text-xs font-bold text-gray-500 mb-1.5 mr-1">المبلغ (JD)</label>
+                     <label className="block text-xs font-bold text-gray-500 mb-2">المبلغ (JD)</label>
                      <div className="relative">
                        <input 
                          type="number"
-                         className="w-full border-2 border-gray-100 bg-gray-50 p-4 pl-12 rounded-2xl focus:border-black focus:bg-white outline-none font-black text-xl dir-ltr"
+                         className="w-full bg-gray-50 border-2 border-gray-100 p-4 pl-12 rounded-2xl focus:border-blue-500 focus:bg-white outline-none font-black text-xl dir-ltr"
                          value={newItem.amount}
                          onChange={e => setNewItem({...newItem, amount: e.target.value})}
                          placeholder="0.00"
                        />
-                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">JD</span>
+                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">JD</span>
                      </div>
                    </div>
                  )}
 
-                 <div className="flex gap-3 pt-2">
-                    <Button variant="ghost" onClick={closeModal} type="button" className="flex-1">إلغاء</Button>
-                    <Button type="submit" className="flex-[2] bg-black text-white hover:bg-gray-800 py-3 rounded-xl shadow-lg shadow-gray-200">
-                      <Save size={18}/> {editId ? 'حفظ التعديلات' : 'إضافة للسجل'}
+                 {/* أزرار الحفظ */}
+                 <div className="flex gap-3 pt-4 border-t border-gray-50">
+                    <Button variant="ghost" onClick={closeModal} type="button" className="flex-1 rounded-xl">إلغاء</Button>
+                    <Button type="submit" className={`flex-[2] rounded-xl py-3 shadow-lg ${newItem.type === 'note' ? 'bg-yellow-500 text-black hover:bg-yellow-600' : 'bg-black text-white hover:bg-gray-800'}`}>
+                      <Save size={18} className="ml-2"/> حفظ
                     </Button>
                  </div>
               </form>
