@@ -10,7 +10,7 @@ import { db, appId } from '../../lib/firebase';
 
 const AdminNotesManager = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState('notes'); // 'notes' or 'accounts'
+  const [activeTab, setActiveTab] = useState('note'); // 'notes' or 'accounts'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
