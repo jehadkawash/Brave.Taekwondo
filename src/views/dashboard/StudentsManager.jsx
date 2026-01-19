@@ -26,9 +26,7 @@ const generateCredentials = () => {
 // --- Helper: Date Formatter (dd/mm/yyyy) ---
 const formatDate = (dateString) => {
   if (!dateString) return '-';
-  // Check if it's a Date object
   const d = new Date(dateString);
-  // Check if date is valid
   if (isNaN(d.getTime())) return dateString;
   
   const day = String(d.getDate()).padStart(2, '0');
@@ -64,9 +62,9 @@ const ModalOverlay = ({ children, onClose }) => {
   if (typeof document === 'undefined') return null;
   return createPortal(
     <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div className="relative transform overflow-hidden rounded-2xl text-right shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl bg-white" onClick={e => e.stopPropagation()}>
+        <div className="relative transform overflow-hidden rounded-2xl text-right shadow-2xl shadow-black/50 transition-all sm:my-8 sm:w-full sm:max-w-2xl bg-slate-900 border border-slate-700" onClick={e => e.stopPropagation()}>
            {children}
         </div>
       </div>
@@ -114,58 +112,59 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
     return (
         <ModalOverlay onClose={onClose}>
             <div className="p-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-700">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-400">
                     <Megaphone size={24}/> إرسال تعميم / إعلان
                 </h3>
                 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">لمن تريد إرسال الإعلان؟</label>
+                        <label className="block text-sm font-bold text-slate-300 mb-2">لمن تريد إرسال الإعلان؟</label>
                         <div className="flex flex-col gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                <input type="radio" name="target" value="all" checked={target === 'all'} onChange={() => setTarget('all')} />
-                                <span>الكل (جميع الطلاب)</span>
+                            <label className="flex items-center gap-2 cursor-pointer bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                                <input type="radio" name="target" value="all" checked={target === 'all'} onChange={() => setTarget('all')} className="accent-blue-500"/>
+                                <span className="text-slate-200">الكل (جميع الطلاب)</span>
                             </label>
                             
-                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups[0]); }} />
-                                <span>فترة / مجموعة محددة</span>
+                            <label className="flex items-center gap-2 cursor-pointer bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups[0]); }} className="accent-blue-500"/>
+                                <span className="text-slate-200">فترة / مجموعة محددة</span>
                             </label>
 
                             {target === 'group' && (
                                 <div className="mr-6 mb-2">
-                                    <select className="w-full border-2 border-gray-200 p-2 rounded-xl outline-none" value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
+                                    <select className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-blue-500" value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
                                         {groups.map((g, i) => <option key={i} value={g}>{g}</option>)}
                                     </select>
                                 </div>
                             )}
 
-                            <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-200">
-                                <input type="radio" name="target" value="custom" checked={target === 'custom'} onChange={() => setTarget('custom')} />
-                                <span>تحديد طلاب (يدوياً)</span>
+                            <label className="flex items-center gap-2 cursor-pointer bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
+                                <input type="radio" name="target" value="custom" checked={target === 'custom'} onChange={() => setTarget('custom')} className="accent-blue-500"/>
+                                <span className="text-slate-200">تحديد طلاب (يدوياً)</span>
                             </label>
 
                             {target === 'custom' && (
-                                <div className="mr-6 p-3 border border-gray-200 rounded-xl bg-white">
+                                <div className="mr-6 p-3 border border-slate-700 rounded-xl bg-slate-950">
                                     <input 
-                                        className="w-full border-b border-gray-100 p-2 mb-2 text-sm outline-none"
+                                        className="w-full bg-transparent border-b border-slate-800 p-2 mb-2 text-sm outline-none text-slate-200 placeholder-slate-600"
                                         placeholder="ابحث عن طالب..."
                                         value={studentSearch}
                                         onChange={e => setStudentSearch(e.target.value)}
                                     />
                                     <div className="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
                                         {filteredStudentsForSelect.map(s => (
-                                            <label key={s.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                                            <label key={s.id} className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded cursor-pointer transition-colors">
                                                 <input 
                                                     type="checkbox" 
                                                     checked={selectedStudentIds.includes(s.id)}
                                                     onChange={() => toggleStudentSelect(s.id)}
+                                                    className="accent-blue-500"
                                                 />
-                                                <span className="text-sm">{s.name}</span>
+                                                <span className="text-sm text-slate-300">{s.name}</span>
                                             </label>
                                         ))}
                                     </div>
-                                    <div className="mt-2 text-xs text-blue-600 font-bold">
+                                    <div className="mt-2 text-xs text-blue-400 font-bold">
                                         تم اختيار: {selectedStudentIds.length} طالب
                                     </div>
                                 </div>
@@ -174,18 +173,18 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">نص الإعلان</label>
+                        <label className="block text-sm font-bold text-slate-300 mb-2">نص الإعلان</label>
                         <textarea 
-                            className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none h-32 focus:border-blue-500"
+                            className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl outline-none h-32 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
                             placeholder="اكتب الإعلان هنا... (سيظهر في صفحة الطلاب)"
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                         ></textarea>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-4 border-t">
-                        <Button variant="ghost" onClick={onClose}>إلغاء</Button>
-                        <Button onClick={handleSend} disabled={loading} className="bg-blue-600 text-white hover:bg-blue-700">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                        <Button variant="ghost" onClick={onClose} className="text-slate-400 hover:text-white hover:bg-slate-800">إلغاء</Button>
+                        <Button onClick={handleSend} disabled={loading} className="bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/20">
                             {loading ? 'جاري الإرسال...' : 'نشر الإعلان'}
                         </Button>
                     </div>
@@ -221,64 +220,63 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
     const notesList = useMemo(() => {
         if (activeTab === 'private') {
             let list = student.internalNotes || [];
-            // إذا وجدنا ملاحظة قديمة نصية، نضيفها للقائمة
             if (student.note && student.note.trim() !== '') {
                 list = [...list, {
                     id: 'legacy_note',
                     text: student.note,
                     date: 'سجل قديم',
-                    isLegacy: true // علامة لتمييزها
+                    isLegacy: true 
                 }];
             }
             return list;
         } else {
-            return student.notes || []; // الإعلانات العامة كما هي
+            return student.notes || []; 
         }
     }, [student, activeTab]);
 
     return (
         <ModalOverlay onClose={onClose}>
             <div className="p-0 overflow-hidden flex flex-col h-[500px]">
-                <div className={`p-4 text-white flex justify-between items-center ${activeTab === 'private' ? 'bg-red-600' : 'bg-blue-600'}`}>
-                    <h3 className="text-lg font-bold flex items-center gap-2">
+                <div className={`p-4 text-white flex justify-between items-center ${activeTab === 'private' ? 'bg-red-900/80 border-b border-red-700' : 'bg-blue-900/80 border-b border-blue-700'}`}>
+                    <h3 className="text-lg font-bold flex items-center gap-2 text-white">
                         {activeTab === 'private' ? <Lock size={20}/> : <Bell size={20}/>}
                         {activeTab === 'private' ? `ملاحظات خاصة: ${student.name}` : `إعلانات للطالب: ${student.name}`}
                     </h3>
-                    <button onClick={onClose}><X size={20}/></button>
+                    <button onClick={onClose} className="hover:text-red-300"><X size={20}/></button>
                 </div>
 
-                <div className="flex border-b">
+                <div className="flex border-b border-slate-700 bg-slate-900">
                     <button 
                         onClick={() => setActiveTab('private')} 
-                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${activeTab === 'private' ? 'text-red-600 border-b-2 border-red-600 bg-red-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors ${activeTab === 'private' ? 'text-red-400 border-b-2 border-red-500 bg-red-500/10' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
                     >
                         <Lock size={16}/> ملاحظات خاصة (للإدارة)
                     </button>
                     <button 
                         onClick={() => setActiveTab('public')} 
-                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${activeTab === 'public' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors ${activeTab === 'public' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/10' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
                     >
                         <Bell size={16}/> إعلانات (للطالب)
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                <div className="flex-1 overflow-y-auto p-4 bg-slate-950">
                     {notesList.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                        <div className="h-full flex flex-col items-center justify-center text-slate-600">
                             {activeTab === 'private' ? <Lock size={48} className="mb-2 opacity-20"/> : <Bell size={48} className="mb-2 opacity-20"/>}
                             <p>لا يوجد ملاحظات مسجلة</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {notesList.map((note, idx) => (
-                                <div key={note.id || idx} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm relative group">
-                                    <p className="text-gray-800 text-sm whitespace-pre-wrap">{note.text}</p>
+                                <div key={note.id || idx} className="bg-slate-900 p-3 rounded-xl border border-slate-800 shadow-sm relative group">
+                                    <p className="text-slate-300 text-sm whitespace-pre-wrap">{note.text}</p>
                                     <div className="mt-2 flex justify-between items-center">
                                         <div className="flex gap-1">
-                                            <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{note.date}</span>
-                                            {note.isLegacy && <span className="text-[10px] text-red-600 bg-red-100 px-2 py-1 rounded-full font-bold">قديم</span>}
+                                            <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-1 rounded-full">{note.date}</span>
+                                            {note.isLegacy && <span className="text-[10px] text-red-400 bg-red-900/20 px-2 py-1 rounded-full font-bold">قديم</span>}
                                         </div>
-                                        <button onClick={() => handleDelete(note.id, note.isLegacy)} className="text-red-400 hover:text-red-600 p-1">
+                                        <button onClick={() => handleDelete(note.id, note.isLegacy)} className="text-red-400/50 hover:text-red-500 p-1 transition-colors">
                                             <Trash2 size={16}/>
                                         </button>
                                     </div>
@@ -288,16 +286,16 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
                     )}
                 </div>
 
-                <div className="p-4 bg-white border-t">
+                <div className="p-4 bg-slate-900 border-t border-slate-700">
                     <div className="flex gap-2">
                         <input 
-                            className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-yellow-500"
+                            className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 focus:outline-none focus:border-yellow-500 placeholder-slate-600"
                             placeholder={activeTab === 'private' ? "اكتب ملاحظة سرية..." : "اكتب إعلاناً للطالب..."}
                             value={noteText}
                             onChange={(e) => setNoteText(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                         />
-                        <Button onClick={handleAdd} className={activeTab === 'private' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}>
+                        <Button onClick={handleAdd} className={activeTab === 'private' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}>
                             <Send size={18}/>
                         </Button>
                     </div>
@@ -320,27 +318,27 @@ const SubscriptionModal = ({ student, onClose, onSave }) => {
     return (
         <ModalOverlay onClose={onClose}>
             <div className="p-6 text-right">
-                <h3 className="text-xl font-bold mb-4 text-green-700 flex items-center gap-2">
+                <h3 className="text-xl font-bold mb-4 text-emerald-400 flex items-center gap-2">
                     <CalendarClock size={24}/> تجديد اشتراك: {student.name}
                 </h3>
                 <div className="mb-6">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">تاريخ انتهاء الاشتراك الجديد</label>
+                    <label className="block text-sm font-bold text-slate-400 mb-2">تاريخ انتهاء الاشتراك الجديد</label>
                     <input 
                         type="date" 
-                        className="w-full border-2 border-green-100 focus:border-green-500 p-3 rounded-xl outline-none text-lg font-bold text-center bg-green-50/20"
+                        className="w-full bg-emerald-900/10 border border-emerald-500/30 focus:border-emerald-500 p-3 rounded-xl outline-none text-lg font-bold text-center text-emerald-300"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
                     />
                 </div>
-                <label className="block text-xs font-bold text-gray-400 mb-2">إضافة سريعة:</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2">إضافة سريعة:</label>
                 <div className="flex gap-2 mb-6">
-                    <button onClick={() => addMonths(1)} className="flex-1 bg-white hover:bg-green-50 text-green-700 border border-green-200 py-3 rounded-xl font-bold text-sm transition shadow-sm hover:shadow-md">+ شهر</button>
-                    <button onClick={() => addMonths(2)} className="flex-1 bg-white hover:bg-green-50 text-green-700 border border-green-200 py-3 rounded-xl font-bold text-sm transition shadow-sm hover:shadow-md">+ شهرين</button>
-                    <button onClick={() => addMonths(3)} className="flex-1 bg-white hover:bg-green-50 text-green-700 border border-green-200 py-3 rounded-xl font-bold text-sm transition shadow-sm hover:shadow-md">+ 3 شهور</button>
+                    <button onClick={() => addMonths(1)} className="flex-1 bg-slate-800 hover:bg-emerald-900/20 text-emerald-500 border border-slate-700 hover:border-emerald-500/50 py-3 rounded-xl font-bold text-sm transition-all">+ شهر</button>
+                    <button onClick={() => addMonths(2)} className="flex-1 bg-slate-800 hover:bg-emerald-900/20 text-emerald-500 border border-slate-700 hover:border-emerald-500/50 py-3 rounded-xl font-bold text-sm transition-all">+ شهرين</button>
+                    <button onClick={() => addMonths(3)} className="flex-1 bg-slate-800 hover:bg-emerald-900/20 text-emerald-500 border border-slate-700 hover:border-emerald-500/50 py-3 rounded-xl font-bold text-sm transition-all">+ 3 شهور</button>
                 </div>
-                <div className="flex gap-3 pt-4 border-t">
-                    <Button variant="ghost" onClick={onClose}>إلغاء</Button>
-                    <Button onClick={() => onSave(student.id, date)} className="flex-1 bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/20">حفظ التجديد</Button>
+                <div className="flex gap-3 pt-4 border-t border-slate-800">
+                    <Button variant="ghost" onClick={onClose} className="text-slate-400 hover:text-white hover:bg-slate-800">إلغاء</Button>
+                    <Button onClick={() => onSave(student.id, date)} className="flex-1 bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-600/20">حفظ التجديد</Button>
                 </div>
             </div>
         </ModalOverlay>
@@ -384,23 +382,20 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           if (s.familyId && s.familyId !== 'new') { 
               if (!familiesMap[s.familyId]) {
                   familiesMap[s.familyId] = {
-                      name: s.familyName, // نبدأ بالاسم المسجل
+                      name: s.familyName, 
                       members: [],
-                      lastNames: {} // لتتبع الألقاب الأكثر تكراراً لاستنتاج اسم العائلة
+                      lastNames: {} 
                   };
               }
               
-              // تقسيم الاسم للحصول على الاسم الأول واللقب
               const nameParts = s.name.trim().split(/\s+/);
               const firstName = nameParts[0];
               const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
-              // إضافة اسم العضو للقائمة (بحد أقصى 3 أسماء)
               if (familiesMap[s.familyId].members.length < 3) {
-                   familiesMap[s.familyId].members.push(firstName); 
+                    familiesMap[s.familyId].members.push(firstName); 
               }
               
-              // تسجيل اللقب لتصحيح اسم العائلة لاحقاً إذا لزم الأمر
               if (lastName) {
                   familiesMap[s.familyId].lastNames[lastName] = (familiesMap[s.familyId].lastNames[lastName] || 0) + 1;
               }
@@ -410,14 +405,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       return Object.entries(familiesMap).map(([id, data]) => {
           let finalName = data.name || 'عائلة';
           
-          // إذا كان الاسم المسجل "عائلة" أو "Family" أو فارغ، نستنتج الاسم من ألقاب الطلاب
           const isGenericName = !finalName || finalName.trim() === 'عائلة' || finalName.trim().toLowerCase() === 'family';
           
           if (isGenericName) {
-              // نجد اللقب الأكثر تكراراً في هذه العائلة
               const entries = Object.entries(data.lastNames);
               if (entries.length > 0) {
-                  // ترتيب تنازلي حسب التكرار وأخذ الأول
                   const bestLastName = entries.sort((a,b) => b[1] - a[1])[0][0];
                   finalName = `عائلة ${bestLastName}`;
               }
@@ -425,7 +417,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
           return {
               id,
-              // النص النهائي الذي سيظهر في القائمة
               displayName: `${finalName} (يشمل: ${data.members.join('، ')}...)`
           };
       });
@@ -475,13 +466,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     let finalFamilyId, finalFamilyName;
     if (linkFamily === 'new') { 
         finalFamilyId = Math.floor(Date.now() / 1000); 
-        // --- إصلاح توليد اسم العائلة للطلاب الجدد ---
         finalFamilyName = `عائلة ${newS.name.trim().split(/\s+/).pop()}`; 
     } else { 
         finalFamilyId = parseInt(linkFamily); 
-        // هنا نستخدم الاسم من القائمة المحسنة إذا أمكن، أو نبقيه كما هو
         const existingFamily = uniqueFamilies.find(f => f.id === linkFamily.toString());
-        // نأخذ الجزء الأول من الاسم المحسن (قبل القوس) ليكون هو اسم العائلة الرسمي في الداتابيز
         if (existingFamily) {
              finalFamilyName = existingFamily.displayName.split(' (')[0];
         } else {
@@ -576,10 +564,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       const student = students.find(s => s.id === studentId);
       if (!student) return;
 
-      // ✅ التعامل مع حذف الملاحظة القديمة
       if (action === 'delete' && noteObj.isLegacy) {
           await studentsCollection.update(studentId, { note: "" }); 
-          // تحديث الحالة المحلية للمودال إذا لزم الأمر (عادةً يتم عبر إعادة التصيير)
           return;
       }
 
@@ -614,7 +600,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       const newNote = {
           id: Date.now().toString(),
           text: text,
-          date: formatDate(new Date()), // Use formatDate here
+          date: formatDate(new Date()), 
           timestamp: new Date().toISOString()
       };
 
@@ -684,7 +670,7 @@ https://bravetkd.bar/
     
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
-   
+    
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
@@ -719,34 +705,34 @@ https://bravetkd.bar/
       {createdCreds && (
         <ModalOverlay onClose={() => setCreatedCreds(null)}>
             <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <div className="w-16 h-16 bg-emerald-900/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce border border-emerald-500/30">
                     <Sparkles size={32}/>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">تم تسجيل البطل بنجاح!</h2>
-                <p className="text-gray-600 mb-6">الطالب: <strong>{createdCreds.name}</strong></p>
-                <div className="bg-gray-50 p-4 border rounded-xl mb-6 dir-ltr text-left relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-2 bg-yellow-400 text-xs font-bold text-black rounded-bl-lg">Credentials</div>
-                    <p className="font-mono text-sm mb-1">User: <strong className="text-lg text-blue-900 select-all">{createdCreds.username}</strong></p>
-                    <p className="font-mono text-sm">Pass: <strong className="text-lg text-red-600 select-all">{createdCreds.password}</strong></p>
+                <h2 className="text-2xl font-bold text-white mb-2">تم تسجيل البطل بنجاح!</h2>
+                <p className="text-slate-400 mb-6">الطالب: <strong>{createdCreds.name}</strong></p>
+                <div className="bg-slate-950 p-4 border border-slate-700 rounded-xl mb-6 dir-ltr text-left relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 bg-yellow-500 text-xs font-bold text-slate-900 rounded-bl-lg">Credentials</div>
+                    <p className="font-mono text-sm mb-1 text-slate-400">User: <strong className="text-lg text-blue-400 select-all">{createdCreds.username}</strong></p>
+                    <p className="font-mono text-sm text-slate-400">Pass: <strong className="text-lg text-red-400 select-all">{createdCreds.password}</strong></p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                    <Button onClick={() => sendCredentialsWhatsApp(createdCreds)} className="bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2">
+                    <Button onClick={() => sendCredentialsWhatsApp(createdCreds)} className="bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2 border-none">
                         <Send size={18}/> إرسال واتساب
                     </Button>
-                    <Button variant="outline" onClick={() => setCreatedCreds(null)}>إغلاق</Button>
+                    <Button variant="outline" onClick={() => setCreatedCreds(null)} className="border-slate-600 text-slate-300 hover:bg-slate-800">إغلاق</Button>
                 </div>
             </div>
         </ModalOverlay>
       )}
       
       {/* --- Filter Toolbar --- */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-20">
+      <div className="bg-slate-900 p-4 rounded-2xl shadow-lg shadow-black/20 border border-slate-800/60 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-20 backdrop-blur-md bg-opacity-90">
           <div className="relative w-full md:w-1/3">
              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <Search size={18} className="text-gray-400"/>
+                <Search size={18} className="text-slate-500"/>
              </div>
              <input 
-                className="w-full pl-4 pr-10 py-2.5 border-2 border-gray-100 rounded-xl focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/10 outline-none transition-all" 
+                className="w-full bg-slate-950 text-slate-200 pl-4 pr-10 py-2.5 border border-slate-700 rounded-xl focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50 outline-none transition-all placeholder-slate-600" 
                 placeholder="ابحث عن اسم، هاتف، يوزر..." 
                 value={search} 
                 onChange={e=>setSearch(e.target.value)} 
@@ -758,13 +744,13 @@ https://bravetkd.bar/
           </div>
 
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
-             <Button onClick={() => setShowBroadcast(true)} className="bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 whitespace-nowrap flex items-center gap-2">
+             <Button onClick={() => setShowBroadcast(true)} className="bg-blue-900/20 text-blue-400 border border-blue-500/30 hover:bg-blue-900/40 whitespace-nowrap flex items-center gap-2">
                  <Megaphone size={18}/> <span className="hidden sm:inline">إعلان للكل</span>
              </Button>
 
              <div className="relative min-w-[120px]">
                  <select 
-                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
+                    className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                  >
@@ -773,12 +759,12 @@ https://bravetkd.bar/
                     <option value="near_end">🟡 قارب الانتهاء</option>
                     <option value="expired">🔴 منتهي</option>
                  </select>
-                 <Filter size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500 pointer-events-none"/>
+                 <Filter size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/>
              </div>
 
              <div className="relative min-w-[140px]">
                  <select 
-                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
+                    className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
                     value={sortOption}
                     onChange={(e) => setSortOption(e.target.value)}
                  >
@@ -788,22 +774,22 @@ https://bravetkd.bar/
                     <option value="balanceDesc">💰 المديونية</option>
                  </select>
                  {sortOption.includes('Desc') ? 
-                    <SortDesc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500 pointer-events-none"/> :
-                    <SortAsc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-gray-500 pointer-events-none"/>
+                    <SortDesc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/> :
+                    <SortAsc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/>
                  }
              </div>
 
-             <Button onClick={()=>{setEditingStudent(null); setShowModal(true)}} className="whitespace-nowrap flex items-center gap-2 shadow-lg shadow-yellow-500/20">
+             <Button onClick={()=>{setEditingStudent(null); setShowModal(true)}} className="whitespace-nowrap flex items-center gap-2 shadow-lg shadow-yellow-500/20 text-slate-900 bg-yellow-500 hover:bg-yellow-400 border-none font-bold">
                 <UserPlus size={18}/> <span className="hidden sm:inline">طالب جديد</span><span className="inline sm:hidden">جديد</span>
              </Button>
           </div>
       </div>
 
       {/* 1. DESKTOP VIEW (Table) */}
-      <Card className="hidden md:block overflow-hidden border-none shadow-md rounded-2xl p-0">
+      <Card className="hidden md:block overflow-hidden border border-slate-800 shadow-xl rounded-2xl p-0 bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
-                <thead className="bg-gray-50 text-gray-600 border-b border-gray-100">
+                <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
                     <tr>
                         <th className="p-4 font-bold">الطالب</th>
                         <th className="p-4 font-bold">الفترة</th>
@@ -815,16 +801,15 @@ https://bravetkd.bar/
                         <th className="p-4 font-bold">إجراءات</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-slate-800 bg-slate-900">
                     {processedStudents.map(s => {
                         const isNew = isNewStudent(s.joinDate);
                         
-                        // ✅ التحقق من الملاحظات (القديمة والجديدة) لظهور الأيقونة
                         const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
                         const hasPublicNotes = s.notes && s.notes.length > 0;
 
                         return (
-                            <tr key={s.id} className="hover:bg-yellow-50/50 transition-colors group">
+                            <tr key={s.id} className="hover:bg-slate-800/50 transition-colors group">
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
                                         {hasPrivateNotes && (
@@ -833,66 +818,66 @@ https://bravetkd.bar/
                                                 className="text-red-500 hover:scale-110 transition-transform" 
                                                 title="يوجد ملاحظات خاصة!"
                                             >
-                                                <FileWarning size={20} fill="currentColor" className="text-red-100"/>
+                                                <FileWarning size={20} fill="currentColor" className="text-red-900/50"/>
                                             </button>
                                         )}
-                                        <div className="font-bold text-gray-800 text-base cursor-pointer hover:text-blue-600" onClick={() => setStudentForNotes(s)}>
+                                        <div className="font-bold text-slate-200 text-base cursor-pointer hover:text-yellow-500 transition-colors" onClick={() => setStudentForNotes(s)}>
                                             {s.name}
                                         </div>
                                         {isNew && (
-                                            <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold border border-red-200 animate-pulse">NEW</span>
+                                            <span className="px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 text-[10px] font-bold border border-red-500/30 animate-pulse">NEW</span>
                                         )}
                                     </div>
-                                    <div className="text-xs text-gray-400 mt-1">{formatDate(s.joinDate)}</div>
+                                    <div className="text-xs text-slate-500 mt-1">{formatDate(s.joinDate)}</div>
                                 </td>
                                 
                                 <td className="p-4">
-                                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
+                                    <span className="px-2 py-1 bg-blue-900/20 text-blue-400 rounded text-xs font-bold border border-blue-500/20">
                                         {s.group || 'غير محدد'}
                                     </span>
                                 </td>
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
-                                        <a href={`tel:${s.phone}`} className="font-mono text-gray-600 hover:text-blue-600 font-bold flex items-center gap-1" title="اتصال">
+                                        <a href={`tel:${s.phone}`} className="font-mono text-slate-400 hover:text-blue-400 font-bold flex items-center gap-1" title="اتصال">
                                             {s.phone} <Phone size={12} className="opacity-50"/>
                                         </a>
-                                        <button onClick={() => openWhatsAppChat(s.phone)} className="w-8 h-8 rounded-full bg-green-50 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-all shadow-sm">
+                                        <button onClick={() => openWhatsAppChat(s.phone)} className="w-8 h-8 rounded-full bg-green-900/20 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-all shadow-sm border border-green-500/20">
                                             <MessageCircle size={16}/>
                                         </button>
                                     </div>
                                 </td>
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
-                                        <div className="bg-gray-50 p-1.5 rounded-lg text-xs font-mono border border-gray-100">
-                                            <div className="text-blue-900">U: {s.username}</div>
-                                            <div className="text-red-600 font-bold">P: {s.password}</div>
+                                        <div className="bg-slate-950 p-1.5 rounded-lg text-xs font-mono border border-slate-800">
+                                            <div className="text-blue-400">U: {s.username}</div>
+                                            <div className="text-red-400 font-bold">P: {s.password}</div>
                                         </div>
-                                        <button onClick={() => sendCredentialsWhatsApp(s)} className="text-gray-400 hover:text-[#25D366] transition-colors"><Send size={16}/></button>
+                                        <button onClick={() => sendCredentialsWhatsApp(s)} className="text-slate-600 hover:text-[#25D366] transition-colors"><Send size={16}/></button>
                                     </div>
                                 </td>
                                 <td className="p-4">
-                                    <span className="px-3 py-1 bg-gray-100 rounded-lg font-bold text-xs border border-gray-200">{s.belt}</span>
+                                    <span className="px-3 py-1 bg-slate-800 rounded-lg font-bold text-xs border border-slate-700 text-slate-300">{s.belt}</span>
                                 </td>
                                 <td className="p-4">
                                     {s.balance > 0 ? 
-                                        <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded text-xs">عليه {s.balance}</span> : 
-                                        <span className="text-green-600 font-bold text-xs">مدفوع</span>
+                                        <span className="text-red-400 font-bold bg-red-900/20 px-2 py-1 rounded text-xs border border-red-500/20">عليه {s.balance}</span> : 
+                                        <span className="text-emerald-400 font-bold text-xs">مدفوع</span>
                                     }
                                 </td>
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                 <td className="p-4">
                                     <div className="flex gap-1">
-                                        <button onClick={() => setRenewingStudent(s)} className="bg-green-100 text-green-700 p-2 rounded-lg hover:bg-green-600 hover:text-white transition" title="تجديد الاشتراك">
+                                        <button onClick={() => setRenewingStudent(s)} className="bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition" title="تجديد الاشتراك">
                                             <CalendarClock size={16}/>
                                         </button>
 
-                                        <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-50 text-gray-400 hover:text-yellow-600'}`} title="الملاحظات">
+                                        <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition border ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-900/20 text-yellow-500 border-yellow-500/20' : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-yellow-500 hover:border-yellow-500/50'}`} title="الملاحظات">
                                             <Lock size={16}/>
                                         </button>
                                         
-                                        <button onClick={() => promoteBelt(s)} className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
-                                        <button onClick={() => openEditModal(s)} className="bg-gray-100 text-gray-600 p-2 rounded-lg hover:bg-gray-600 hover:text-white transition" title="تعديل"><Edit size={16}/></button>
-                                        <button onClick={() => archiveStudent(s)} className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-600 hover:text-white transition" title="أرشفة"><Archive size={16}/></button>
+                                        <button onClick={() => promoteBelt(s)} className="bg-blue-900/20 text-blue-400 border border-blue-500/20 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
+                                        <button onClick={() => openEditModal(s)} className="bg-slate-800 text-slate-400 border border-slate-700 p-2 rounded-lg hover:bg-slate-700 hover:text-white transition" title="تعديل"><Edit size={16}/></button>
+                                        <button onClick={() => archiveStudent(s)} className="bg-red-900/20 text-red-400 border border-red-500/20 p-2 rounded-lg hover:bg-red-600 hover:text-white transition" title="أرشفة"><Archive size={16}/></button>
                                     </div>
                                 </td>
                             </tr>
@@ -911,10 +896,10 @@ https://bravetkd.bar/
              const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
 
              return (
-                 <div key={s.id} className={`bg-white p-4 rounded-xl shadow-sm border ${hasPrivateNotes ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100'} flex flex-col gap-3 relative`}>
+                 <div key={s.id} className={`bg-slate-900 p-4 rounded-xl shadow-lg border ${hasPrivateNotes ? 'border-red-900/50 ring-1 ring-red-900/30' : 'border-slate-800'} flex flex-col gap-3 relative`}>
                      {hasPrivateNotes && (
                          <div className="absolute top-4 left-14 animate-pulse">
-                             <FileWarning size={20} className="text-red-500 fill-red-100"/>
+                             <FileWarning size={20} className="text-red-500 fill-red-900"/>
                          </div>
                      )}
 
@@ -922,11 +907,11 @@ https://bravetkd.bar/
                      <div className="flex justify-between items-start">
                          <div>
                              <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-gray-800 text-lg">{s.name}</h3>
-                                {isNew && <span className="text-[10px] bg-red-100 text-red-600 px-2 rounded-full animate-pulse">NEW</span>}
+                                <h3 className="font-bold text-slate-100 text-lg">{s.name}</h3>
+                                {isNew && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 rounded-full border border-red-500/40 animate-pulse">NEW</span>}
                              </div>
-                             <p className="text-xs text-gray-400 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
-                             <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
+                             <p className="text-xs text-slate-500 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
+                             <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
                                  {s.group || 'غير محدد'}
                              </span>
                          </div>
@@ -935,52 +920,52 @@ https://bravetkd.bar/
 
                      {/* Details Grid */}
                      <div className="grid grid-cols-2 gap-3 text-sm">
-                         <div className="bg-gray-50 p-2 rounded-lg">
-                             <span className="text-gray-500 text-xs block">الحزام</span>
-                             <span className="font-bold text-gray-800">{s.belt}</span>
+                         <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                             <span className="text-slate-500 text-xs block">الحزام</span>
+                             <span className="font-bold text-slate-200">{s.belt}</span>
                          </div>
-                         <div className={`p-2 rounded-lg ${s.balance > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                         <div className={`p-2 rounded-lg border ${s.balance > 0 ? 'bg-red-900/20 text-red-400 border-red-500/20' : 'bg-emerald-900/20 text-emerald-400 border-emerald-500/20'}`}>
                              <span className="text-xs block opacity-70">الرصيد</span>
                              <span className="font-bold">{s.balance > 0 ? `عليه ${s.balance}` : 'مدفوع'}</span>
                          </div>
                      </div>
 
                      {/* Credentials Box */}
-                     <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100 border-dashed">
-                         <div className="text-xs font-mono text-gray-600">
-                             <div className="mb-1"><span className="font-bold text-blue-800">U:</span> {s.username}</div>
-                             <div><span className="font-bold text-red-600">P:</span> {s.password}</div>
+                     <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800 border-dashed">
+                         <div className="text-xs font-mono text-slate-400">
+                             <div className="mb-1"><span className="font-bold text-blue-500">U:</span> {s.username}</div>
+                             <div><span className="font-bold text-red-500">P:</span> {s.password}</div>
                          </div>
-                         <button onClick={() => sendCredentialsWhatsApp(s)} className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200">
+                         <button onClick={() => sendCredentialsWhatsApp(s)} className="p-2 bg-green-900/20 text-green-500 border border-green-500/20 rounded-lg hover:bg-green-600 hover:text-white">
                              <Send size={16} />
                          </button>
                      </div>
 
                      {/* Footer: Actions */}
-                     <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-1">
+                     <div className="flex items-center justify-between pt-3 border-t border-slate-800 mt-1">
                          <div className="flex gap-2">
-                             <a href={`tel:${s.phone}`} className="p-2 bg-gray-100 rounded-full text-gray-600"><Phone size={16}/></a>
-                             <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-100 rounded-full text-[#25D366]"><MessageCircle size={16}/></button>
+                             <a href={`tel:${s.phone}`} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 border border-slate-700"><Phone size={16}/></a>
+                             <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-900/20 rounded-full text-[#25D366] border border-green-500/20"><MessageCircle size={16}/></button>
                          </div>
                          <div className="flex gap-2">
-                             <button onClick={() => setRenewingStudent(s)} className="p-2 bg-green-100 text-green-700 rounded-lg">
+                             <button onClick={() => setRenewingStudent(s)} className="p-2 bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 rounded-lg">
                                  <CalendarClock size={16}/>
                              </button>
 
-                             <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg ${hasPrivateNotes ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+                             <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg border ${hasPrivateNotes ? 'bg-red-900/20 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
                                  <Lock size={16}/>
                              </button>
 
-                             <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ArrowUp size={16}/></button>
-                             <button onClick={() => openEditModal(s)} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Edit size={16}/></button>
-                             <button onClick={() => archiveStudent(s)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Archive size={16}/></button>
+                             <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-900/20 text-blue-500 border border-blue-500/20 rounded-lg"><ArrowUp size={16}/></button>
+                             <button onClick={() => openEditModal(s)} className="p-2 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg"><Edit size={16}/></button>
+                             <button onClick={() => archiveStudent(s)} className="p-2 bg-red-900/20 text-red-500 border border-red-500/20 rounded-lg"><Archive size={16}/></button>
                          </div>
                      </div>
                  </div>
              )
         })}
         {processedStudents.length === 0 && (
-            <div className="text-center p-8 text-gray-400">لا يوجد نتائج</div>
+            <div className="text-center p-8 text-slate-600">لا يوجد نتائج</div>
         )}
       </div>
 
@@ -988,53 +973,53 @@ https://bravetkd.bar/
       {showModal && (
         <ModalOverlay onClose={closeModal}>
             <div className="p-6">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h3 className="text-xl font-bold text-gray-800">{editingStudent ? "تعديل بيانات الطالب" : "إضافة 'طالب' جديد"}</h3>
-                    <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition-colors"><X size={24}/></button>
+                <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                    <h3 className="text-xl font-bold text-white">{editingStudent ? "تعديل بيانات الطالب" : "إضافة 'طالب' جديد"}</h3>
+                    <button onClick={closeModal} className="text-slate-500 hover:text-red-500 transition-colors"><X size={24}/></button>
                 </div>
                 
                 <form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4 text-right">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2 bg-gradient-to-r from-yellow-50 to-white p-4 rounded-xl border border-yellow-200 mb-2">
-                            <p className="text-xs font-bold text-yellow-700 mb-3 flex items-center gap-1">
+                        <div className="md:col-span-2 bg-gradient-to-r from-yellow-900/20 to-slate-900 p-4 rounded-xl border border-yellow-500/20 mb-2">
+                            <p className="text-xs font-bold text-yellow-500 mb-3 flex items-center gap-1">
                                 <Sparkles size={12}/> بيانات تسجيل الدخول (اتركها فارغة للتوليد التلقائي)
                             </p>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wider">Username</label>
-                                    <input className="w-full border border-gray-200 p-2 rounded-lg bg-white font-mono text-left dir-ltr focus:border-yellow-500 outline-none" value={newS.username} onChange={e=>setNewS({...newS, username:e.target.value})} placeholder="Auto-generated" />
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Username</label>
+                                    <input className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 font-mono text-left dir-ltr focus:border-yellow-500 outline-none placeholder-slate-600" value={newS.username} onChange={e=>setNewS({...newS, username:e.target.value})} placeholder="Auto-generated" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wider">Password</label>
-                                    <input className="w-full border border-gray-200 p-2 rounded-lg bg-white font-mono text-left dir-ltr focus:border-yellow-500 outline-none" value={newS.password} onChange={e=>setNewS({...newS, password:e.target.value})} placeholder="Auto-generated" />
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Password</label>
+                                    <input className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 font-mono text-left dir-ltr focus:border-yellow-500 outline-none placeholder-slate-600" value={newS.password} onChange={e=>setNewS({...newS, password:e.target.value})} placeholder="Auto-generated" />
                                 </div>
                             </div>
                         </div>
 
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-gray-700 mb-1">الاسم الرباعي</label>
-                            <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
+                            <label className="block text-xs font-bold text-slate-400 mb-1">الاسم الرباعي</label>
+                            <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
                         </div>
 
                         <div className="md:col-span-2">
-                             <label className="block text-xs font-bold text-blue-800 mb-1">الفترة / المجموعة</label>
+                             <label className="block text-xs font-bold text-blue-400 mb-1">الفترة / المجموعة</label>
                              <select 
-                                className="w-full border-2 border-blue-100 focus:border-blue-500 p-2.5 rounded-xl bg-blue-50/50 outline-none"
-                                value={newS.group}
-                                onChange={e=>setNewS({...newS, group:e.target.value})}
+                                 className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-blue-500 p-2.5 rounded-xl outline-none"
+                                 value={newS.group}
+                                 onChange={e=>setNewS({...newS, group:e.target.value})}
                              >
-                                <option value="">بدون تحديد</option>
-                                {availableGroups.map((g, idx) => (
-                                    <option key={idx} value={g}>{g}</option>
-                                ))}
+                                 <option value="">بدون تحديد</option>
+                                 {availableGroups.map((g, idx) => (
+                                     <option key={idx} value={g}>{g}</option>
+                                 ))}
                              </select>
                         </div>
 
                         {/* --- القائمة الجديدة للعائلات --- */}
                         {!editingStudent && (
-                            <div className="md:col-span-2 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                                <label className="block text-xs font-bold text-blue-800 mb-1">العائلة (للخصومات)</label>
-                                <select className="w-full border border-blue-200 p-2 rounded-lg bg-white focus:ring-2 focus:ring-blue-200 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
+                            <div className="md:col-span-2 bg-blue-900/10 p-3 rounded-xl border border-blue-500/20">
+                                <label className="block text-xs font-bold text-blue-400 mb-1">العائلة (للخصومات)</label>
+                                <select className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 focus:ring-1 focus:ring-blue-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
                                     <option value="new">تسجيل كعائلة جديدة</option>
                                     {uniqueFamilies.map((f) => (
                                         <option key={f.id} value={f.id}>
@@ -1046,40 +1031,40 @@ https://bravetkd.bar/
                         )}
 
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف</label>
-                            <input required className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} placeholder="079xxxxxxx" />
+                            <label className="block text-xs font-bold text-slate-400 mb-1">رقم الهاتف</label>
+                            <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} placeholder="079xxxxxxx" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">الحزام الحالي</label>
-                            <select className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl bg-white outline-none" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>
+                            <label className="block text-xs font-bold text-slate-400 mb-1">الحزام الحالي</label>
+                            <select className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>
                                 {BELTS.map(b=><option key={b} value={b}>{b}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-red-600 mb-1">الرصيد الافتتاحي (دينار)</label>
-                            <input type="number" className="w-full border-2 border-red-50 focus:border-red-500 p-2.5 rounded-xl outline-none bg-red-50/30" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} placeholder="0" />
+                            <label className="block text-xs font-bold text-red-400 mb-1">الرصيد الافتتاحي (دينار)</label>
+                            <input type="number" className="w-full bg-red-900/10 border border-red-500/30 text-red-200 focus:border-red-500 p-2.5 rounded-xl outline-none placeholder-red-900/50" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} placeholder="0" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الميلاد</label>
-                            <input type="date" className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} />
+                            <label className="block text-xs font-bold text-slate-400 mb-1">تاريخ الميلاد</label>
+                            <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الالتحاق</label>
-                            <input type="date" className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} />
+                            <label className="block text-xs font-bold text-slate-400 mb-1">تاريخ الالتحاق</label>
+                            <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-green-600 mb-1">نهاية الاشتراك</label>
-                            <input type="date" className="w-full border-2 border-green-50 focus:border-green-500 p-2.5 rounded-xl outline-none bg-green-50/30" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} />
+                            <label className="block text-xs font-bold text-emerald-400 mb-1">نهاية الاشتراك</label>
+                            <input type="date" className="w-full bg-emerald-900/10 border border-emerald-500/30 text-emerald-200 focus:border-emerald-500 p-2.5 rounded-xl outline-none" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-gray-700 mb-1">العنوان</label>
-                            <input className="w-full border-2 border-gray-100 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} placeholder="المدينة - المنطقة - الشارع" />
+                            <label className="block text-xs font-bold text-slate-400 mb-1">العنوان</label>
+                            <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} placeholder="المدينة - المنطقة - الشارع" />
                         </div>
                     </div>
                     
-                    <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-gray-100">
-                        <Button type="button" variant="ghost" onClick={closeModal} className="text-gray-500 hover:bg-gray-100">إلغاء</Button>
-                        <Button type="submit" className="bg-yellow-500 text-black font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 px-8">
+                    <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-slate-700">
+                        <Button type="button" variant="ghost" onClick={closeModal} className="text-slate-400 hover:bg-slate-800 hover:text-white">إلغاء</Button>
+                        <Button type="submit" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 px-8 border-none">
                             {editingStudent ? 'حفظ التعديلات' : 'إضافة الطالب'}
                         </Button>
                     </div>
