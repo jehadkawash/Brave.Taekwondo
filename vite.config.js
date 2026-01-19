@@ -1,21 +1,22 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa' // 1. استيراد الإضافة
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate', // ✅ هذا السطر يحل مشكلة الشاشة البيضاء (التحديث الفوري)
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'], // الملفات الثابتة
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'أكاديمية الشجاع للتايكوندو',
+        name: 'أكاديمية الشجاع للتايكواندو',
         short_name: 'Brave TKD',
         description: 'تطبيق إدارة أكاديمية الشجاع للتايكوندو',
         theme_color: '#ffffff',
         icons: [
           {
-            src: 'icon-192.png', // تأكد أن هذه الصور موجودة في مجلد public
+            src: 'icon-192.png',
             sizes: '192x192',
             type: 'image/png'
           },
@@ -30,6 +31,11 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         orientation: 'portrait'
+      },
+      // ✅✅ هنا المكان الصحيح لوضع إعدادات workbox (داخل VitePWA) ✅✅
+      workbox: {
+        // رفع الحد الأقصى للملفات المسموح بتخزينها إلى 6 ميجابايت (للسماح لمكتبة Spline 3D)
+        maximumFileSizeToCacheInBytes: 6000000, 
       }
     })
   ],
