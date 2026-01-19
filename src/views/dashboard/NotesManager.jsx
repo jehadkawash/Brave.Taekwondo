@@ -11,50 +11,44 @@ export default function NotesManager({ students, studentsCollection, logActivity
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [noteText, setNoteText] = useState('');
     const [noteType, setNoteType] = useState('private'); // 'private' | 'public'
-    const [editingNote, setEditingNote] = useState(null); // لتحديد الملاحظة قيد التعديل
+    const [editingNote, setEditingNote] = useState(null); 
 
     // --- 1. دمج الملاحظات (القديمة والجديدة) ---
     const getCombinedNotes = (student) => {
         if (!student) return [];
         let allNotes = [];
 
-        // أ: الملاحظة القديمة (من صفحة الطلاب - الحقل النصي)
+        // أ: الملاحظة القديمة
         if (student.note && typeof student.note === 'string' && student.note.trim() !== "") {
             allNotes.push({
-                id: 'legacy_note', // معرف ثابت للملاحظة القديمة
+                id: 'legacy_note', 
                 text: student.note,
-                type: 'private', // نفترض أنها خاصة لأنها من النظام القديم
+                type: 'private', 
                 date: 'سجل قديم',
-                isLegacy: true // علامة لتمييزها
+                isLegacy: true 
             });
         }
 
-        // ب: الملاحظات الجديدة (المصفوفة)
-        // ملاحظة: قد تكون باسم 'notes' أو 'internalNotes' حسب التسمية في قاعدة البيانات. 
-        // هنا سنفترض أنك توحدها في 'notes' أو سنقرأ الاثنين للأمان.
+        // ب: الملاحظات الجديدة
         const modernNotes = student.notes || []; 
-        const internalNotes = student.internalNotes || []; // قراءة الملاحظات الداخلية من صفحة الطلاب إذا وجدت
+        const internalNotes = student.internalNotes || []; 
         
-        // دمج المصفوفات وتوحيد الهيكل
         if (Array.isArray(modernNotes)) {
             allNotes = [...allNotes, ...modernNotes];
         }
         
-        // إذا كان هناك اختلاف في التسمية (internalNotes)، نضيفها ونحدد نوعها
         if (Array.isArray(internalNotes)) {
-             // نتأكد من عدم التكرار (قد يكون نفس الكائن مكرر)
              const existingIds = new Set(allNotes.map(n => n.id));
              internalNotes.forEach(n => {
                  if (!existingIds.has(n.id)) {
-                     allNotes.push({ ...n, type: 'private' }); // نعتبرها خاصة افتراضياً
+                     allNotes.push({ ...n, type: 'private' }); 
                  }
              });
         }
 
-        // ترتيب حسب التاريخ (الأحدث أولاً إذا كان هناك تواريخ، القديم في الآخر)
         return allNotes.sort((a, b) => {
-            if (a.isLegacy) return 1; // القديم في الأسفل
-            if (b.isLegacy) return -1;
+            if (a.isLegacy) return 1; 
+            if (b.isLegacy) return -1; 
             return (b.id > a.id ? 1 : -1);
         });
     };
@@ -74,16 +68,11 @@ export default function NotesManager({ students, studentsCollection, logActivity
 
         let updatedData = {};
 
-        // حالة أ: تعديل ملاحظة موجودة
         if (editingNote) {
             if (editingNote.isLegacy) {
-                // تعديل الملاحظة القديمة (تحديث حقل note مباشرة)
                 updatedData = { note: noteText };
                 logActivity('تعديل ملاحظة', `تعديل الملاحظة الرئيسية للطالب ${selectedStudent.name}`);
             } else {
-                // تعديل ملاحظة جديدة (تحديث المصفوفة)
-                // يجب معرفة أي مصفوفة نحدث (notes أو internalNotes) بناءً على مكان الملاحظة
-                // للتبسيط، سنفترض أننا نستخدم 'notes' كمخزن رئيسي للملاحظات الجديدة من هذه الصفحة
                 const currentNotes = selectedStudent.notes || [];
                 const newNotesArray = currentNotes.map(n => 
                     n.id === editingNote.id ? { ...n, text: noteText, type: noteType } : n
@@ -92,7 +81,6 @@ export default function NotesManager({ students, studentsCollection, logActivity
                 logActivity('تعديل ملاحظة', `تعديل ملاحظة في السجل للطالب ${selectedStudent.name}`);
             }
         } 
-        // حالة ب: إنشاء ملاحظة جديدة
         else {
             const newNoteObj = {
                 id: Date.now().toString(),
@@ -101,16 +89,13 @@ export default function NotesManager({ students, studentsCollection, logActivity
                 date: new Date().toISOString().split('T')[0],
                 branch: selectedBranch
             };
-            // نضيف دائماً للمصفوفة 'notes'
             const currentNotes = selectedStudent.notes || [];
             updatedData = { notes: [newNoteObj, ...currentNotes] };
             logActivity('ملاحظة جديدة', `إضافة ملاحظة (${noteType === 'private' ? 'خاصة' : 'عامة'}) للطالب ${selectedStudent.name}`);
         }
 
-        // تنفيذ التحديث في قاعدة البيانات
         await studentsCollection.update(selectedStudent.id, updatedData);
 
-        // تحديث الواجهة فوراً
         setSelectedStudent(prev => ({ ...prev, ...updatedData }));
         setNoteText('');
         setEditingNote(null);
@@ -123,15 +108,12 @@ export default function NotesManager({ students, studentsCollection, logActivity
 
         let updatedData = {};
         if (note.isLegacy) {
-            // حذف الملاحظة القديمة = تفريغ النص
             updatedData = { note: "" };
         } else {
-            // حذف من المصفوفة
             const currentNotes = selectedStudent.notes || [];
             const newNotesArray = currentNotes.filter(n => n.id !== note.id);
             updatedData = { notes: newNotesArray };
             
-            // تحقق أيضاً من internalNotes إذا كانت الملاحظة هناك
             if (selectedStudent.internalNotes) {
                  const newInternal = selectedStudent.internalNotes.filter(n => n.id !== note.id);
                  if (newInternal.length !== selectedStudent.internalNotes.length) {
@@ -143,10 +125,8 @@ export default function NotesManager({ students, studentsCollection, logActivity
         await studentsCollection.update(selectedStudent.id, updatedData);
         logActivity('حذف ملاحظة', `حذف ملاحظة للطالب ${selectedStudent.name}`);
         
-        // تحديث الحالة المحلية
         setSelectedStudent(prev => ({ ...prev, ...updatedData }));
         
-        // إذا كنا نعدل هذه الملاحظة وحذفناها، نلغي وضع التعديل
         if (editingNote?.id === note.id) {
             setEditingNote(null);
             setNoteText('');
@@ -225,12 +205,12 @@ export default function NotesManager({ students, studentsCollection, logActivity
     const displayNotes = getCombinedNotes(selectedStudent);
 
     return (
-        <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 animate-fade-in">
+        <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 animate-fade-in font-sans pb-20 md:pb-0">
             
             {/* القسم الأيمن: القائمة والبحث */}
             <div className="w-full md:w-1/3 flex flex-col gap-4">
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <h2 className="text-lg font-black text-gray-800 flex items-center gap-2 mb-4">
+                <div className="bg-slate-900 p-4 rounded-2xl shadow-lg border border-slate-800/60">
+                    <h2 className="text-lg font-black text-slate-100 flex items-center gap-2 mb-4">
                         <FileText className="text-yellow-500"/> سجل الملاحظات
                     </h2>
                     <StudentSearch 
@@ -239,13 +219,13 @@ export default function NotesManager({ students, studentsCollection, logActivity
                         onClear={() => setSelectedStudent(null)}
                         placeholder="ابحث عن طالب..." 
                     />
-                    <Button onClick={handlePrint} variant="outline" className="w-full mt-3 text-xs">
+                    <Button onClick={handlePrint} variant="outline" className="w-full mt-3 text-xs border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800">
                         <Printer size={16}/> طباعة تقرير الملاحظات
                     </Button>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
-                    <div className="p-3 bg-gray-50 border-b border-gray-100 font-bold text-gray-500 text-xs">
+                <div className="bg-slate-900 rounded-2xl shadow-lg border border-slate-800 flex-1 overflow-hidden flex flex-col">
+                    <div className="p-3 bg-slate-950 border-b border-slate-800 font-bold text-slate-500 text-xs">
                         طلاب لديهم ملاحظات مسجلة ({studentsWithNotes.length})
                     </div>
                     <div className="overflow-y-auto custom-scrollbar p-2 space-y-1 flex-1">
@@ -254,52 +234,52 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                 key={s.id} 
                                 onClick={() => setSelectedStudent(s)}
                                 className={`w-full text-right p-3 rounded-xl border transition-all flex justify-between items-center group
-                                    ${selectedStudent?.id === s.id ? 'bg-yellow-50 border-yellow-400 shadow-sm' : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-200'}`}
+                                    ${selectedStudent?.id === s.id ? 'bg-yellow-900/10 border-yellow-500/50 shadow-sm' : 'bg-slate-900 border-transparent hover:bg-slate-800 hover:border-slate-700'}`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedStudent?.id === s.id ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-100 text-gray-500'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedStudent?.id === s.id ? 'bg-yellow-500 text-slate-900' : 'bg-slate-800 text-slate-400'}`}>
                                         {s.name.charAt(0)}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-sm text-gray-800">{s.name}</p>
-                                        <p className="text-[10px] text-gray-400">{s.belt}</p>
+                                        <p className={`font-bold text-sm ${selectedStudent?.id === s.id ? 'text-yellow-500' : 'text-slate-300'}`}>{s.name}</p>
+                                        <p className="text-[10px] text-slate-500">{s.belt}</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-1">
                                     {/* مؤشرات بصرية لنوع الملاحظات */}
-                                    {getCombinedNotes(s).some(n=>n.type === 'private') && <div className="w-2 h-2 rounded-full bg-red-500"></div>}
-                                    {getCombinedNotes(s).some(n=>n.type === 'public') && <div className="w-2 h-2 rounded-full bg-green-500"></div>}
+                                    {getCombinedNotes(s).some(n=>n.type === 'private') && <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_#ef4444]"></div>}
+                                    {getCombinedNotes(s).some(n=>n.type === 'public') && <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]"></div>}
                                 </div>
                             </button>
                         )) : (
-                            <div className="text-center py-10 text-gray-400 text-xs">لا يوجد ملاحظات مسجلة</div>
+                            <div className="text-center py-10 text-slate-600 text-xs">لا يوجد ملاحظات مسجلة</div>
                         )}
                     </div>
                 </div>
             </div>
 
             {/* القسم الأيسر: منطقة العمل (الشات) */}
-            <div className="w-full md:w-2/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+            <div className="w-full md:w-2/3 bg-slate-900 rounded-2xl shadow-xl border border-slate-800 flex flex-col overflow-hidden">
                 {selectedStudent ? (
                     <>
                         {/* Header */}
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-black text-yellow-500 rounded-xl flex items-center justify-center font-bold text-lg">
+                                <div className="w-10 h-10 bg-slate-800 text-yellow-500 rounded-xl flex items-center justify-center font-bold text-lg border border-slate-700">
                                     <User size={20}/>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-gray-800">{selectedStudent.name}</h3>
-                                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded text-[10px]">{selectedStudent.belt}</span>
+                                    <h3 className="font-bold text-slate-100">{selectedStudent.name}</h3>
+                                    <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded text-[10px] border border-slate-700">{selectedStudent.belt}</span>
                                 </div>
                             </div>
-                            <div className="text-xs text-gray-400 font-mono">ID: {selectedStudent.id.substring(0,6)}</div>
+                            <div className="text-xs text-slate-600 font-mono">ID: {selectedStudent.id.substring(0,6)}</div>
                         </div>
 
                         {/* Notes Feed (Area) */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-gray-50/30">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-900">
                             {displayNotes.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
+                                <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-50">
                                     <FileText size={48} className="mb-2"/>
                                     <p>لا يوجد ملاحظات لهذا الطالب</p>
                                 </div>
@@ -308,40 +288,40 @@ export default function NotesManager({ students, studentsCollection, logActivity
                             {displayNotes.map((note, index) => (
                                 <div 
                                     key={note.id || index} 
-                                    className={`relative group p-4 rounded-2xl border transition-all hover:shadow-md
-                                        ${note.type === 'private' ? 'bg-white border-red-100 border-r-4 border-r-red-400' : 'bg-white border-green-100 border-r-4 border-r-green-400'}
-                                        ${editingNote?.id === note.id ? 'ring-2 ring-yellow-400' : ''}
+                                    className={`relative group p-4 rounded-2xl border transition-all hover:shadow-lg
+                                        ${note.type === 'private' ? 'bg-red-900/5 border-red-900/20 border-r-4 border-r-red-500' : 'bg-emerald-900/5 border-emerald-900/20 border-r-4 border-r-emerald-500'}
+                                        ${editingNote?.id === note.id ? 'ring-1 ring-yellow-500 bg-yellow-900/5' : ''}
                                     `}
                                 >
                                     {/* Header of Note */}
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2">
                                             {note.type === 'private' ? (
-                                                <span className="bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1">
+                                                <span className="bg-red-900/20 text-red-400 text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1 border border-red-500/20">
                                                     <Lock size={10}/> إدارية (خاص)
                                                 </span>
                                             ) : (
-                                                <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1">
+                                                <span className="bg-emerald-900/20 text-emerald-400 text-[10px] px-2 py-1 rounded-lg font-bold flex items-center gap-1 border border-emerald-500/20">
                                                     <MessageCircle size={10}/> عامة (للطالب)
                                                 </span>
                                             )}
-                                            <span className="text-[10px] text-gray-400 font-bold">{note.date}</span>
-                                            {note.isLegacy && <span className="bg-gray-200 text-gray-600 text-[9px] px-1.5 py-0.5 rounded">سجل قديم</span>}
+                                            <span className="text-[10px] text-slate-500 font-bold font-mono">{note.date}</span>
+                                            {note.isLegacy && <span className="bg-slate-800 text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-slate-700">سجل قديم</span>}
                                         </div>
                                         
                                         {/* Actions */}
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => startEdit(note)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="تعديل">
+                                            <button onClick={() => startEdit(note)} className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors" title="تعديل">
                                                 <Edit3 size={14}/>
                                             </button>
-                                            <button onClick={() => handleDelete(note)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="حذف">
+                                            <button onClick={() => handleDelete(note)} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors" title="حذف">
                                                 <Trash2 size={14}/>
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* Content */}
-                                    <p className="text-gray-700 text-sm whitespace-pre-line leading-relaxed pl-2 border-r-2 border-gray-100 mr-1">
+                                    <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed pl-2 border-r-2 border-slate-700 mr-1">
                                         {note.text}
                                     </p>
                                 </div>
@@ -349,26 +329,26 @@ export default function NotesManager({ students, studentsCollection, logActivity
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-4 bg-white border-t border-gray-100">
+                        <div className="p-4 bg-slate-950 border-t border-slate-800">
                             {editingNote && (
-                                <div className="flex justify-between items-center bg-yellow-50 px-3 py-2 rounded-lg mb-2 text-xs text-yellow-800 border border-yellow-200">
-                                    <span>جاري تعديل ملاحظة...</span>
-                                    <button onClick={() => {setEditingNote(null); setNoteText('');}}><X size={14}/></button>
+                                <div className="flex justify-between items-center bg-yellow-900/20 px-3 py-2 rounded-lg mb-2 text-xs text-yellow-500 border border-yellow-500/30">
+                                    <span className="font-bold">جاري تعديل ملاحظة...</span>
+                                    <button onClick={() => {setEditingNote(null); setNoteText('');}} className="hover:text-white"><X size={14}/></button>
                                 </div>
                             )}
                             
                             <div className="flex gap-2 mb-2">
                                 <button 
                                     onClick={() => setNoteType('private')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1
-                                        ${noteType === 'private' ? 'bg-red-100 text-red-700 ring-1 ring-red-200' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 border
+                                        ${noteType === 'private' ? 'bg-red-900/20 text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-slate-900 text-slate-500 border-slate-800 hover:bg-slate-800'}`}
                                 >
                                     <Lock size={12}/> خاصة
                                 </button>
                                 <button 
                                     onClick={() => setNoteType('public')}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1
-                                        ${noteType === 'public' ? 'bg-green-100 text-green-700 ring-1 ring-green-200' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 border
+                                        ${noteType === 'public' ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-slate-900 text-slate-500 border-slate-800 hover:bg-slate-800'}`}
                                 >
                                     <MessageCircle size={12}/> عامة
                                 </button>
@@ -376,7 +356,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
 
                             <div className="relative">
                                 <textarea 
-                                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl p-3 pr-4 pl-12 text-sm outline-none focus:border-yellow-400 focus:bg-white transition-all min-h-[50px] max-h-[120px]"
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 pr-4 pl-12 text-sm outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/20 text-slate-200 transition-all min-h-[50px] max-h-[120px] placeholder-slate-600"
                                     placeholder="اكتب الملاحظة هنا..."
                                     value={noteText}
                                     onChange={e => setNoteText(e.target.value)}
@@ -384,7 +364,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                 <button 
                                     onClick={handleSaveNote}
                                     disabled={!noteText.trim()}
-                                    className="absolute left-2 bottom-2 bg-black text-yellow-500 p-2 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    className="absolute left-2 bottom-2 bg-yellow-500 text-slate-900 p-2 rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-yellow-500/20"
                                 >
                                     {editingNote ? <CheckCircle size={18}/> : <Send size={18}/>}
                                 </button>
@@ -392,11 +372,11 @@ export default function NotesManager({ students, studentsCollection, logActivity
                         </div>
                     </>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300">
-                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                            <Search size={32} />
+                    <div className="h-full flex flex-col items-center justify-center text-slate-600">
+                        <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-700">
+                            <Search size={32} className="text-slate-500"/>
                         </div>
-                        <p className="font-bold">اختر طالباً للبدء</p>
+                        <p className="font-bold text-slate-500">اختر طالباً للبدء</p>
                     </div>
                 )}
             </div>

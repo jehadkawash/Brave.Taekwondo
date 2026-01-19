@@ -1,6 +1,6 @@
 // src/views/dashboard/RegistrationsManager.jsx
 import React, { useState } from 'react';
-import { Inbox, Trash2, Phone, MapPin, Calendar } from 'lucide-react';
+import { Inbox, Trash2, Phone, MapPin, Calendar, Check, UserPlus } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants';
 
@@ -18,7 +18,6 @@ const generateCredentials = () => {
 const formatDate = (dateString) => {
     if (!dateString) return '-';
     const d = new Date(dateString);
-    // Check if date is valid (if invalid, it might already be in dd/mm/yyyy format from HomeView)
     if (isNaN(d.getTime())) return dateString; 
     
     const day = String(d.getDate()).padStart(2, '0');
@@ -76,7 +75,7 @@ export default function RegistrationsManager({ registrations, students, registra
         customOrder: Date.now(), 
         ...formData 
     };
-    delete newStudent.linkFamily; // Remove temporary field
+    delete newStudent.linkFamily; 
 
     await studentsCollection.add(newStudent); 
     await registrationsCollection.remove(confirmModal.id); 
@@ -86,30 +85,41 @@ export default function RegistrationsManager({ registrations, students, registra
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in font-sans pb-20 md:pb-0">
        <div className="grid gap-4">
            {registrations.length === 0 ? (
-               <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                   <Inbox size={48} className="mx-auto text-gray-300 mb-2"/>
-                   <p className="text-gray-500">لا توجد طلبات جديدة حالياً.</p>
+               <div className="text-center py-16 bg-slate-900 rounded-2xl border-2 border-dashed border-slate-800">
+                   <div className="bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Inbox size={32} className="text-slate-500"/>
+                   </div>
+                   <p className="text-slate-500 font-bold">لا توجد طلبات جديدة حالياً.</p>
                </div>
            ) : (
                registrations.map(reg => (
-                   <Card key={reg.id} className="border-r-4 border-blue-500">
+                   <Card key={reg.id} className="border-r-4 border-r-blue-500 hover:border-slate-700 transition-all bg-slate-900 shadow-lg">
                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                            <div>
-                               <h4 className="font-bold text-lg flex items-center gap-2">
-                                   {reg.name} <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">جديد</span>
+                               <h4 className="font-bold text-lg text-slate-100 flex items-center gap-2">
+                                   {reg.name} 
+                                   <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded animate-pulse">جديد</span>
                                </h4>
-                               <div className="flex flex-wrap gap-3 text-sm text-gray-600 mt-1">
-                                   <span className="flex items-center gap-1"><Phone size={14}/> {reg.phone}</span>
-                                   <span className="flex items-center gap-1"><MapPin size={14}/> {reg.address}</span>
-                                   <span className="flex items-center gap-1"><Calendar size={14}/> {formatDate(reg.dob)}</span>
+                               <div className="flex flex-wrap gap-4 text-sm text-slate-400 mt-2">
+                                   <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800"><Phone size={14} className="text-blue-500"/> {reg.phone}</span>
+                                   <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800"><MapPin size={14} className="text-yellow-500"/> {reg.address}</span>
+                                   <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800"><Calendar size={14} className="text-emerald-500"/> {formatDate(reg.dob)}</span>
                                </div>
                            </div>
                            <div className="flex gap-2 w-full md:w-auto">
-                               <Button onClick={() => openConfirm(reg)} className="bg-green-600 hover:bg-green-700 text-white text-sm flex-1 md:flex-none">اعتماد كطالب</Button>
-                               <button onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} className="text-red-500 p-2 hover:bg-red-50 rounded border border-red-200"><Trash2 size={18}/></button>
+                               <Button onClick={() => openConfirm(reg)} className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm flex-1 md:flex-none shadow-lg shadow-emerald-500/20 border-none">
+                                   <Check size={18} className="ml-1"/> اعتماد كطالب
+                               </Button>
+                               <button 
+                                   onClick={() => {if(confirm('حذف الطلب؟')) registrationsCollection.remove(reg.id)}} 
+                                   className="text-red-400 p-2.5 hover:bg-red-900/20 rounded-xl border border-slate-700 hover:border-red-500/50 transition-colors"
+                                   title="حذف الطلب"
+                               >
+                                   <Trash2 size={18}/>
+                               </button>
                            </div>
                        </div>
                    </Card>
@@ -118,32 +128,55 @@ export default function RegistrationsManager({ registrations, students, registra
        </div>
 
        {confirmModal && (
-           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-               <Card className="w-full max-w-2xl animate-fade-in" title="إكمال بيانات الطالب الجديد">
-                   <form onSubmit={confirmStudent} className="space-y-4">
+           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+               <Card className="w-full max-w-2xl animate-in fade-in zoom-in-95 bg-slate-900 border border-slate-700 shadow-2xl" title="إكمال بيانات الطالب الجديد" icon={UserPlus}>
+                   <form onSubmit={confirmStudent} className="space-y-4 mt-4">
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div><label className="block text-xs mb-1 font-bold">الاسم</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.name} readOnly /></div>
-                           <div><label className="block text-xs mb-1 font-bold">الهاتف</label><input className="w-full border p-2 bg-gray-100 rounded text-gray-500" value={formData.phone} readOnly /></div>
                            <div>
-                               <label className="block text-xs mb-1 font-bold">العائلة</label>
-                               <select className="w-full border p-2 rounded" value={formData.linkFamily} onChange={e => setFormData({...formData, linkFamily: e.target.value})}>
+                               <label className="block text-xs mb-2 font-bold text-slate-400">الاسم</label>
+                               <input className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-slate-400 cursor-not-allowed" value={formData.name} readOnly />
+                           </div>
+                           <div>
+                               <label className="block text-xs mb-2 font-bold text-slate-400">الهاتف</label>
+                               <input className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-slate-400 font-mono cursor-not-allowed" value={formData.phone} readOnly />
+                           </div>
+                           <div>
+                               <label className="block text-xs mb-2 font-bold text-blue-400">العائلة (للربط المالي)</label>
+                               <select 
+                                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-blue-500 outline-none"
+                                   value={formData.linkFamily} 
+                                   onChange={e => setFormData({...formData, linkFamily: e.target.value})}
+                               >
                                    <option value="new">عائلة جديدة</option>
                                    {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
                                </select>
                            </div>
                            <div>
-                               <label className="block text-xs mb-1 font-bold">الحزام</label>
-                               <select className="w-full border p-2 rounded" value={formData.belt} onChange={e=>setFormData({...formData, belt:e.target.value})}>
-                                   {BELTS.map(b=><option key={b}>{b}</option>)}
+                               <label className="block text-xs mb-2 font-bold text-slate-400">الحزام</label>
+                               <select 
+                                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none"
+                                   value={formData.belt} 
+                                   onChange={e=>setFormData({...formData, belt:e.target.value})}
+                               >
+                                   {BELTS.map(b=><option key={b} value={b}>{b}</option>)}
                                </select>
                            </div>
-                           <div><label className="block text-xs mb-1 font-bold">تاريخ الالتحاق</label><input type="date" className="w-full border p-2 rounded" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} /></div>
-                           <div><label className="block text-xs mb-1 font-bold text-green-600">نهاية الاشتراك</label><input type="date" className="w-full border p-2 rounded bg-green-50" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} /></div>
-                           <div><label className="block text-xs mb-1 text-red-600 font-bold">رصيد مستحق (JOD)</label><input type="number" className="w-full border p-2 rounded focus:ring-2 ring-red-500 outline-none" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} /></div>
+                           <div>
+                               <label className="block text-xs mb-2 font-bold text-slate-400">تاريخ الالتحاق</label>
+                               <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} />
+                           </div>
+                           <div>
+                               <label className="block text-xs mb-2 font-bold text-emerald-400">نهاية الاشتراك</label>
+                               <input type="date" className="w-full bg-emerald-900/10 border border-emerald-500/30 text-emerald-300 p-3 rounded-xl focus:border-emerald-500 outline-none" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} />
+                           </div>
+                           <div>
+                               <label className="block text-xs mb-2 text-red-400 font-bold">رصيد مستحق (JOD)</label>
+                               <input type="number" className="w-full bg-red-900/10 border border-red-500/30 text-red-300 p-3 rounded-xl focus:border-red-500 outline-none placeholder-red-700" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} />
+                           </div>
                        </div>
-                       <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                           <Button variant="ghost" onClick={() => setConfirmModal(null)}>إلغاء</Button>
-                           <Button type="submit">تأكيد وإضافة</Button>
+                       <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+                           <Button variant="ghost" onClick={() => setConfirmModal(null)} className="text-slate-400 hover:text-white hover:bg-slate-800">إلغاء</Button>
+                           <Button type="submit" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 border-none shadow-lg shadow-yellow-500/20 px-6">تأكيد وإضافة</Button>
                        </div>
                    </form>
                </Card>
