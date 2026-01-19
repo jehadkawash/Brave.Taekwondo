@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, 
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin, 
-  Award, Calendar, ChevronDown, X, MessageSquare 
+  Award, Calendar, ChevronDown, X, MessageSquare, LayoutDashboard 
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
@@ -36,7 +36,7 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// --- مكون القائمة المنسدلة (تصميم ثابت واحترافي) ---
+// --- مكون القائمة المنسدلة (مخصص للشريط الأسود) ---
 const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -58,7 +58,9 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
             <button 
                 onClick={() => setIsOpen(!isOpen)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-sm 
-                    ${isActive ? 'text-yellow-500 bg-yellow-500/10 border border-yellow-500/20' : 'text-gray-300 hover:text-white hover:bg-white/5 border border-transparent'}`}
+                    ${isActive 
+                        ? 'text-yellow-500 bg-white/10 shadow-inner' 
+                        : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
             >
                 <Icon size={18}/>
                 <span>{title}</span>
@@ -71,27 +73,29 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
-                        transition={{ duration: 0.1 }}
-                        className="absolute top-full right-0 mt-2 w-60 bg-[#1a1a1a] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50"
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-full right-0 mt-2 w-64 bg-[#1a1a1a] rounded-xl shadow-2xl border border-gray-700 overflow-hidden z-50"
                     >
-                        {items.map((item, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => { 
-                                    if (item.action) item.action(); 
-                                    else onSelect(item.id); 
-                                    setIsOpen(false); 
-                                }}
-                                className={`w-full text-right px-4 py-3 flex items-center gap-3 transition-colors text-sm font-bold border-b border-white/5 last:border-0
-                                    ${activeTab === item.id ? 'bg-yellow-500/10 text-yellow-500' : 'text-gray-400 hover:bg-white/5 hover:text-white'}
-                                    ${item.special ? 'text-green-400 hover:text-green-300' : ''}
-                                `}
-                            >
-                                <item.icon size={16} className={activeTab === item.id ? 'text-yellow-500' : item.special ? 'text-green-400' : 'text-gray-500'}/>
-                                {item.label}
-                                {item.badge > 0 && <span className="mr-auto bg-red-500 text-white text-[10px] px-1.5 rounded-full">{item.badge}</span>}
-                            </button>
-                        ))}
+                        <div className="py-1">
+                            {items.map((item, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => { 
+                                        if (item.action) item.action(); 
+                                        else onSelect(item.id); 
+                                        setIsOpen(false); 
+                                    }}
+                                    className={`w-full text-right px-4 py-3 flex items-center gap-3 transition-colors text-sm font-bold border-b border-gray-800 last:border-0
+                                        ${activeTab === item.id ? 'bg-yellow-600 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}
+                                        ${item.special ? 'text-green-400 hover:bg-green-900/20' : ''}
+                                    `}
+                                >
+                                    <item.icon size={18} className={activeTab === item.id ? 'text-white' : item.special ? 'text-green-400' : 'text-gray-400'}/>
+                                    {item.label}
+                                    {item.badge > 0 && <span className="mr-auto bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{item.badge}</span>}
+                                </button>
+                            ))}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -216,26 +220,26 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   ].filter(i => !i.role || i.role === user.role);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col overflow-x-hidden" dir="rtl">
+    // ✅ الإصلاح الرئيسي: خلفية فاتحة للجسم الرئيسي، مع نص داكن ليتناسب مع البطاقات
+    <div className="min-h-screen bg-gray-50 font-sans flex flex-col text-right text-gray-900" dir="rtl">
       
-      {/* --- الشريط العلوي --- */}
-      <header className="bg-black/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 h-16 shadow-lg">
-          <div className="container mx-auto px-4 h-full flex justify-between items-center">
+      {/* --- الشريط العلوي (Dark Theme Pro) --- */}
+      <header className="bg-[#111] text-white shadow-lg sticky top-0 z-50 h-16 border-b border-gray-800">
+          <div className="container mx-auto px-4 h-full flex justify-between items-center max-w-7xl">
               
               {/* الشعار والاسم */}
               <div className="flex items-center gap-3">
-                  <div className="relative">
-                      <div className="absolute inset-0 bg-yellow-500/20 rounded-lg blur-md"></div>
+                  <div className="relative group cursor-pointer" onClick={() => setActiveTab('dashboard')}>
                       <img 
                           src={IMAGES.LOGO} 
                           alt="Logo" 
-                          className="w-9 h-9 relative z-10 object-contain"
+                          className="w-10 h-10 object-contain bg-white rounded-lg p-0.5"
                           onError={(e) => {e.target.style.display='none';}} 
                       />
                   </div>
-                  <div>
-                      <h1 className="font-bold text-sm md:text-base text-white hidden md:block">أكاديمية الشجاع</h1>
-                      <div className="text-[10px] md:text-xs text-yellow-500 font-bold flex items-center gap-1">
+                  <div className="hidden md:block">
+                      <h1 className="font-bold text-sm md:text-base text-white">أكاديمية الشجاع</h1>
+                      <div className="text-[11px] text-yellow-500 font-bold flex items-center gap-1">
                           {user.name} <span className="text-gray-600">|</span> {selectedBranch}
                       </div>
                   </div>
@@ -246,9 +250,9 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                   <button 
                       onClick={() => setActiveTab('dashboard')}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-bold text-sm 
-                          ${activeTab === 'dashboard' ? 'text-black bg-yellow-500' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                          ${activeTab === 'dashboard' ? 'text-black bg-yellow-500 shadow-md' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
                   >
-                      <Activity size={18}/> الرئيسية
+                      <LayoutDashboard size={18}/> الرئيسية
                   </button>
 
                   <div className="w-px h-5 bg-white/10 mx-1"></div>
@@ -266,7 +270,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-bold text-sm border
                           ${activeTab === 'attendance' ? 'text-black bg-yellow-500 border-yellow-500' : 'text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10'}`}
                   >
-                      <CheckCircle size={18}/> حضور وغياب
+                      <CheckCircle size={18}/> الحضور
                   </button>
 
                   <NavDropdown 
@@ -283,7 +287,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                   {onSwitchBranch && (
                       <div className="hidden md:flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg hover:border-yellow-500/50 transition-colors relative group">
                           <MapPin size={16} className="text-yellow-500"/>
-                          <span className="text-xs font-bold">{selectedBranch}</span>
+                          <span className="text-xs font-bold text-gray-200">{selectedBranch}</span>
                           <select 
                               value={selectedBranch} 
                               onChange={(e) => onSwitchBranch(e.target.value)}
@@ -312,12 +316,12 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                     initial={{ x: '100%' }}
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
-                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                    className="fixed inset-y-0 right-0 w-[85%] max-w-sm bg-[#111] shadow-2xl z-[100] border-l border-white/10 overflow-y-auto"
+                    transition={{ type: "tween", duration: 0.3 }}
+                    className="fixed inset-y-0 right-0 w-[85%] max-w-xs bg-[#151515] shadow-2xl z-[100] border-l border-gray-800 overflow-y-auto"
                 >
                     <div className="p-5 space-y-6">
-                        <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                            <h2 className="text-lg font-black text-white">القائمة</h2>
+                        <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
+                            <h2 className="text-lg font-bold text-white">القائمة</h2>
                             <button onClick={() => setMobileMenuOpen(false)} className="p-2 bg-white/5 rounded-lg text-gray-400 hover:text-white"><X size={20}/></button>
                         </div>
 
@@ -349,7 +353,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                         </div>
 
                         <div className="pt-2">
-                            <h3 className="text-xs font-black text-gray-500 mb-3 px-1 uppercase">طلاب</h3>
+                            <h3 className="text-xs font-bold text-gray-500 mb-3 px-1 uppercase">طلاب</h3>
                             <div className="space-y-2">
                                 {studentGroups.map(item => (
                                     <button key={item.id} onClick={() => {setActiveTab(item.id); setMobileMenuOpen(false);}} className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold border transition-all ${activeTab === item.id ? 'bg-white/10 text-yellow-500 border-yellow-500/30' : 'text-gray-400 border-transparent hover:bg-white/5'}`}>
@@ -360,7 +364,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                         </div>
 
                         <div className="pt-2">
-                            <h3 className="text-xs font-black text-gray-500 mb-3 px-1 uppercase">الادارة</h3>
+                            <h3 className="text-xs font-bold text-gray-500 mb-3 px-1 uppercase">الادارة</h3>
                             <div className="space-y-2">
                                 {adminGroups.map(item => (
                                     <button key={item.id} onClick={() => { 
@@ -381,90 +385,91 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
           </AnimatePresence>
       </header>
 
-      {/* --- منطقة المحتوى (تصحيح الأبعاد والخلفية) --- */}
-      <main className="flex-1 w-full bg-[#0a0a0a] p-4 md:p-6 overflow-hidden">
-         <div className="container mx-auto max-w-7xl animate-fade-in">
-             {activeTab === 'dashboard' && <DashboardStats 
-                 user={user} 
-                 selectedBranch={selectedBranch} 
-                 branchStudents={branchStudents} 
-                 netProfit={netProfit} 
-                 totalAttendance={totalAttendance} 
-                 expiredCount={expiredCount} 
-                 activeStudentsCount={activeStudentsCount} 
-                 nearEndCount={nearEndCount} 
-                 totalStudents={totalStudents} 
-                 branchRegistrations={branchRegistrations} 
-                 branchPayments={branchPayments} 
-                 activityLogs={branchActivityLogs}
-             />}
+      {/* --- منطقة المحتوى (تم إصلاح الخلفية والأبعاد) --- */}
+      {/* الخلفية هنا فاتحة (gray-50) لتتناسب مع البطاقات البيضاء في الصفحات الفرعية */}
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 animate-fade-in text-gray-800">
+         
+         {activeTab === 'dashboard' && <DashboardStats 
+             user={user} 
+             selectedBranch={selectedBranch} 
+             branchStudents={branchStudents} 
+             netProfit={netProfit} 
+             totalAttendance={totalAttendance} 
+             expiredCount={expiredCount} 
+             activeStudentsCount={activeStudentsCount} 
+             nearEndCount={nearEndCount} 
+             totalStudents={totalStudents} 
+             branchRegistrations={branchRegistrations} 
+             branchPayments={branchPayments} 
+             activityLogs={branchActivityLogs}
+         />}
 
-             {activeTab === 'students' && <StudentsManager 
-                 students={branchStudents} 
-                 groups={branchGroups} 
-                 studentsCollection={studentsCollection} 
-                 archiveCollection={archiveCollection} 
-                 selectedBranch={selectedBranch} 
-                 logActivity={handleLog}
-             />}
-             
-             {activeTab === 'tests' && <BeltTestsManager 
-                 students={branchStudents}
-                 studentsCollection={studentsCollection}
-                 logActivity={handleLog}
-             />}
+         {activeTab === 'students' && <StudentsManager 
+             students={branchStudents} 
+             groups={branchGroups} 
+             studentsCollection={studentsCollection} 
+             archiveCollection={archiveCollection} 
+             selectedBranch={selectedBranch} 
+             logActivity={handleLog}
+         />}
+         
+         {activeTab === 'tests' && <BeltTestsManager 
+             students={branchStudents}
+             studentsCollection={studentsCollection}
+             logActivity={handleLog}
+         />}
 
-             {activeTab === 'reports' && <ReportsManager 
-                students={branchStudents}
-                payments={branchPayments}
-                expenses={branchExpenses}
-                activityLogs={branchActivityLogs}
-                registrations={branchRegistrations}
-                adminNotes={branchAdminNotes}
-                selectedBranch={selectedBranch}
-             />}
+         {activeTab === 'reports' && <ReportsManager 
+            students={branchStudents}
+            payments={branchPayments}
+            expenses={branchExpenses}
+            activityLogs={branchActivityLogs}
+            registrations={branchRegistrations}
+            adminNotes={branchAdminNotes}
+            selectedBranch={selectedBranch}
+         />}
 
-             {activeTab === 'subscriptions' && <SubscriptionsManager 
-                students={branchStudents} 
-                studentsCollection={studentsCollection} 
-                logActivity={handleLog} 
-                selectedBranch={selectedBranch}
-             />}
+         {activeTab === 'subscriptions' && <SubscriptionsManager 
+            students={branchStudents} 
+            studentsCollection={studentsCollection} 
+            logActivity={handleLog} 
+            selectedBranch={selectedBranch}
+         />}
 
-             {activeTab === 'finance' && <FinanceManager 
-                 students={branchStudents} 
-                 payments={branchPayments} 
-                 expenses={branchExpenses} 
-                 paymentsCollection={paymentsCollection} 
-                 expensesCollection={expensesCollection} 
-                 financeReasons={branchFinanceReasons}
-                 financeReasonsCollection={financeReasonsCollection}
-                 selectedBranch={selectedBranch} 
-                 logActivity={handleLog} 
-             />}
+         {activeTab === 'finance' && <FinanceManager 
+             students={branchStudents} 
+             payments={branchPayments} 
+             expenses={branchExpenses} 
+             paymentsCollection={paymentsCollection} 
+             expensesCollection={expensesCollection} 
+             financeReasons={branchFinanceReasons}
+             financeReasonsCollection={financeReasonsCollection}
+             selectedBranch={selectedBranch} 
+             logActivity={handleLog} 
+         />}
 
-             {activeTab === 'attendance' && <AttendanceManager 
-                 students={branchStudents} 
-                 groups={branchGroups} 
-                 groupsCollection={groupsCollection}
-                 studentsCollection={studentsCollection}
-                 selectedBranch={selectedBranch}
-             />}
+         {activeTab === 'attendance' && <AttendanceManager 
+             students={branchStudents} 
+             groups={branchGroups} 
+             groupsCollection={groupsCollection}
+             studentsCollection={studentsCollection}
+             selectedBranch={selectedBranch}
+         />}
 
-             {activeTab === 'registrations' && <RegistrationsManager registrations={branchRegistrations} students={students} registrationsCollection={registrationsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
+         {activeTab === 'registrations' && <RegistrationsManager registrations={branchRegistrations} students={students} registrationsCollection={registrationsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
 
-             {activeTab === 'schedule' && <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />}
+         {activeTab === 'schedule' && <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />}
 
-             {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
-             
-             {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
+         {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
+         
+         {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
 
-             {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
+         {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
 
-             {activeTab === 'notes' && <AdminNotesManager />}
+         {activeTab === 'notes' && <AdminNotesManager />}
 
-             {activeTab === 'student_notes' && <NotesManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
-         </div>
+         {activeTab === 'student_notes' && <NotesManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
+         
       </main>
     </div>
   );
