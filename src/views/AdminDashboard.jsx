@@ -36,7 +36,7 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// --- مكون القائمة المنسدلة (مخصص للشريط الأسود) ---
+// --- مكون القائمة المنسدلة ---
 const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -57,10 +57,10 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
         <div className="relative" ref={wrapperRef}>
             <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-sm 
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-sm border 
                     ${isActive 
-                        ? 'text-yellow-500 bg-white/10 shadow-inner' 
-                        : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
+                        ? 'bg-yellow-500 text-black border-yellow-500 shadow-md' 
+                        : 'text-gray-300 hover:text-white hover:bg-white/10 border-transparent'}`}
             >
                 <Icon size={18}/>
                 <span>{title}</span>
@@ -74,7 +74,7 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full right-0 mt-2 w-64 bg-[#1a1a1a] rounded-xl shadow-2xl border border-gray-700 overflow-hidden z-50"
+                        className="absolute top-full right-0 mt-2 w-64 bg-[#1a1a1a] rounded-xl shadow-2xl border border-white/10 overflow-hidden z-50"
                     >
                         <div className="py-1">
                             {items.map((item, idx) => (
@@ -85,12 +85,12 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
                                         else onSelect(item.id); 
                                         setIsOpen(false); 
                                     }}
-                                    className={`w-full text-right px-4 py-3 flex items-center gap-3 transition-colors text-sm font-bold border-b border-gray-800 last:border-0
-                                        ${activeTab === item.id ? 'bg-yellow-600 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'}
-                                        ${item.special ? 'text-green-400 hover:bg-green-900/20' : ''}
+                                    className={`w-full text-right px-4 py-3 flex items-center gap-3 transition-colors text-sm font-bold border-b border-white/5 last:border-0
+                                        ${activeTab === item.id ? 'bg-yellow-600/20 text-yellow-500' : 'text-gray-300 hover:bg-white/5 hover:text-white'}
+                                        ${item.special ? 'text-green-400 hover:text-green-300' : ''}
                                     `}
                                 >
-                                    <item.icon size={18} className={activeTab === item.id ? 'text-white' : item.special ? 'text-green-400' : 'text-gray-400'}/>
+                                    <item.icon size={18} className={activeTab === item.id ? 'text-yellow-500' : item.special ? 'text-green-400' : 'text-gray-400'}/>
                                     {item.label}
                                     {item.badge > 0 && <span className="mr-auto bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{item.badge}</span>}
                                 </button>
@@ -199,7 +199,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     downloadAnchorNode.remove();
   };
 
-  // --- تعريف المجموعات (بنفس الأسماء القديمة) ---
+  // --- تعريف المجموعات (الأسماء الأصلية) ---
   const studentGroups = [
       {id:'students', icon:Users, label:'الطلاب'}, 
       {id:'student_notes', icon:MessageSquare, label:'الملاحظات والرسائل'},
@@ -220,16 +220,16 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   ].filter(i => !i.role || i.role === user.role);
 
   return (
-    // ✅ الإصلاح الرئيسي: خلفية فاتحة للجسم الرئيسي، مع نص داكن ليتناسب مع البطاقات
-    <div className="min-h-screen bg-gray-50 font-sans flex flex-col text-right text-gray-900" dir="rtl">
+    // الخلفية رمادية فاتحة لكي تظهر البطاقات البيضاء بشكل صحيح
+    <div className="min-h-screen bg-gray-100 font-sans flex flex-col text-right text-gray-900" dir="rtl">
       
-      {/* --- الشريط العلوي (Dark Theme Pro) --- */}
+      {/* --- الشريط العلوي (أسود ليعطي الطابع الاحترافي) --- */}
       <header className="bg-[#111] text-white shadow-lg sticky top-0 z-50 h-16 border-b border-gray-800">
-          <div className="container mx-auto px-4 h-full flex justify-between items-center max-w-7xl">
+          <div className="container mx-auto px-4 h-full flex justify-between items-center w-full">
               
-              {/* الشعار والاسم */}
+              {/* الشعار */}
               <div className="flex items-center gap-3">
-                  <div className="relative group cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+                  <div className="relative cursor-pointer" onClick={() => setActiveTab('dashboard')}>
                       <img 
                           src={IMAGES.LOGO} 
                           alt="Logo" 
@@ -238,19 +238,19 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       />
                   </div>
                   <div className="hidden md:block">
-                      <h1 className="font-bold text-sm md:text-base text-white">أكاديمية الشجاع</h1>
-                      <div className="text-[11px] text-yellow-500 font-bold flex items-center gap-1">
+                      <h1 className="font-bold text-base text-white">أكاديمية الشجاع</h1>
+                      <div className="text-xs text-yellow-500 font-bold flex items-center gap-1">
                           {user.name} <span className="text-gray-600">|</span> {selectedBranch}
                       </div>
                   </div>
               </div>
 
-              {/* القائمة الرئيسية (للكمبيوتر) */}
+              {/* القائمة الرئيسية (لابتوب) */}
               <nav className="hidden lg:flex items-center gap-2 bg-white/5 px-2 py-1 rounded-xl border border-white/5">
                   <button 
                       onClick={() => setActiveTab('dashboard')}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-bold text-sm 
-                          ${activeTab === 'dashboard' ? 'text-black bg-yellow-500 shadow-md' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
+                          ${activeTab === 'dashboard' ? 'bg-yellow-500 text-black shadow-md' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
                   >
                       <LayoutDashboard size={18}/> الرئيسية
                   </button>
@@ -268,7 +268,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                   <button 
                       onClick={() => setActiveTab('attendance')}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-bold text-sm border
-                          ${activeTab === 'attendance' ? 'text-black bg-yellow-500 border-yellow-500' : 'text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10'}`}
+                          ${activeTab === 'attendance' ? 'bg-yellow-500 text-black border-yellow-500' : 'text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10'}`}
                   >
                       <CheckCircle size={18}/> الحضور
                   </button>
@@ -309,7 +309,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
               </div>
           </div>
 
-          {/* --- قائمة الموبايل الجانبية --- */}
+          {/* --- قائمة الموبايل --- */}
           <AnimatePresence>
             {mobileMenuOpen && (
                 <motion.div 
@@ -385,91 +385,91 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
           </AnimatePresence>
       </header>
 
-      {/* --- منطقة المحتوى (تم إصلاح الخلفية والأبعاد) --- */}
-      {/* الخلفية هنا فاتحة (gray-50) لتتناسب مع البطاقات البيضاء في الصفحات الفرعية */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 animate-fade-in text-gray-800">
-         
-         {activeTab === 'dashboard' && <DashboardStats 
-             user={user} 
-             selectedBranch={selectedBranch} 
-             branchStudents={branchStudents} 
-             netProfit={netProfit} 
-             totalAttendance={totalAttendance} 
-             expiredCount={expiredCount} 
-             activeStudentsCount={activeStudentsCount} 
-             nearEndCount={nearEndCount} 
-             totalStudents={totalStudents} 
-             branchRegistrations={branchRegistrations} 
-             branchPayments={branchPayments} 
-             activityLogs={branchActivityLogs}
-         />}
+      {/* --- منطقة المحتوى --- */}
+      {/* هنا الإصلاح: العرض الكامل والخلفية الرمادية لتناسب البطاقات البيضاء */}
+      <main className="flex-1 w-full px-4 md:px-8 py-6 animate-fade-in text-gray-800 bg-gray-100">
+         <div className="container mx-auto">
+             {activeTab === 'dashboard' && <DashboardStats 
+                 user={user} 
+                 selectedBranch={selectedBranch} 
+                 branchStudents={branchStudents} 
+                 netProfit={netProfit} 
+                 totalAttendance={totalAttendance} 
+                 expiredCount={expiredCount} 
+                 activeStudentsCount={activeStudentsCount} 
+                 nearEndCount={nearEndCount} 
+                 totalStudents={totalStudents} 
+                 branchRegistrations={branchRegistrations} 
+                 branchPayments={branchPayments} 
+                 activityLogs={branchActivityLogs}
+             />}
 
-         {activeTab === 'students' && <StudentsManager 
-             students={branchStudents} 
-             groups={branchGroups} 
-             studentsCollection={studentsCollection} 
-             archiveCollection={archiveCollection} 
-             selectedBranch={selectedBranch} 
-             logActivity={handleLog}
-         />}
-         
-         {activeTab === 'tests' && <BeltTestsManager 
-             students={branchStudents}
-             studentsCollection={studentsCollection}
-             logActivity={handleLog}
-         />}
+             {activeTab === 'students' && <StudentsManager 
+                 students={branchStudents} 
+                 groups={branchGroups} 
+                 studentsCollection={studentsCollection} 
+                 archiveCollection={archiveCollection} 
+                 selectedBranch={selectedBranch} 
+                 logActivity={handleLog}
+             />}
+             
+             {activeTab === 'tests' && <BeltTestsManager 
+                 students={branchStudents}
+                 studentsCollection={studentsCollection}
+                 logActivity={handleLog}
+             />}
 
-         {activeTab === 'reports' && <ReportsManager 
-            students={branchStudents}
-            payments={branchPayments}
-            expenses={branchExpenses}
-            activityLogs={branchActivityLogs}
-            registrations={branchRegistrations}
-            adminNotes={branchAdminNotes}
-            selectedBranch={selectedBranch}
-         />}
+             {activeTab === 'reports' && <ReportsManager 
+                students={branchStudents}
+                payments={branchPayments}
+                expenses={branchExpenses}
+                activityLogs={branchActivityLogs}
+                registrations={branchRegistrations}
+                adminNotes={branchAdminNotes}
+                selectedBranch={selectedBranch}
+             />}
 
-         {activeTab === 'subscriptions' && <SubscriptionsManager 
-            students={branchStudents} 
-            studentsCollection={studentsCollection} 
-            logActivity={handleLog} 
-            selectedBranch={selectedBranch}
-         />}
+             {activeTab === 'subscriptions' && <SubscriptionsManager 
+                students={branchStudents} 
+                studentsCollection={studentsCollection} 
+                logActivity={handleLog} 
+                selectedBranch={selectedBranch}
+             />}
 
-         {activeTab === 'finance' && <FinanceManager 
-             students={branchStudents} 
-             payments={branchPayments} 
-             expenses={branchExpenses} 
-             paymentsCollection={paymentsCollection} 
-             expensesCollection={expensesCollection} 
-             financeReasons={branchFinanceReasons}
-             financeReasonsCollection={financeReasonsCollection}
-             selectedBranch={selectedBranch} 
-             logActivity={handleLog} 
-         />}
+             {activeTab === 'finance' && <FinanceManager 
+                 students={branchStudents} 
+                 payments={branchPayments} 
+                 expenses={branchExpenses} 
+                 paymentsCollection={paymentsCollection} 
+                 expensesCollection={expensesCollection} 
+                 financeReasons={branchFinanceReasons}
+                 financeReasonsCollection={financeReasonsCollection}
+                 selectedBranch={selectedBranch} 
+                 logActivity={handleLog} 
+             />}
 
-         {activeTab === 'attendance' && <AttendanceManager 
-             students={branchStudents} 
-             groups={branchGroups} 
-             groupsCollection={groupsCollection}
-             studentsCollection={studentsCollection}
-             selectedBranch={selectedBranch}
-         />}
+             {activeTab === 'attendance' && <AttendanceManager 
+                 students={branchStudents} 
+                 groups={branchGroups} 
+                 groupsCollection={groupsCollection}
+                 studentsCollection={studentsCollection}
+                 selectedBranch={selectedBranch}
+             />}
 
-         {activeTab === 'registrations' && <RegistrationsManager registrations={branchRegistrations} students={students} registrationsCollection={registrationsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
+             {activeTab === 'registrations' && <RegistrationsManager registrations={branchRegistrations} students={students} registrationsCollection={registrationsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
 
-         {activeTab === 'schedule' && <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />}
+             {activeTab === 'schedule' && <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />}
 
-         {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
-         
-         {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
+             {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
+             
+             {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
 
-         {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
+             {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
 
-         {activeTab === 'notes' && <AdminNotesManager />}
+             {activeTab === 'notes' && <AdminNotesManager />}
 
-         {activeTab === 'student_notes' && <NotesManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
-         
+             {activeTab === 'student_notes' && <NotesManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
+         </div>
       </main>
     </div>
   );
