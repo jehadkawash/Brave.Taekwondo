@@ -13,25 +13,25 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
     if (!isOpen) return null;
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold flex items-center gap-2">
-                        <Settings size={20} className="text-gray-600"/> إدارة بنود الدفع
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-slate-100">
+                        <Settings size={20} className="text-slate-400"/> إدارة بنود الدفع
                     </h3>
-                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-red-500"/></button>
+                    <button onClick={onClose}><X size={20} className="text-slate-500 hover:text-red-500"/></button>
                 </div>
                 
                 <div className="flex gap-2 mb-6">
                     <input 
-                        className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-green-500 outline-none"
+                        className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 focus:border-green-500 outline-none placeholder-slate-600"
                         placeholder="اسم البند الجديد..."
                         value={newReason}
                         onChange={(e) => setNewReason(e.target.value)}
                     />
                     <button 
                         onClick={() => { if(newReason) { onAdd(newReason); setNewReason(""); } }}
-                        className="bg-green-600 text-white p-3 rounded-xl hover:bg-green-700"
+                        className="bg-green-600 text-white p-3 rounded-xl hover:bg-green-500 shadow-lg shadow-green-900/20"
                     >
                         <Plus size={20}/>
                     </button>
@@ -39,14 +39,14 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
 
                 <div className="space-y-2 max-h-60 overflow-y-auto mb-4 custom-scrollbar">
                     {reasons.map((r, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <span className="font-bold text-gray-700">{r.title}</span>
-                            <button onClick={() => onDelete(r)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors">
+                        <div key={idx} className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-slate-600 transition-colors">
+                            <span className="font-bold text-slate-300">{r.title}</span>
+                            <button onClick={() => onDelete(r)} className="text-red-400 hover:bg-red-900/20 p-2 rounded-lg transition-colors">
                                 <Trash2 size={18}/>
                             </button>
                         </div>
                     ))}
-                    {reasons.length === 0 && <p className="text-center text-gray-400 text-sm">لا يوجد بنود مضافة</p>}
+                    {reasons.length === 0 && <p className="text-center text-slate-500 text-sm">لا يوجد بنود مضافة</p>}
                 </div>
             </div>
         </div>,
@@ -63,27 +63,27 @@ const ReportModal = ({ isOpen, onClose, onGenerate }) => {
 
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold flex items-center gap-2 text-blue-800">
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-blue-400">
                         <PieChart size={24}/> التقرير المالي المفصل
                     </h3>
-                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-red-500"/></button>
+                    <button onClick={onClose}><X size={20} className="text-slate-500 hover:text-red-500"/></button>
                 </div>
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">من تاريخ</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none focus:border-blue-500"/>
+                        <label className="block text-sm font-bold text-slate-400 mb-1">من تاريخ</label>
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl outline-none focus:border-blue-500"/>
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">إلى تاريخ</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full border-2 border-gray-200 p-3 rounded-xl outline-none focus:border-blue-500"/>
+                        <label className="block text-sm font-bold text-slate-400 mb-1">إلى تاريخ</label>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl outline-none focus:border-blue-500"/>
                     </div>
                     
                     <div className="pt-4">
-                        <Button onClick={() => onGenerate(startDate, endDate)} className="w-full bg-blue-600 text-white hover:bg-blue-700 py-3 shadow-lg shadow-blue-600/20">
+                        <Button onClick={() => onGenerate(startDate, endDate)} className="w-full bg-blue-600 text-white hover:bg-blue-500 py-3 shadow-lg shadow-blue-600/20 border-none">
                             <Printer size={18} className="ml-2"/> استخراج وطباعة التقرير
                         </Button>
                     </div>
@@ -406,7 +406,7 @@ export default function FinanceManager({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
+    <div className="space-y-6 animate-fade-in pb-20 md:pb-0 font-sans">
       
       {/* نافذة إدارة الأسباب */}
       <ReasonsModal 
@@ -425,11 +425,11 @@ export default function FinanceManager({
       />
 
       {/* Top Toggle Switch */}
-      <div className="flex gap-4 mb-6 bg-gray-100 p-1 rounded-2xl">
-        <button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'income' ? 'bg-green-600 text-white shadow-green-200' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+      <div className="flex gap-4 mb-6 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+        <button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'income' ? 'bg-green-600 text-white shadow-lg shadow-green-900/20' : 'bg-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
            الإيرادات (القبض)
         </button>
-        <button onClick={() => setViewMode('expense')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'expense' ? 'bg-red-600 text-white shadow-red-200' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+        <button onClick={() => setViewMode('expense')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'expense' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
            المصاريف
         </button>
       </div>
@@ -438,80 +438,80 @@ export default function FinanceManager({
         <>
            {/* زر التقرير المالي */}
            <div className="flex justify-end mb-4">
-              <Button onClick={() => setShowReportModal(true)} className="bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20 shadow-lg flex items-center gap-2">
+              <Button onClick={() => setShowReportModal(true)} className="bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20 shadow-lg flex items-center gap-2 border-none">
                  <PieChart size={18} /> التقارير المالية
               </Button>
            </div>
 
           {/* Add Payment Form */}
-          <Card title="سند قبض جديد" className="border-green-100 shadow-green-50">
+          <Card title="سند قبض جديد" className="border-green-500/20 shadow-lg shadow-green-900/10 bg-slate-900">
             <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div className="relative col-span-1 md:col-span-1">
-                 <label className="text-xs block mb-1 font-bold text-gray-700">اسم الطالب</label>
-                 <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." />
+                  <label className="text-xs block mb-1 font-bold text-slate-400">اسم الطالب</label>
+                  <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." />
               </div>
               
               {/* ✅ الحقل الجديد: اسم إضافي */}
               <div className="col-span-1">
-                 <label className="text-xs block mb-1 font-bold text-gray-700">اسم الاخ (اختياري)</label>
-                 <input 
-                    className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none placeholder-gray-300 text-xs h-[45px]" 
+                  <label className="text-xs block mb-1 font-bold text-slate-400">اسم الاخ (اختياري)</label>
+                  <input 
+                    className="w-full bg-slate-950 border border-slate-700 p-2 rounded-xl focus:border-green-500 outline-none placeholder-slate-600 text-slate-200 text-xs h-[45px]" 
                     value={payForm.extraName} 
                     onChange={e=>setPayForm({...payForm, extraName:e.target.value})} 
                     placeholder="اكتب الاسم الثاني هنا" 
-                 />
+                  />
               </div>
 
               <div>
-                 <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
-                 <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
+                  <label className="text-xs block mb-1 font-bold text-slate-400">المبلغ</label>
+                  <input type="number" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none placeholder-slate-600" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
               
               <div>
-                 <label className="text-xs block mb-1 font-bold text-gray-700">طريقة الدفع</label>
-                 <select 
-                    className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none bg-white h-[45px]"
+                  <label className="text-xs block mb-1 font-bold text-slate-400">طريقة الدفع</label>
+                  <select 
+                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none h-[45px]"
                     value={payForm.method}
                     onChange={e => setPayForm({...payForm, method: e.target.value})}
-                 >
+                  >
                     <option value="cash">كاش (Cash)</option>
                     <option value="cliq">كليك (CliQ)</option>
-                 </select>
+                  </select>
               </div>
 
               {/* قائمة الأسباب مع زر الإعدادات */}
               <div className="relative">
-                 <label className="text-xs block mb-1 font-bold text-gray-700 flex justify-between">
-                     السبب
-                     <button type="button" onClick={() => setShowReasonsModal(true)} className="text-green-600 hover:text-green-800 text-[10px] flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded cursor-pointer">
-                         <Settings size={10}/> تعديل القائمة
-                     </button>
-                 </label>
-                 <select 
-                    className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-green-500 outline-none bg-white cursor-pointer h-[45px]" 
+                  <label className="text-xs block mb-1 font-bold text-slate-400 flex justify-between">
+                      السبب
+                      <button type="button" onClick={() => setShowReasonsModal(true)} className="text-green-500 hover:text-green-400 text-[10px] flex items-center gap-1 bg-green-900/20 px-2 py-0.5 rounded cursor-pointer border border-green-500/20">
+                          <Settings size={10}/> تعديل القائمة
+                      </button>
+                  </label>
+                  <select 
+                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none cursor-pointer h-[45px]" 
                     value={payForm.reason} 
                     onChange={e=>setPayForm({...payForm, reason:e.target.value})}
-                 >
+                  >
                     <option value="" disabled>اختر السبب...</option>
                     {financeReasons.map((r, idx) => (
                         <option key={idx} value={r.title}>{r.title}</option>
                     ))}
                     <option value="أخرى">أخرى (كتابة يدوية)</option>
-                 </select>
+                  </select>
               </div>
 
               {payForm.reason === 'أخرى' && (
-                 <div className="col-span-1 md:col-span-4">
-                    <label className="text-xs block mb-1 font-bold text-gray-700">وضح السبب</label>
-                    <input className="w-full border-2 border-gray-100 p-2 rounded-xl outline-none" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required />
-                 </div>
+                  <div className="col-span-1 md:col-span-4">
+                     <label className="text-xs block mb-1 font-bold text-slate-400">وضح السبب</label>
+                     <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required />
+                  </div>
               )}
               <div className="col-span-1 md:col-span-4">
-                 <label className="text-xs block mb-1 font-bold text-gray-700">تفاصيل إضافية (اختياري)</label>
-                 <input className="w-full border-2 border-gray-100 p-2 rounded-xl outline-none" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} placeholder="مثال: عن شهر 12 + 1" />
+                  <label className="text-xs block mb-1 font-bold text-slate-400">تفاصيل إضافية (اختياري)</label>
+                  <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500 placeholder-slate-600" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} placeholder="مثال: عن شهر 12 + 1" />
               </div>
               <div className="col-span-1 md:col-span-4 mt-2">
-                 <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 py-3">حفظ وقبض</Button>
+                  <Button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/20 py-3 border-none">حفظ وقبض</Button>
               </div>
             </form>
           </Card>
@@ -523,41 +523,41 @@ export default function FinanceManager({
 
           {/* --- DESKTOP VIEW (Table) --- */}
           <div className="hidden md:block">
-            <Card>
+            <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
                 <table className="w-full text-sm text-right">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
                         <tr>
-                            <th className="p-3 rounded-r-lg">#</th>
+                            <th className="p-3">#</th>
                             <th className="p-3">الطالب</th>
                             <th className="p-3">البيان</th>
                             <th className="p-3">طريقة الدفع</th>
                             <th className="p-3">التاريخ</th>
                             <th className="p-3">المبلغ</th>
                             <th className="p-3">طباعة</th>
-                            <th className="p-3 rounded-l-lg">حذف</th>
+                            <th className="p-3">حذف</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-slate-800 bg-slate-900">
                         {filteredPayments.map(p => (
-                            <tr key={p.id} className="hover:bg-green-50 transition-colors">
-                                <td className="p-3 text-gray-400 font-mono text-xs">{p.id.slice(-6)}</td>
-                                <td className="p-3 font-bold text-gray-800">{p.name}</td>
-                                <td className="p-3 text-gray-600">
-                                    <span className="block font-bold text-xs">{p.reason}</span>
-                                    <span className="text-[10px] text-gray-400">{p.details}</span>
+                            <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
+                                <td className="p-3 text-slate-600 font-mono text-xs">{p.id.slice(-6)}</td>
+                                <td className="p-3 font-bold text-slate-200">{p.name}</td>
+                                <td className="p-3 text-slate-400">
+                                    <span className="block font-bold text-xs text-slate-300">{p.reason}</span>
+                                    <span className="text-[10px] text-slate-500">{p.details}</span>
                                 </td>
                                 <td className="p-3">
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${p.method === 'cliq' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${p.method === 'cliq' ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' : 'bg-green-900/20 text-green-400 border-green-500/20'}`}>
                                         {p.method === 'cliq' ? 'كليك' : 'كاش'}
                                     </span>
                                 </td>
-                                <td className="p-3 text-xs text-gray-500">{p.date}</td>
-                                <td className="p-3 font-bold text-green-600">+{p.amount}</td>
-                                <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-600"><Printer size={16}/></button></td>
-                                <td className="p-3"><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-50 rounded-lg hover:bg-red-100 text-red-500"><Trash2 size={16}/></button></td>
+                                <td className="p-3 text-xs text-slate-500">{p.date}</td>
+                                <td className="p-3 font-bold text-green-400">+{p.amount}</td>
+                                <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700"><Printer size={16}/></button></td>
+                                <td className="p-3"><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20"><Trash2 size={16}/></button></td>
                             </tr>
                         ))}
-                         {filteredPayments.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400">لا يوجد سندات</td></tr>}
+                         {filteredPayments.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-slate-600">لا يوجد سندات</td></tr>}
                     </tbody>
                 </table>
             </Card>
@@ -566,87 +566,87 @@ export default function FinanceManager({
           {/* --- MOBILE VIEW (Cards) --- */}
           <div className="md:hidden grid gap-4">
               {filteredPayments.map(p => (
-                  <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 relative overflow-hidden">
+                  <div key={p.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col gap-3 relative overflow-hidden">
                       <div className={`absolute top-0 left-0 w-1 h-full ${p.method === 'cliq' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
                       <div className="flex justify-between items-start pl-2">
                           <div>
                               <div className="flex items-center gap-2 mb-1">
-                                  <User size={14} className="text-gray-400"/>
-                                  <span className="font-bold text-gray-800">{p.name}</span>
+                                  <User size={14} className="text-slate-500"/>
+                                  <span className="font-bold text-slate-200">{p.name}</span>
                               </div>
-                              <div className="text-xs text-gray-500 flex items-center gap-2">
+                              <div className="text-xs text-slate-500 flex items-center gap-2">
                                   <Calendar size={12}/> {p.date}
                               </div>
                           </div>
-                          <div className="text-green-600 font-bold text-lg bg-green-50 px-2 py-1 rounded-lg">
+                          <div className="text-green-400 font-bold text-lg bg-green-900/20 px-2 py-1 rounded-lg border border-green-500/20">
                               +{p.amount}
                           </div>
                       </div>
                       
-                      <div className="bg-gray-50 p-2 rounded-lg text-sm text-gray-600">
+                      <div className="bg-slate-950 p-2 rounded-lg text-sm text-slate-400 border border-slate-800">
                           <div className="flex justify-between items-center mb-1">
                              <div className="flex items-center gap-2">
-                                <FileText size={14} className="text-gray-400"/>
-                                <span className="font-bold text-xs text-gray-700">{p.reason}</span>
+                                <FileText size={14} className="text-slate-500"/>
+                                <span className="font-bold text-xs text-slate-300">{p.reason}</span>
                              </div>
-                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${p.method === 'cliq' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${p.method === 'cliq' ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' : 'bg-green-900/20 text-green-400 border-green-500/20'}`}>
                                 {p.method === 'cliq' ? 'كليك' : 'كاش'}
                              </span>
                           </div>
-                          <span className="text-[10px] pr-6 block">{p.details}</span>
+                          <span className="text-[10px] pr-6 block text-slate-500">{p.details}</span>
                       </div>
 
-                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-gray-100">
-                          <button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold">
+                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-slate-800">
+                          <button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-900/20 text-blue-400 px-3 py-2 rounded-lg font-bold border border-blue-500/20 hover:bg-blue-900/30">
                               <Printer size={14}/> طباعة
                           </button>
-                          <button onClick={()=>deletePayment(p.id)} className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold">
+                          <button onClick={()=>deletePayment(p.id)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30">
                               <Trash2 size={14}/> حذف
                           </button>
                       </div>
                   </div>
               ))}
-              {filteredPayments.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد سندات</div>}
+              {filteredPayments.length === 0 && <div className="text-center p-8 text-slate-600 bg-slate-900 rounded-xl border border-slate-800 border-dashed">لا يوجد سندات</div>}
           </div>
         </>
       ) : (
         <>
           {/* Expenses Form */}
-          <Card title="تسجيل مصروف" className="border-red-100 shadow-red-50">
+          <Card title="تسجيل مصروف" className="border-red-500/20 shadow-lg shadow-red-900/10 bg-slate-900">
               <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="col-span-1 md:col-span-2">
-                    <label className="text-xs block mb-1 font-bold text-gray-700">البند (سبب الصرف)</label>
-                    <input className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.title} onChange={e=>setExpForm({...expForm, title:e.target.value})} required placeholder="مثال: فاتورة كهرباء" />
+                    <label className="text-xs block mb-1 font-bold text-slate-400">البند (سبب الصرف)</label>
+                    <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none placeholder-slate-600" value={expForm.title} onChange={e=>setExpForm({...expForm, title:e.target.value})} required placeholder="مثال: فاتورة كهرباء" />
                 </div>
                 <div>
-                    <label className="text-xs block mb-1 font-bold text-gray-700">المبلغ</label>
-                    <input type="number" className="w-full border-2 border-gray-100 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount:e.target.value})} required placeholder="0.00" />
+                    <label className="text-xs block mb-1 font-bold text-slate-400">المبلغ</label>
+                    <input type="number" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none placeholder-slate-600" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount:e.target.value})} required placeholder="0.00" />
                 </div>
                 <div>
-                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 py-2.5">حفظ</Button>
+                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20 py-2.5 border-none">حفظ</Button>
                 </div>
               </form>
           </Card>
           
           {/* --- DESKTOP VIEW (Expenses Table) --- */}
           <div className="hidden md:block">
-            <Card>
+            <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
                 <table className="w-full text-sm text-right">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
                         <tr>
-                            <th className="p-3 rounded-r-lg">البند</th>
+                            <th className="p-3">البند</th>
                             <th className="p-3">التاريخ</th>
                             <th className="p-3">المبلغ</th>
-                            <th className="p-3 rounded-l-lg">حذف</th>
+                            <th className="p-3">حذف</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-slate-800 bg-slate-900">
                         {sortedExpenses.map(e=>(
-                            <tr key={e.id} className="hover:bg-red-50 transition-colors">
-                                <td className="p-3 font-bold text-gray-700">{e.title}</td>
-                                <td className="p-3 text-gray-500 text-xs">{e.date}</td>
-                                <td className="p-3 text-red-600 font-bold">-{e.amount}</td>
-                                <td className="p-3"><button onClick={()=>deleteExpense(e.id)} className="text-red-500 p-2 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button></td>
+                            <tr key={e.id} className="hover:bg-slate-800/50 transition-colors">
+                                <td className="p-3 font-bold text-slate-300">{e.title}</td>
+                                <td className="p-3 text-slate-500 text-xs">{e.date}</td>
+                                <td className="p-3 text-red-400 font-bold">-{e.amount}</td>
+                                <td className="p-3"><button onClick={()=>deleteExpense(e.id)} className="text-red-400 p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 border border-red-500/20"><Trash2 size={16}/></button></td>
                             </tr>
                         ))}
                     </tbody>
@@ -657,21 +657,21 @@ export default function FinanceManager({
           {/* --- MOBILE VIEW (Expenses Cards) --- */}
           <div className="md:hidden grid gap-4">
               {sortedExpenses.map(e => (
-                  <div key={e.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden">
+                  <div key={e.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex justify-between items-center relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
                       <div className="pl-3">
-                          <h4 className="font-bold text-gray-800">{e.title}</h4>
-                          <span className="text-xs text-gray-400 block mt-1">{e.date}</span>
+                          <h4 className="font-bold text-slate-200">{e.title}</h4>
+                          <span className="text-xs text-slate-500 block mt-1">{e.date}</span>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                          <span className="font-bold text-red-600 text-lg">-{e.amount}</span>
-                          <button onClick={()=>deleteExpense(e.id)} className="text-red-400 hover:text-red-600 bg-red-50 p-1.5 rounded-lg">
+                          <span className="font-bold text-red-400 text-lg">-{e.amount}</span>
+                          <button onClick={()=>deleteExpense(e.id)} className="text-red-400 hover:text-red-300 bg-red-900/20 p-1.5 rounded-lg border border-red-500/20">
                               <Trash2 size={16}/>
                           </button>
                       </div>
                   </div>
               ))}
-              {sortedExpenses.length === 0 && <div className="text-center p-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed">لا يوجد مصاريف</div>}
+              {sortedExpenses.length === 0 && <div className="text-center p-8 text-slate-600 bg-slate-900 rounded-xl border border-slate-800 border-dashed">لا يوجد مصاريف</div>}
           </div>
         </>
       )}

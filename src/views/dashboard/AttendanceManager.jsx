@@ -14,40 +14,40 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
     if (!isOpen) return null;
     return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Settings size={20} className="text-gray-600"/> إدارة الفترات والمجموعات
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-100">
+                    <Settings size={20} className="text-slate-400"/> إدارة الفترات والمجموعات
                 </h3>
                 
                 <div className="flex gap-2 mb-6">
                     <input 
-                        className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 focus:border-blue-500 outline-none"
+                        className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 focus:border-blue-500 outline-none placeholder-slate-600"
                         placeholder="اسم الفترة الجديدة..."
                         value={newGroup}
                         onChange={(e) => setNewGroup(e.target.value)}
                     />
                     <button 
                         onClick={() => { if(newGroup) { onAdd(newGroup); setNewGroup(""); } }}
-                        className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700"
+                        className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-500 shadow-lg shadow-blue-900/20"
                     >
                         <Plus size={20}/>
                     </button>
                 </div>
 
-                <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+                <div className="space-y-2 max-h-60 overflow-y-auto mb-4 custom-scrollbar">
                     {groups.map((g, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
-                            <span className="font-bold text-gray-700">{g.name}</span>
-                            <button onClick={() => onDelete(g)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors">
+                        <div key={idx} className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
+                            <span className="font-bold text-slate-300">{g.name}</span>
+                            <button onClick={() => onDelete(g)} className="text-red-400 hover:bg-red-900/20 p-2 rounded-lg transition-colors">
                                 <Trash2 size={18}/>
                             </button>
                         </div>
                     ))}
-                    {groups.length === 0 && <p className="text-center text-gray-400 text-sm">لا يوجد فترات مضافة</p>}
+                    {groups.length === 0 && <p className="text-center text-slate-500 text-sm">لا يوجد فترات مضافة</p>}
                 </div>
                 
-                <Button onClick={onClose} variant="outline" className="w-full">إغلاق</Button>
+                <Button onClick={onClose} variant="outline" className="w-full border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800">إغلاق</Button>
             </div>
         </div>,
         document.body
@@ -178,7 +178,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 bg = '#eee';
             } else if (isPresent) {
                 content = '✓';
-                bg = '#dcfce7'; // green-100
+                bg = '#dcfce7'; 
             }
             
             cells += `<td style="border:1px solid #ccc; background:${bg}; text-align:center; font-size:12px; color:#166534; font-weight:bold;">${content}</td>`;
@@ -251,7 +251,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
   };
 
   return (
-    <div className="space-y-6 animate-fade-in font-sans">
+    <div className="space-y-6 animate-fade-in font-sans pb-20 md:pb-0">
       <GroupsModal 
         isOpen={showGroupsModal} 
         onClose={() => setShowGroupsModal(false)}
@@ -261,37 +261,37 @@ export default function AttendanceManager({ students, studentsCollection, groups
       />
 
       {/* HEADER */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row justify-between items-center gap-4">
+      <div className="bg-slate-900 p-4 rounded-2xl shadow-lg border border-slate-800 flex flex-col xl:flex-row justify-between items-center gap-4">
         
         {/* Date Selection */}
-        <div className="flex flex-wrap items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200 justify-center w-full md:w-auto">
-            <Calendar size={18} className="text-gray-500 ml-1"/>
-            <select className="bg-transparent font-bold text-gray-700 outline-none cursor-pointer" value={month} onChange={(e) => updateDate(null, parseInt(e.target.value))}>
-                {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
+        <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-2 rounded-2xl border border-slate-800 justify-center w-full md:w-auto">
+            <Calendar size={18} className="text-slate-500 ml-1"/>
+            <select className="bg-transparent font-bold text-slate-300 outline-none cursor-pointer" value={month} onChange={(e) => updateDate(null, parseInt(e.target.value))}>
+                {monthNames.map((m, i) => <option key={i} value={i} className="bg-slate-900">{m}</option>)}
             </select>
-            <select className="bg-transparent font-bold text-gray-700 outline-none cursor-pointer" value={year} onChange={(e) => updateDate(parseInt(e.target.value), null)}>
-                {yearsRange.map((y) => <option key={y} value={y}>{y}</option>)}
+            <select className="bg-transparent font-bold text-slate-300 outline-none cursor-pointer" value={year} onChange={(e) => updateDate(parseInt(e.target.value), null)}>
+                {yearsRange.map((y) => <option key={y} value={y} className="bg-slate-900">{y}</option>)}
             </select>
         </div>
 
         {/* --- Group Management --- */}
-        <div className="flex items-center gap-2 bg-blue-50 p-2 pl-3 rounded-xl border border-blue-100 w-full md:w-auto">
-            <Users size={18} className="text-blue-500 ml-1"/>
-            <span className="text-xs font-bold text-blue-800 ml-1 hidden sm:inline">الفترة:</span>
+        <div className="flex items-center gap-2 bg-blue-900/20 p-2 pl-3 rounded-xl border border-blue-500/20 w-full md:w-auto">
+            <Users size={18} className="text-blue-400 ml-1"/>
+            <span className="text-xs font-bold text-blue-400 ml-1 hidden sm:inline">الفترة:</span>
             
             <div className="relative group">
                 <select 
-                    className="bg-transparent text-blue-900 font-bold outline-none w-full md:w-40 cursor-pointer appearance-none pr-4"
+                    className="bg-transparent text-blue-300 font-bold outline-none w-full md:w-40 cursor-pointer appearance-none pr-4"
                     value={selectedGroup}
                     onChange={(e) => { setSelectedGroup(e.target.value); setCurrentPage(1); }}
                 >
-                    <option value="الكل">الكل (جميع الطلاب)</option>
-                    {groupsList.map((name, idx) => <option key={idx} value={name}>{name}</option>)}
+                    <option value="الكل" className="bg-slate-900">الكل (جميع الطلاب)</option>
+                    {groupsList.map((name, idx) => <option key={idx} value={name} className="bg-slate-900">{name}</option>)}
                 </select>
             </div>
             <button 
                 onClick={() => setShowGroupsModal(true)}
-                className="bg-white p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:shadow-sm border border-transparent hover:border-blue-200 transition-all"
+                className="bg-slate-900 p-1.5 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-slate-800 border border-transparent hover:border-blue-500/30 transition-all"
                 title="إضافة/حذف فترات"
             >
                 <Settings size={16}/>
@@ -301,10 +301,10 @@ export default function AttendanceManager({ students, studentsCollection, groups
         {/* Search, Sort, Print */}
         <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
             <div className="relative w-full md:w-64">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
                     type="text" placeholder="بحث..." 
-                    className="w-full pl-4 pr-10 py-2.5 border-2 border-gray-100 rounded-xl focus:border-yellow-500 outline-none"
+                    className="w-full bg-slate-950 text-slate-200 pl-4 pr-10 py-2.5 border border-slate-700 rounded-xl focus:border-yellow-500 outline-none placeholder-slate-600"
                     value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                 />
             </div>
@@ -313,7 +313,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 <Button 
                     variant={isReordering ? "default" : "outline"}
                     onClick={() => setIsReordering(!isReordering)}
-                    className={`gap-2 whitespace-nowrap ${isReordering ? "bg-yellow-500 text-black border-none" : ""}`}
+                    className={`gap-2 whitespace-nowrap ${isReordering ? "bg-yellow-500 text-slate-900 border-none" : "border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white"}`}
                 >
                     {isReordering ? <Save size={18}/> : <Layers size={18}/>}
                     {isReordering ? "حفظ الترتيب" : "ترتيب"}
@@ -322,7 +322,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 {/* زر الطباعة الجديد */}
                 <Button 
                     onClick={printReport}
-                    className="bg-gray-800 text-white gap-2 hover:bg-black"
+                    className="bg-slate-800 text-slate-300 gap-2 hover:bg-slate-700 hover:text-white border border-slate-700"
                     title="طباعة الكشف"
                 >
                     <Printer size={18}/> <span className="hidden md:inline">طباعة</span>
@@ -333,15 +333,15 @@ export default function AttendanceManager({ students, studentsCollection, groups
 
       {/* MOBILE VIEW */}
       <div className="md:hidden space-y-4">
-          <div className="bg-yellow-500 text-black p-4 rounded-xl shadow-lg flex justify-between items-center">
-              <button onClick={() => changeDayMobile(-1)} className="p-2 bg-white/20 rounded-lg"><ChevronRight/></button>
+          <div className="bg-yellow-500 text-slate-900 p-4 rounded-xl shadow-lg flex justify-between items-center">
+              <button onClick={() => changeDayMobile(-1)} className="p-2 bg-black/10 hover:bg-black/20 rounded-lg"><ChevronRight/></button>
               <div className="text-center">
                   <div className="text-xs opacity-75 font-bold mb-1">تسجيل الحضور</div>
-                  <div className="text-xl font-bold flex flex-col">
+                  <div className="text-xl font-black flex flex-col">
                       <span>{selectedDayForMobile} {monthNames[month]}</span>
                   </div>
               </div>
-              <button onClick={() => changeDayMobile(1)} className="p-2 bg-white/20 rounded-lg"><ChevronLeft/></button>
+              <button onClick={() => changeDayMobile(1)} className="p-2 bg-black/10 hover:bg-black/20 rounded-lg"><ChevronLeft/></button>
           </div>
 
           <div className="grid gap-3">
@@ -350,29 +350,29 @@ export default function AttendanceManager({ students, studentsCollection, groups
                   const isPresent = !!s.attendance?.[dateStr];
                   const isFriday = new Date(year, month, selectedDayForMobile).getDay() === 5;
                   return (
-                      <div key={s.id} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
+                      <div key={s.id} className="p-4 rounded-xl border border-slate-800 bg-slate-900 shadow-md">
                           <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-sm">
+                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-400 text-sm border border-slate-700">
                                         {(currentPage - 1) * itemsPerPage + index + 1}
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-800">{s.name}</h4>
+                                        <h4 className="font-bold text-slate-200">{s.name}</h4>
                                         <div className="relative mt-1">
                                             <select 
-                                                className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md outline-none border-none font-bold w-full appearance-none"
+                                                className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded-md outline-none border border-blue-500/20 font-bold w-full appearance-none"
                                                 value={s.group || (groupsList.length > 0 ? groupsList[0] : "")}
                                                 onChange={(e) => changeStudentGroup(s.id, e.target.value)}
                                             >
-                                                {groupsList.map((name, idx) => <option key={idx} value={name}>{name}</option>)}
+                                                {groupsList.map((name, idx) => <option key={idx} value={name} className="bg-slate-900">{name}</option>)}
                                             </select>
                                         </div>
                                     </div>
                                 </div>
                                 {!isReordering && (
-                                    isFriday ? <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">عطلة</span> :
-                                    <button onClick={() => toggleCheck(s.id, selectedDayForMobile)} className={`w-10 h-10 rounded-full flex items-center justify-center ${isPresent ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-300'}`}>
-                                        {isPresent ? <UserCheck size={20}/> : <span className="w-3 h-3 bg-gray-300 rounded-full"></span>}
+                                    isFriday ? <span className="text-xs font-bold text-red-400 bg-red-900/20 px-2 py-1 rounded border border-red-500/20">عطلة</span> :
+                                    <button onClick={() => toggleCheck(s.id, selectedDayForMobile)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isPresent ? 'bg-emerald-500 text-slate-900 shadow-[0_0_10px_#10b981]' : 'bg-slate-800 text-slate-600 hover:bg-slate-700'}`}>
+                                        {isPresent ? <UserCheck size={20}/> : <span className="w-3 h-3 bg-slate-700 rounded-full"></span>}
                                     </button>
                                 )}
                           </div>
@@ -383,19 +383,19 @@ export default function AttendanceManager({ students, studentsCollection, groups
       </div>
 
       {/* DESKTOP VIEW */}
-      <Card className="hidden md:block overflow-visible p-0 border-none shadow-md rounded-2xl">
-        <div className="overflow-x-auto">
+      <Card className="hidden md:block overflow-visible p-0 border border-slate-800 shadow-xl rounded-2xl bg-slate-900">
+        <div className="overflow-x-auto rounded-2xl">
             <table className="w-full text-xs border-collapse">
-                <thead className="bg-gray-800 text-white sticky top-0 z-20">
+                <thead className="bg-slate-950 text-slate-300 sticky top-0 z-20 shadow-md">
                     <tr>
-                        <th className="p-4 sticky right-0 bg-gray-800 z-30 text-right min-w-[280px] font-bold text-base shadow-lg">
-                            الطلاب {selectedGroup !== "الكل" && <span className="text-yellow-400 text-sm">({selectedGroup})</span>}
+                        <th className="p-4 sticky right-0 bg-slate-950 z-30 text-right min-w-[280px] font-bold text-base shadow-[5px_0_10px_-5px_rgba(0,0,0,0.5)] border-l border-slate-800">
+                            الطلاب {selectedGroup !== "الكل" && <span className="text-yellow-500 text-sm">({selectedGroup})</span>}
                         </th>
                         {!isReordering && [...Array(daysInMonth)].map((_, i) => {
                             const d = i + 1;
                             const isFri = new Date(year, month, d).getDay() === 5;
                             return (
-                                <th key={i} className={`p-2 border-l border-gray-700 text-center min-w-[40px] ${isFri ? 'bg-red-900/40 text-red-100' : ''}`}>
+                                <th key={i} className={`p-2 border-l border-slate-800 text-center min-w-[40px] ${isFri ? 'bg-red-900/10 text-red-400' : ''}`}>
                                     <div className="flex flex-col gap-1">
                                         <span className="opacity-60 text-[10px]">{daysOfWeek[new Date(year, month, d).getDay()]}</span>
                                         <span>{d}</span>
@@ -403,32 +403,32 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                 </th>
                             );
                         })}
-                        {isReordering && <th className="p-4 text-center w-64 bg-yellow-600/90 text-white">الترتيب</th>}
+                        {isReordering && <th className="p-4 text-center w-64 bg-yellow-600/20 text-yellow-500 border-l border-slate-800">الترتيب</th>}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-slate-800 bg-slate-900">
                     {displayedStudents.map((s, index) => {
-                         const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
-                         return (
-                        <tr key={s.id} className="hover:bg-yellow-50 transition-colors group">
-                            <td className="p-3 sticky right-0 bg-white group-hover:bg-yellow-50 font-bold border-l border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] z-10 text-gray-800 text-sm flex items-center justify-between h-[50px]">
+                          const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                          return (
+                        <tr key={s.id} className="hover:bg-slate-800/50 transition-colors group">
+                            <td className="p-3 sticky right-0 bg-slate-900 group-hover:bg-slate-800 font-bold border-l border-slate-800 shadow-[5px_0_10px_-5px_rgba(0,0,0,0.5)] z-10 text-slate-200 text-sm flex items-center justify-between h-[50px] transition-colors">
                                 <div className="flex items-center gap-3 w-full">
-                                    <span className={`text-xs w-6 h-6 flex items-center justify-center rounded-full font-mono ${isReordering ? 'bg-yellow-100 text-yellow-800 font-bold' : 'bg-gray-100 text-gray-500'}`}>
+                                    <span className={`text-xs w-6 h-6 flex items-center justify-center rounded-full font-mono ${isReordering ? 'bg-yellow-900/20 text-yellow-500 font-bold' : 'bg-slate-800 text-slate-500'}`}>
                                         {globalIndex}
                                     </span>
                                     
                                     <div className="flex flex-col flex-1">
                                         <span className="truncate">{s.name}</span>
                                         <div className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Edit3 size={10} className="text-gray-400"/>
+                                            <Edit3 size={10} className="text-slate-500"/>
                                             <select 
-                                                className="bg-transparent text-[10px] text-gray-500 outline-none cursor-pointer hover:text-blue-600 w-full"
+                                                className="bg-transparent text-[10px] text-slate-500 outline-none cursor-pointer hover:text-blue-400 w-full"
                                                 value={s.group || (groupsList.length > 0 ? groupsList[0] : "")}
                                                 onChange={(e) => changeStudentGroup(s.id, e.target.value)}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
-                                                <option value="" disabled>نقل إلى...</option>
-                                                {groupsList.map((name, idx) => <option key={idx} value={name}>{name}</option>)}
+                                                <option value="" disabled className="bg-slate-900">نقل إلى...</option>
+                                                {groupsList.map((name, idx) => <option key={idx} value={name} className="bg-slate-900">{name}</option>)}
                                             </select>
                                         </div>
                                     </div>
@@ -441,11 +441,13 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                 const checked = !!s.attendance?.[dateStr];
                                 const isFri = new Date(year, month, d).getDay() === 5;
                                 return (
-                                    <td key={i} className={`border-l border-gray-100 text-center p-0 ${isFri ? 'bg-gray-50' : ''}`}>
-                                        {isFri ? <div className="w-full h-full flex items-center justify-center opacity-20 pointer-events-none"><X size={12}/></div> :
-                                            <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-gray-100">
+                                    <td key={i} className={`border-l border-slate-800 text-center p-0 ${isFri ? 'bg-slate-950/50' : ''}`}>
+                                        {isFri ? <div className="w-full h-full flex items-center justify-center opacity-10 pointer-events-none text-slate-500"><X size={12}/></div> :
+                                            <label className="cursor-pointer w-full h-full flex items-center justify-center hover:bg-slate-800/50">
                                                 <input type="checkbox" checked={checked} onChange={() => toggleCheck(s.id, d)} className="hidden" />
-                                                <div className={`w-6 h-6 rounded flex items-center justify-center transition-all ${checked ? 'bg-green-500 text-white scale-110' : 'bg-gray-100 hover:bg-gray-300'}`}><UserCheck size={14} /></div>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${checked ? 'bg-emerald-500 text-slate-900 scale-110 shadow-[0_0_5px_#10b981]' : 'bg-slate-800 hover:bg-slate-700'}`}>
+                                                    <UserCheck size={12} className={checked ? "block" : "hidden"} />
+                                                </div>
                                             </label>
                                         }
                                     </td>
@@ -453,11 +455,11 @@ export default function AttendanceManager({ students, studentsCollection, groups
                             })}
 
                             {isReordering && (
-                                <td className="p-2 text-center bg-yellow-50/20 border-l border-yellow-100">
+                                <td className="p-2 text-center bg-yellow-900/10 border-l border-slate-800">
                                     <div className="flex items-center justify-center gap-2">
-                                        <span className="text-gray-400 text-xs">رقم:</span>
+                                        <span className="text-slate-500 text-xs">رقم:</span>
                                         <input 
-                                            type="number" className="w-20 p-2 text-center border-2 border-yellow-300 rounded-lg focus:border-yellow-600 outline-none font-bold text-lg"
+                                            type="number" className="w-20 p-2 text-center border-2 border-yellow-500/50 bg-slate-950 text-yellow-500 rounded-lg focus:border-yellow-500 outline-none font-bold text-lg placeholder-slate-700"
                                             placeholder={globalIndex}
                                             onKeyDown={(e) => { if(e.key==='Enter'){ handleDirectSort(index, parseInt(e.target.value)); e.target.value=''; e.target.blur(); }}}
                                             onBlur={(e) => { if(e.target.value){ handleDirectSort(index, parseInt(e.target.value)); e.target.value=''; }}}
@@ -473,22 +475,22 @@ export default function AttendanceManager({ students, studentsCollection, groups
       </Card>
 
       {!isReordering && totalPages > 1 && (
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 mt-4">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 mt-4">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
                   <span>عرض</span>
-                  <select className="bg-gray-50 border border-gray-200 rounded-lg p-1.5 focus:outline-none font-bold cursor-pointer" value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}>
+                  <select className="bg-slate-950 border border-slate-700 rounded-lg p-1.5 focus:outline-none font-bold cursor-pointer text-slate-300" value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}>
                       <option value={5}>5</option><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={processedStudents.length}>الكل</option>
                   </select>
                   <span>من أصل {processedStudents.length} طالب</span>
               </div>
               <div className="flex gap-2">
-                  <Button variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-4 text-sm">السابق</Button>
+                  <Button variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-4 text-sm border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800">السابق</Button>
                   <div className="flex gap-1 overflow-x-auto hide-scrollbar max-w-[150px] md:max-w-none px-1">
                       {[...Array(totalPages)].map((_, i) => (
-                          <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${currentPage === i + 1 ? 'bg-yellow-500 text-black shadow-md scale-105' : 'bg-gray-50 text-gray-600 hover:bg-gray-200'}`}>{i + 1}</button>
+                          <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${currentPage === i + 1 ? 'bg-yellow-500 text-slate-900 shadow-md scale-105' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>{i + 1}</button>
                       ))}
                   </div>
-                  <Button variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-4 text-sm">التالي</Button>
+                  <Button variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-4 text-sm border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800">التالي</Button>
               </div>
           </div>
       )}
