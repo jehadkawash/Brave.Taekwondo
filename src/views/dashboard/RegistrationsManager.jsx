@@ -85,7 +85,7 @@ export default function RegistrationsManager({ registrations, students, registra
   };
 
   return (
-    <div className="space-y-6 animate-fade-in font-sans pb-20 md:pb-0">
+    <div className="space-y-6 animate-fade-in font-sans pb-20 md:pb-0 relative">
        
        {/* شبكة البطاقات */}
        <div className="grid gap-4">
@@ -129,89 +129,91 @@ export default function RegistrationsManager({ registrations, students, registra
            )}
        </div>
 
-       {/* --- نافذة التأكيد (المشكلة تم حلها هنا) --- */}
+       {/* --- نافذة التأكيد (Fix: z-50 and positioning) --- */}
        {confirmModal && (
-           <div className="fixed inset-0 z-[200] overflow-y-auto">
-               <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-                   {/* الخلفية المعتمة */}
-                   <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setConfirmModal(null)}></div>
+           // استخدمنا fixed inset-0 مع z-50 لضمان أنه فوق كل شيء
+           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+               {/* الخلفية المعتمة */}
+               <div 
+                   className="fixed inset-0 bg-black/80 backdrop-blur-sm" 
+                   onClick={() => setConfirmModal(null)}
+               ></div>
 
-                   {/* جسم النافذة - تم تعديل الارتفاع والتمركز لضمان عدم خروجها عن الشاشة */}
-                   <div className="relative transform overflow-hidden rounded-2xl bg-slate-900 text-right shadow-2xl transition-all sm:my-8 w-full max-w-2xl border border-slate-700 flex flex-col max-h-[calc(100dvh-40px)] animate-in zoom-in-95 duration-200">
-                       
-                       {/* 1. الرأس (ثابت) */}
-                       <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950">
-                           <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
-                               <UserPlus size={20} className="text-emerald-500"/> إكمال بيانات الطالب الجديد
-                           </h3>
-                           <button onClick={() => setConfirmModal(null)} className="text-slate-500 hover:text-red-500 transition-colors bg-slate-900 p-1 rounded-full hover:bg-slate-800">
-                               <X size={20}/>
-                           </button>
-                       </div>
+               {/* جسم النافذة */}
+               <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 z-[10000]">
+                   
+                   {/* 1. الرأس (ثابت) */}
+                   <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950 rounded-t-2xl shrink-0">
+                       <h3 className="text-lg font-black text-slate-100 flex items-center gap-2">
+                           <UserPlus size={20} className="text-emerald-500"/> إكمال بيانات الطالب الجديد
+                       </h3>
+                       <button onClick={() => setConfirmModal(null)} className="text-slate-500 hover:text-red-500 transition-colors bg-slate-900 p-1 rounded-full hover:bg-slate-800">
+                           <X size={20}/>
+                       </button>
+                   </div>
 
-                       {/* 2. المحتوى (قابل للتمرير) */}
-                       <div className="p-6 overflow-y-auto custom-scrollbar">
-                           <form id="confirmForm" onSubmit={confirmStudent} className="space-y-5">
-                               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                   {/* الاسم */}
-                                   <div>
-                                       <label className="block text-xs mb-2 font-bold text-slate-400">الاسم</label>
-                                       <input className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-400 cursor-not-allowed font-bold" value={formData.name} readOnly />
-                                   </div>
-                                   {/* الهاتف */}
-                                   <div>
-                                       <label className="block text-xs mb-2 font-bold text-slate-400">الهاتف</label>
-                                       <input className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-400 font-mono cursor-not-allowed" value={formData.phone} readOnly />
-                                   </div>
-                                   {/* العائلة */}
-                                   <div className="md:col-span-2">
-                                       <label className="block text-xs mb-2 font-bold text-blue-400">العائلة (للربط المالي)</label>
-                                       <select 
-                                           className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-blue-500 outline-none cursor-pointer"
-                                           value={formData.linkFamily} 
-                                           onChange={e => setFormData({...formData, linkFamily: e.target.value})}
-                                       >
-                                           <option value="new">تسجيل كعائلة جديدة</option>
-                                           {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>انضمام لـ {name}</option>)}
-                                       </select>
-                                   </div>
-                                   {/* الحزام */}
-                                   <div>
-                                       <label className="block text-xs mb-2 font-bold text-slate-400">الحزام</label>
-                                       <select 
-                                           className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none"
-                                           value={formData.belt} 
-                                           onChange={e=>setFormData({...formData, belt:e.target.value})}
-                                       >
-                                           {BELTS.map(b=><option key={b} value={b}>{b}</option>)}
-                                       </select>
-                                   </div>
-                                   {/* تاريخ الالتحاق */}
-                                   <div>
-                                       <label className="block text-xs mb-2 font-bold text-slate-400">تاريخ الالتحاق</label>
-                                       <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} />
-                                   </div>
-                                   {/* نهاية الاشتراك */}
-                                   <div>
-                                       <label className="block text-xs mb-2 font-bold text-emerald-400">نهاية الاشتراك</label>
-                                       <input type="date" className="w-full bg-emerald-900/10 border border-emerald-500/30 text-emerald-300 p-3 rounded-xl focus:border-emerald-500 outline-none" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} />
-                                   </div>
-                                   {/* الرصيد */}
-                                   <div>
-                                       <label className="block text-xs mb-2 text-red-400 font-bold">رصيد مستحق (JOD)</label>
-                                       <input type="number" className="w-full bg-red-900/10 border border-red-500/30 text-red-300 p-3 rounded-xl focus:border-red-500 outline-none placeholder-red-700" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} />
-                                   </div>
+                   {/* 2. المحتوى (قابل للتمرير) */}
+                   <div className="p-6 overflow-y-auto custom-scrollbar">
+                       <form id="confirmForm" onSubmit={confirmStudent} className="space-y-5">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                               {/* الاسم */}
+                               <div>
+                                   <label className="block text-xs mb-2 font-bold text-slate-400">الاسم</label>
+                                   <input className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-400 cursor-not-allowed font-bold" value={formData.name} readOnly />
                                </div>
-                           </form>
-                       </div>
+                               {/* الهاتف */}
+                               <div>
+                                   <label className="block text-xs mb-2 font-bold text-slate-400">الهاتف</label>
+                                   <input className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-slate-400 font-mono cursor-not-allowed" value={formData.phone} readOnly />
+                               </div>
+                               {/* العائلة */}
+                               <div className="md:col-span-2">
+                                   <label className="block text-xs mb-2 font-bold text-blue-400">العائلة (للربط المالي)</label>
+                                   <select 
+                                       className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-blue-500 outline-none cursor-pointer"
+                                       value={formData.linkFamily} 
+                                       onChange={e => setFormData({...formData, linkFamily: e.target.value})}
+                                   >
+                                       <option value="new">تسجيل كعائلة جديدة</option>
+                                       {uniqueFamilies.map(([id, name]) => <option key={id} value={id}>انضمام لـ {name}</option>)}
+                                   </select>
+                               </div>
+                               {/* الحزام */}
+                               <div>
+                                   <label className="block text-xs mb-2 font-bold text-slate-400">الحزام</label>
+                                   <select 
+                                       className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none"
+                                       value={formData.belt} 
+                                       onChange={e=>setFormData({...formData, belt:e.target.value})}
+                                   >
+                                       {BELTS.map(b=><option key={b} value={b}>{b}</option>)}
+                                   </select>
+                               </div>
+                               {/* تاريخ الالتحاق */}
+                               <div>
+                                   <label className="block text-xs mb-2 font-bold text-slate-400">تاريخ الالتحاق</label>
+                                   <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none" value={formData.joinDate} onChange={e=>setFormData({...formData, joinDate:e.target.value})} />
+                               </div>
+                               {/* نهاية الاشتراك */}
+                               <div>
+                                   <label className="block text-xs mb-2 font-bold text-emerald-400">نهاية الاشتراك</label>
+                                   <input type="date" className="w-full bg-emerald-900/10 border border-emerald-500/30 text-emerald-300 p-3 rounded-xl focus:border-emerald-500 outline-none" value={formData.subEnd} onChange={e=>setFormData({...formData, subEnd:e.target.value})} />
+                               </div>
+                               {/* الرصيد */}
+                               <div>
+                                   <label className="block text-xs mb-2 text-red-400 font-bold">رصيد مستحق (JOD)</label>
+                                   <input type="number" className="w-full bg-red-900/10 border border-red-500/30 text-red-300 p-3 rounded-xl focus:border-red-500 outline-none placeholder-red-700" value={formData.balance} onChange={e=>setFormData({...formData, balance:e.target.value})} />
+                               </div>
+                           </div>
+                       </form>
+                   </div>
 
-                       {/* 3. التذييل (ثابت) */}
-                       <div className="p-5 border-t border-slate-800 bg-slate-950/50 flex justify-end gap-3">
-                           <Button variant="ghost" onClick={() => setConfirmModal(null)} className="text-slate-400 hover:text-white hover:bg-slate-800">إلغاء</Button>
-                           <Button type="submit" form="confirmForm" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 border-none shadow-lg shadow-yellow-500/20 px-8">
-                               تأكيد وإضافة
-                           </Button>
-                       </div>
+                   {/* 3. التذييل (ثابت) */}
+                   <div className="p-5 border-t border-slate-800 bg-slate-950/50 rounded-b-2xl flex justify-end gap-3 shrink-0">
+                       <Button variant="ghost" onClick={() => setConfirmModal(null)} className="text-slate-400 hover:text-white hover:bg-slate-800">إلغاء</Button>
+                       <Button type="submit" form="confirmForm" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 border-none shadow-lg shadow-yellow-500/20 px-8">
+                           تأكيد وإضافة
+                       </Button>
                    </div>
                </div>
            </div>
