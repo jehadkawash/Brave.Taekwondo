@@ -6,12 +6,7 @@ import { IMAGES, BRANCHES, INITIAL_SCHEDULE } from '../lib/constants';
 import { useCollection } from '../hooks/useCollection'; 
 import { collection, addDoc } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
-
-// --- المكتبات ---
 import { motion, AnimatePresence } from 'framer-motion';
-
-// ✅ التحميل الكسول لمكتبة 3D
-const Spline = lazy(() => import('@splinetool/react-spline'));
 
 const HomeView = ({ setView, schedule }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,14 +15,12 @@ const HomeView = ({ setView, schedule }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // --- Scroll Effect ---
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // --- News Logic ---
   const { data: newsItems } = useCollection('news');
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
 
@@ -74,7 +67,6 @@ const HomeView = ({ setView, schedule }) => {
   const openLocation = (url) => window.open(url, '_blank');
   const openWhatsApp = () => window.open('https://wa.me/962795629606', '_blank');
 
-  // --- Animations Variants ---
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
@@ -89,30 +81,31 @@ const HomeView = ({ setView, schedule }) => {
   };
 
   return (
-    <div className="min-h-screen font-sans text-right relative bg-gray-50 overflow-x-hidden selection:bg-yellow-500 selection:text-black" dir="rtl">
+    // ✅ Updated Background to Slate-950
+    <div className="min-h-screen font-sans text-right relative bg-slate-950 overflow-x-hidden selection:bg-yellow-500/30 selection:text-white" dir="rtl">
       
       {/* --- Navbar --- */}
       <motion.header 
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled 
-            ? 'bg-black/90 backdrop-blur-md border-b border-white/10 py-3 shadow-lg' 
+            ? 'bg-slate-950/90 backdrop-blur-md border-b border-slate-800 py-3 shadow-lg' 
             : 'bg-transparent py-4 md:py-6'
         }`}
       >
         <div className="container mx-auto px-4 md:px-6 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-3 cursor-pointer group" onClick={() => window.scrollTo(0,0)}>
             <div className="relative">
-                <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 backdrop-blur-sm p-1 object-contain border border-white/20 transition-transform group-hover:rotate-12" />
+                <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-900/50 backdrop-blur-sm p-1 object-contain border border-slate-700 transition-transform group-hover:rotate-12" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-black leading-none text-white tracking-tight group-hover:text-yellow-400 transition-colors">أكاديمية الشجاع</h1>
-              <p className="text-[9px] md:text-[10px] text-gray-400 tracking-[0.2em] uppercase font-bold">Brave Taekwondo</p>
+              <h1 className="text-lg md:text-xl font-black leading-none text-slate-100 tracking-tight group-hover:text-yellow-500 transition-colors">أكاديمية الشجاع</h1>
+              <p className="text-[9px] md:text-[10px] text-slate-500 tracking-[0.2em] uppercase font-bold">Brave Taekwondo</p>
             </div>
           </div>
 
-          <nav className="hidden md:flex gap-1 items-center bg-white/5 backdrop-blur-md px-2 py-1.5 rounded-full border border-white/10">
+          <nav className="hidden md:flex gap-1 items-center bg-slate-900/50 backdrop-blur-md px-2 py-1.5 rounded-full border border-slate-800">
             {['الرئيسية', 'من نحن', 'الفروع', 'جدول الحصص'].map((item) => (
-              <button key={item} className="px-5 py-2 rounded-full text-sm font-bold text-gray-300 hover:text-white hover:bg-white/10 transition-all relative overflow-hidden group" onClick={() => {
+              <button key={item} className="px-5 py-2 rounded-full text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all relative overflow-hidden group" onClick={() => {
                 if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
                 if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
                 if (item === 'الرئيسية') window.scrollTo(0,0);
@@ -123,8 +116,8 @@ const HomeView = ({ setView, schedule }) => {
           </nav>
 
           <div className="flex gap-3">
-            <Button onClick={() => setView('login')} className="bg-yellow-500 text-black hover:bg-yellow-400 font-black px-4 md:px-6 rounded-full border-none hidden md:block text-sm md:text-base">بوابة الأعضاء</Button>
-            <button className="md:hidden p-2 text-white bg-white/10 rounded-full backdrop-blur-md border border-white/10" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <Button onClick={() => setView('login')} className="bg-yellow-500 text-slate-900 hover:bg-yellow-400 font-black px-4 md:px-6 rounded-full border-none hidden md:block text-sm md:text-base shadow-lg shadow-yellow-500/20">بوابة الأعضاء</Button>
+            <button className="md:hidden p-2 text-slate-200 bg-slate-900 rounded-full backdrop-blur-md border border-slate-800" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                {mobileMenuOpen ? <X size={20}/> : <Menu size={20}/>}
             </button>
           </div>
@@ -136,7 +129,7 @@ const HomeView = ({ setView, schedule }) => {
                initial={{ height: 0, opacity: 0 }}
                animate={{ height: 'auto', opacity: 1 }}
                exit={{ height: 0, opacity: 0 }}
-               className="md:hidden bg-black/95 backdrop-blur-xl border-t border-gray-800 overflow-hidden"
+               className="md:hidden bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 overflow-hidden"
              >
                <div className="p-6 flex flex-col gap-4">
                  {['الرئيسية', 'من نحن', 'الفروع', 'جدول الحصص'].map((item) => (
@@ -147,12 +140,12 @@ const HomeView = ({ setView, schedule }) => {
                         if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
                         if (item === 'الرئيسية') window.scrollTo(0,0);
                       }}
-                      className="text-right text-lg font-bold text-gray-300 hover:text-yellow-500 border-b border-gray-800 pb-3 last:border-0"
+                      className="text-right text-lg font-bold text-slate-300 hover:text-yellow-500 border-b border-slate-900 pb-3 last:border-0"
                     >
                       {item}
                     </button>
                  ))}
-                 <Button onClick={() => { setMobileMenuOpen(false); setView('login'); }} className="w-full py-3.5 bg-yellow-500 text-black font-black rounded-xl mt-2">بوابة الأعضاء</Button>
+                 <Button onClick={() => { setMobileMenuOpen(false); setView('login'); }} className="w-full py-3.5 bg-yellow-500 text-slate-900 font-black rounded-xl mt-2 border-none">بوابة الأعضاء</Button>
                </div>
              </motion.div>
           )}
@@ -160,13 +153,13 @@ const HomeView = ({ setView, schedule }) => {
       </motion.header>
 
       {/* --- Hero Section --- */}
-      <div className="relative min-h-[100vh] flex items-center overflow-hidden bg-[#050505]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-600/10 via-gray-900 to-black z-0"></div>
+      <div className="relative min-h-[100vh] flex items-center overflow-hidden bg-slate-950">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-900/20 via-slate-950 to-black z-0"></div>
         
-        {/* 3D Scene / Image */}
-        <div className="absolute inset-0 z-10 opacity-50 md:opacity-100 pointer-events-none md:pointer-events-auto">
-           <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-yellow-600/30 font-black text-2xl animate-pulse">LOADING...</div>}>
-              <div className="absolute inset-0 bg-black/40 z-10"></div>
+        {/* Background Image with Dark Overlay */}
+        <div className="absolute inset-0 z-10 opacity-60 md:opacity-100 pointer-events-none md:pointer-events-auto">
+           <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-700 font-black text-2xl animate-pulse">LOADING...</div>}>
+              <div className="absolute inset-0 bg-slate-950/50 z-10 mix-blend-multiply"></div>
               <motion.img 
                 initial={{ scale: 1.2 }}
                 animate={{ scale: 1 }}
@@ -185,12 +178,12 @@ const HomeView = ({ setView, schedule }) => {
             variants={staggerContainer}
             className="flex flex-col items-start max-w-full md:max-w-3xl"
           >
-            <motion.div variants={fadeInUp} className="flex items-center gap-2 bg-white/5 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full mb-6 md:mb-8">
+            <motion.div variants={fadeInUp} className="flex items-center gap-2 bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 px-3 py-1.5 rounded-full mb-6 md:mb-8 shadow-2xl">
                 <span className="flex h-2.5 w-2.5 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
-                <span className="text-gray-300 text-[10px] md:text-xs font-bold tracking-widest uppercase">التسجيل لموسم 2026 مفتوح</span>
+                <span className="text-slate-300 text-[10px] md:text-xs font-bold tracking-widest uppercase">التسجيل لموسم 2026 مفتوح</span>
             </motion.div>
             
             <motion.h2 variants={fadeInUp} className="text-5xl md:text-9xl font-black mb-4 md:mb-6 leading-[0.9] tracking-tighter text-white drop-shadow-2xl">
@@ -198,15 +191,15 @@ const HomeView = ({ setView, schedule }) => {
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500">مجدك</span>
             </motion.h2>
             
-            <motion.p variants={fadeInUp} className="text-gray-300 text-base md:text-2xl mb-8 md:mb-10 font-medium leading-relaxed max-w-xl border-r-4 border-yellow-500 pr-4 md:pr-6 pl-0 md:pl-10 bg-gradient-to-l from-black/60 to-transparent py-2 md:py-4 rounded-l-2xl backdrop-blur-sm">
+            <motion.p variants={fadeInUp} className="text-slate-300 text-base md:text-2xl mb-8 md:mb-10 font-medium leading-relaxed max-w-xl border-r-4 border-yellow-500 pr-4 md:pr-6 pl-0 md:pl-10 bg-gradient-to-l from-slate-950/80 to-transparent py-2 md:py-4 rounded-l-2xl backdrop-blur-sm">
               نحن لا نعلمك القتال فقط، نحن نبني شخصية القائد بداخلك. انضم لنخبة أبطال الأردن.
             </motion.p>
             
             <motion.div variants={fadeInUp} className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <Button onClick={() => setShowRegModal(true)} className="w-full md:w-auto justify-center px-8 md:px-12 py-4 md:py-5 text-lg md:text-xl bg-yellow-500 text-black font-black hover:bg-yellow-400 rounded-xl md:rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.4)] transition-all flex items-center gap-2">
+              <Button onClick={() => setShowRegModal(true)} className="w-full md:w-auto justify-center px-8 md:px-12 py-4 md:py-5 text-lg md:text-xl bg-yellow-500 text-slate-900 font-black hover:bg-yellow-400 rounded-xl md:rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.3)] transition-all flex items-center gap-2 border-none">
                 سجل الآن <ChevronLeft strokeWidth={3} size={20} />
               </Button>
-              <button onClick={() => document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'})} className="w-full md:w-auto px-8 py-4 md:py-5 text-lg text-white font-bold border border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10 rounded-xl md:rounded-2xl transition-all">
+              <button onClick={() => document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'})} className="w-full md:w-auto px-8 py-4 md:py-5 text-lg text-slate-200 font-bold border border-white/10 bg-white/5 backdrop-blur-sm hover:bg-white/10 rounded-xl md:rounded-2xl transition-all">
                 اكتشف الفروع
               </button>
             </motion.div>
@@ -218,7 +211,7 @@ const HomeView = ({ setView, schedule }) => {
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1, y: [0, 10, 0] }} 
           transition={{ delay: 2, duration: 2, repeat: Infinity }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 hidden md:flex flex-col items-center gap-2"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-slate-500 hidden md:flex flex-col items-center gap-2"
         >
            <span className="text-[10px] uppercase tracking-widest">تصفح المزيد</span>
            <ArrowDown size={20}/>
@@ -233,9 +226,9 @@ const HomeView = ({ setView, schedule }) => {
                 initial={{ y: 50, opacity: 0 }}
                 whileInView={{ y: 0, opacity: 1 }}
                 viewport={{ once: true }}
-                className="bg-white rounded-2xl md:rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col md:flex-row h-auto md:h-[180px]"
+                className="bg-slate-900 rounded-2xl md:rounded-[2rem] shadow-2xl border border-slate-800 overflow-hidden flex flex-col md:flex-row h-auto md:h-[180px]"
               >
-                  <div className="bg-yellow-500 p-4 md:p-6 flex flex-row md:flex-col justify-between md:justify-center items-center md:w-[220px] shrink-0 text-black text-center relative overflow-hidden">
+                  <div className="bg-yellow-500 p-4 md:p-6 flex flex-row md:flex-col justify-between md:justify-center items-center md:w-[220px] shrink-0 text-slate-900 text-center relative overflow-hidden">
                       <div className="flex items-center gap-2 md:block">
                          <Megaphone size={24} className="md:w-9 md:h-9 md:mb-2 md:mx-auto"/>
                          <span className="font-black text-base md:text-xl">آخر الأخبار</span>
@@ -245,7 +238,7 @@ const HomeView = ({ setView, schedule }) => {
                          <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="p-1 bg-black/10 rounded-full"><ChevronLeft size={16}/></button>
                       </div>
                   </div>
-                  <div className="flex-1 relative bg-white p-5 md:p-0 flex items-center">
+                  <div className="flex-1 relative bg-slate-900 p-5 md:p-0 flex items-center">
                       <AnimatePresence mode='wait'>
                         <motion.div 
                           key={currentNewsIndex}
@@ -254,14 +247,14 @@ const HomeView = ({ setView, schedule }) => {
                           exit={{ opacity: 0 }}
                           className="w-full px-2 md:px-8 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-6"
                         >
-                            <span className="text-[10px] md:text-xs font-black bg-black text-yellow-500 px-3 py-1 rounded-lg shrink-0">{newsItems[currentNewsIndex].branch}</span>
-                            <div className="flex-1 text-right md:border-r-2 md:border-gray-100 md:pr-6">
-                                <h3 className="font-black text-lg md:text-2xl text-gray-900 mb-1">{newsItems[currentNewsIndex].title}</h3>
-                                <p className="text-gray-500 text-xs md:text-base line-clamp-2 md:line-clamp-1 font-medium">{newsItems[currentNewsIndex].desc}</p>
+                            <span className="text-[10px] md:text-xs font-black bg-slate-950 text-yellow-500 px-3 py-1 rounded-lg shrink-0 border border-slate-800">{newsItems[currentNewsIndex].branch}</span>
+                            <div className="flex-1 text-right md:border-r-2 md:border-slate-800 md:pr-6">
+                                <h3 className="font-black text-lg md:text-2xl text-slate-100 mb-1">{newsItems[currentNewsIndex].title}</h3>
+                                <p className="text-slate-400 text-xs md:text-base line-clamp-2 md:line-clamp-1 font-medium">{newsItems[currentNewsIndex].desc}</p>
                             </div>
                             <div className="hidden md:flex gap-2 shrink-0">
-                                <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="p-3 hover:bg-gray-100 rounded-full transition-colors"><ChevronRight/></button>
-                                <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="p-3 hover:bg-gray-100 rounded-full transition-colors"><ChevronLeft/></button>
+                                <button onClick={() => setCurrentNewsIndex((prev) => (prev - 1 + newsItems.length) % newsItems.length)} className="p-3 hover:bg-slate-800 rounded-full transition-colors text-slate-400"><ChevronRight/></button>
+                                <button onClick={() => setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)} className="p-3 hover:bg-slate-800 rounded-full transition-colors text-slate-400"><ChevronLeft/></button>
                             </div>
                         </motion.div>
                       </AnimatePresence>
@@ -272,11 +265,11 @@ const HomeView = ({ setView, schedule }) => {
       )}
 
       {/* --- Why Choose Us --- */}
-      <section className="py-20 md:py-32 bg-gray-50 relative">
+      <section className="py-20 md:py-32 bg-slate-950 relative">
          <div className="container mx-auto px-4 md:px-6 relative z-10">
             <div className="text-center mb-12 md:mb-20">
-                <span className="text-yellow-600 font-bold tracking-widest text-[10px] md:text-sm uppercase bg-yellow-100/50 px-4 py-2 rounded-full border border-yellow-200">لماذا أكاديمية الشجاع؟</span>
-                <h2 className="text-3xl md:text-6xl font-black text-gray-900 mt-6 mb-4 tracking-tight">نصنع <span className="text-yellow-500">الأبطال</span> باحترافية</h2>
+                <span className="text-yellow-600 font-bold tracking-widest text-[10px] md:text-sm uppercase bg-yellow-900/10 px-4 py-2 rounded-full border border-yellow-500/20">لماذا أكاديمية الشجاع؟</span>
+                <h2 className="text-3xl md:text-6xl font-black text-slate-100 mt-6 mb-4 tracking-tight">نصنع <span className="text-yellow-500">الأبطال</span> باحترافية</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
@@ -291,13 +284,13 @@ const HomeView = ({ setView, schedule }) => {
                      whileInView={{ opacity: 1, y: 0 }}
                      viewport={{ once: true }}
                      transition={{ delay: i * 0.2 }}
-                     className="group p-6 md:p-10 rounded-3xl md:rounded-[2.5rem] bg-white hover:bg-black transition-all duration-500 cursor-default border border-gray-100 hover:border-black hover:shadow-xl"
+                     className="group p-6 md:p-10 rounded-3xl md:rounded-[2.5rem] bg-slate-900 hover:bg-slate-800 transition-all duration-500 cursor-default border border-slate-800 hover:border-slate-700 hover:shadow-2xl"
                    >
-                       <div className="w-14 h-14 md:w-20 md:h-20 bg-gray-50 rounded-2xl md:rounded-3xl flex items-center justify-center text-black mb-6 md:mb-8 shadow-inner group-hover:bg-yellow-500 transition-colors">
+                       <div className="w-14 h-14 md:w-20 md:h-20 bg-slate-950 rounded-2xl md:rounded-3xl flex items-center justify-center text-slate-300 mb-6 md:mb-8 shadow-inner group-hover:bg-yellow-500 group-hover:text-slate-900 transition-colors border border-slate-800">
                            <item.icon size={28} className="md:w-9 md:h-9" strokeWidth={1.5}/>
                        </div>
-                       <h3 className="text-xl md:text-2xl font-black text-gray-900 group-hover:text-white mb-3 transition-colors">{item.title}</h3>
-                       <p className="text-sm md:text-base text-gray-500 group-hover:text-gray-400 transition-colors leading-relaxed font-medium">{item.text}</p>
+                       <h3 className="text-xl md:text-2xl font-black text-slate-100 mb-3 transition-colors">{item.title}</h3>
+                       <p className="text-sm md:text-base text-slate-500 group-hover:text-slate-400 transition-colors leading-relaxed font-medium">{item.text}</p>
                    </motion.div>
                 ))}
             </div>
@@ -312,7 +305,7 @@ const HomeView = ({ setView, schedule }) => {
                  <span className="text-yellow-500 font-bold tracking-widest text-xs uppercase mb-2 block">مواقعنا</span>
                  <h2 className="text-4xl md:text-6xl font-black text-white">فروع الأكاديمية</h2>
               </div>
-              <Button onClick={() => window.open('https://wa.me/962795629606', '_blank')} className="w-full md:w-auto bg-white text-black hover:bg-yellow-500 border-none font-bold rounded-xl md:rounded-full px-8 py-3 md:py-4 transition-colors">تواصل معنا</Button>
+              <Button onClick={() => window.open('https://wa.me/962795629606', '_blank')} className="w-full md:w-auto bg-slate-100 text-slate-900 hover:bg-yellow-500 border-none font-bold rounded-xl md:rounded-full px-8 py-3 md:py-4 transition-colors">تواصل معنا</Button>
            </div>
 
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
@@ -343,14 +336,14 @@ const HomeView = ({ setView, schedule }) => {
                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
                    
                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-                      <div className="bg-yellow-500 text-black text-[10px] md:text-xs font-black px-3 py-1 md:px-4 md:py-2 rounded-lg md:rounded-full inline-block mb-4 shadow-lg">{branch.sub}</div>
+                      <div className="bg-yellow-500 text-slate-900 text-[10px] md:text-xs font-black px-3 py-1 md:px-4 md:py-2 rounded-lg md:rounded-full inline-block mb-4 shadow-lg">{branch.sub}</div>
                       <h3 className="text-4xl md:text-6xl font-black mb-2">{branch.name}</h3>
                       <p className="text-gray-300 text-sm md:text-lg mb-6 flex items-center gap-2">
                         <MapPin size={16} className="text-yellow-500"/> {branch.desc}
                       </p>
                       
                       <div className="flex gap-3 mt-4">
-                         <button onClick={() => openLocation(branch.loc)} className="flex-1 bg-white text-black py-3 md:py-4 rounded-xl md:rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-yellow-500 transition-colors text-sm md:text-base">
+                         <button onClick={() => openLocation(branch.loc)} className="flex-1 bg-white text-black py-3 md:py-4 rounded-xl md:rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-yellow-500 transition-colors text-sm md:text-base border-none">
                             <Navigation size={18}/> الموقع
                          </button>
                          <button onClick={() => window.open(`tel:${branch.phone}`)} className="w-14 h-14 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center hover:bg-white hover:text-black transition-colors border border-white/20">
@@ -388,7 +381,7 @@ const HomeView = ({ setView, schedule }) => {
                  viewport={{ once: true }}
                  transition={{ delay: idx * 0.1 }}
                  key={cls.id} 
-                 className="relative group bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:border-yellow-500/50 transition-all duration-300 hover:bg-white/10 hover:-translate-y-2 overflow-hidden"
+                 className="relative group bg-slate-900/50 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:border-yellow-500/50 transition-all duration-300 hover:bg-slate-900/80 hover:-translate-y-2 overflow-hidden"
                >
                  {/* Decorative Line */}
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -439,25 +432,25 @@ const HomeView = ({ setView, schedule }) => {
         <div className="absolute inset-0 bg-white rounded-full opacity-0 group-hover:animate-ping"></div>
       </motion.button>
 
-      {/* --- Registration Modal --- */}
+      {/* --- Registration Modal (Dark Mode) --- */}
       <AnimatePresence>
         {showRegModal && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-end md:items-center justify-center p-0 md:p-4"
+            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-end md:items-center justify-center p-0 md:p-4"
             onClick={() => setShowRegModal(false)}
           >
             <motion.div 
               initial={{ y: "100%" }} 
               animate={{ y: 0 }} 
               exit={{ y: "100%" }} 
-              className="w-full md:w-full md:max-w-lg bg-white rounded-t-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="w-full md:w-full md:max-w-lg bg-slate-900 border border-slate-700 rounded-t-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <div className="bg-yellow-500 p-6 md:p-8 text-center relative overflow-hidden">
-                 <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                 <h3 className="text-2xl md:text-3xl font-black text-black relative z-10">طلب تسجيل جديد</h3>
-                 <p className="text-black/70 text-sm font-bold mt-2 relative z-10">انضم لعائلة الأبطال وابدأ رحلتك</p>
+                 <div className="absolute top-0 right-0 w-20 h-20 bg-black/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                 <h3 className="text-2xl md:text-3xl font-black text-slate-900 relative z-10">طلب تسجيل جديد</h3>
+                 <p className="text-slate-900/70 text-sm font-bold mt-2 relative z-10">انضم لعائلة الأبطال وابدأ رحلتك</p>
               </div>
               
               <form onSubmit={handleRegister} className="p-6 md:p-8 space-y-4 md:space-y-6 max-h-[80vh] overflow-y-auto">
@@ -467,11 +460,11 @@ const HomeView = ({ setView, schedule }) => {
                     { label: 'العنوان', type: 'text', key: 'address', ph: 'المنطقة - الشارع' }
                   ].map((field) => (
                     <div key={field.key}>
-                       <label className="block text-xs font-bold text-gray-500 mb-2">{field.label}</label>
+                       <label className="block text-xs font-bold text-slate-400 mb-2">{field.label}</label>
                        <input 
                          required 
                          type={field.type}
-                         className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl p-3 md:p-4 focus:bg-white focus:border-yellow-500 outline-none transition-colors font-bold text-gray-800 text-sm md:text-base"
+                         className="w-full bg-slate-950 border border-slate-700 rounded-xl md:rounded-2xl p-3 md:p-4 focus:bg-slate-900 focus:border-yellow-500 outline-none transition-colors font-bold text-slate-200 text-sm md:text-base placeholder-slate-600"
                          placeholder={field.ph}
                          value={regForm[field.key]}
                          onChange={e=>setRegForm({...regForm, [field.key]:e.target.value})}
@@ -480,19 +473,19 @@ const HomeView = ({ setView, schedule }) => {
                   ))}
                   
                   <div>
-                     <label className="block text-xs font-bold text-gray-500 mb-2">تاريخ الميلاد</label>
-                     <input type="date" required className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl md:rounded-2xl p-3 md:p-4 focus:bg-white focus:border-yellow-500 outline-none font-bold text-gray-800 text-sm md:text-base" value={regForm.dob} onChange={e=>setRegForm({...regForm, dob:e.target.value})}/>
+                     <label className="block text-xs font-bold text-slate-400 mb-2">تاريخ الميلاد</label>
+                     <input type="date" required className="w-full bg-slate-950 border border-slate-700 rounded-xl md:rounded-2xl p-3 md:p-4 focus:bg-slate-900 focus:border-yellow-500 outline-none font-bold text-slate-200 text-sm md:text-base" value={regForm.dob} onChange={e=>setRegForm({...regForm, dob:e.target.value})}/>
                   </div>
 
                   <div>
-                     <label className="block text-xs font-bold text-gray-500 mb-2">الفرع المطلوب</label>
+                     <label className="block text-xs font-bold text-slate-400 mb-2">الفرع المطلوب</label>
                      <div className="grid grid-cols-2 gap-3 md:gap-4">
                         {[BRANCHES.SHAFA, BRANCHES.ABU_NSEIR].map((br) => (
                            <button 
                              key={br} 
                              type="button" 
                              onClick={() => setRegForm({...regForm, branch: br})}
-                             className={`py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-sm transition-all border-2 ${regForm.branch === br ? 'border-yellow-500 bg-yellow-50 text-black' : 'border-gray-100 text-gray-400 hover:border-gray-300'}`}
+                             className={`py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-sm transition-all border-2 ${regForm.branch === br ? 'border-yellow-500 bg-yellow-900/20 text-yellow-500' : 'border-slate-800 text-slate-500 hover:border-slate-600 bg-slate-950'}`}
                            >
                              {br}
                            </button>
@@ -501,8 +494,8 @@ const HomeView = ({ setView, schedule }) => {
                   </div>
 
                   <div className="pt-4 flex gap-3 md:gap-4 pb-4 md:pb-0">
-                    <button type="button" onClick={()=>setShowRegModal(false)} className="flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">إلغاء</button>
-                    <button type="submit" disabled={isSubmitting} className="flex-[2] py-3 md:py-4 rounded-xl md:rounded-2xl font-bold bg-black text-white hover:bg-gray-800 transition-colors shadow-xl">
+                    <button type="button" onClick={()=>setShowRegModal(false)} className="flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-slate-500 hover:bg-slate-800 transition-colors">إلغاء</button>
+                    <button type="submit" disabled={isSubmitting} className="flex-[2] py-3 md:py-4 rounded-xl md:rounded-2xl font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition-colors shadow-xl">
                         {isSubmitting ? 'جاري الإرسال...' : 'تأكيد التسجيل'}
                     </button>
                   </div>
