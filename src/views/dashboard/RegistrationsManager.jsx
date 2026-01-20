@@ -129,7 +129,16 @@ export default function RegistrationsManager({ registrations, students, registra
 
        {confirmModal && (
            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-               <Card className="w-full max-w-2xl animate-in fade-in zoom-in-95 bg-slate-900 border border-slate-700 shadow-2xl" title="إكمال بيانات الطالب الجديد" icon={UserPlus}>
+               {/* ✅ FIX APPLIED HERE:
+                  - Added max-h-[85vh] to restrict height
+                  - Added overflow-y-auto to enable scrolling
+                  - Added my-auto to ensure proper vertical centering behavior
+               */}
+               <Card 
+                  className="w-full max-w-2xl max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 bg-slate-900 border border-slate-700 shadow-2xl custom-scrollbar" 
+                  title="إكمال بيانات الطالب الجديد" 
+                  icon={UserPlus}
+               >
                    <form onSubmit={confirmStudent} className="space-y-4 mt-4">
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div>
