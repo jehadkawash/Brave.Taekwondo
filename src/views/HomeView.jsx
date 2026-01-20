@@ -1,4 +1,3 @@
-// src/views/HomeView.jsx
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Menu, X, MapPin, Phone, Clock, Calendar, Activity, Trophy, Shield, Users, MessageCircle, Megaphone, ChevronRight, ChevronLeft, Navigation, Play, Star, CheckCircle, ArrowDown } from 'lucide-react';
 import { Button, Card } from '../components/UIComponents';
@@ -81,10 +80,9 @@ const HomeView = ({ setView, schedule }) => {
   };
 
   return (
-    // ✅ Updated Background to Slate-950
     <div className="min-h-screen font-sans text-right relative bg-slate-950 overflow-x-hidden selection:bg-yellow-500/30 selection:text-white" dir="rtl">
       
-      {/* --- Navbar --- */}
+      {/* Navbar */}
       <motion.header 
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled 
@@ -152,11 +150,11 @@ const HomeView = ({ setView, schedule }) => {
         </AnimatePresence>
       </motion.header>
 
-      {/* --- Hero Section --- */}
+      {/* Hero Section */}
       <div className="relative min-h-[100vh] flex items-center overflow-hidden bg-slate-950">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-900/20 via-slate-950 to-black z-0"></div>
         
-        {/* Background Image with Dark Overlay */}
+        {/* Background Image */}
         <div className="absolute inset-0 z-10 opacity-60 md:opacity-100 pointer-events-none md:pointer-events-auto">
            <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-700 font-black text-2xl animate-pulse">LOADING...</div>}>
               <div className="absolute inset-0 bg-slate-950/50 z-10 mix-blend-multiply"></div>
@@ -206,7 +204,7 @@ const HomeView = ({ setView, schedule }) => {
           </motion.div>
         </div>
         
-        {/* Scroll Down Indicator */}
+        {/* Scroll Indicator */}
         <motion.div 
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1, y: [0, 10, 0] }} 
@@ -218,7 +216,7 @@ const HomeView = ({ setView, schedule }) => {
         </motion.div>
       </div>
 
-      {/* --- News Ticker --- */}
+      {/* News Ticker */}
       {newsItems && newsItems.length > 0 && (
         <section className="relative z-30 -mt-10 md:-mt-20 px-4 md:px-0">
            <div className="container mx-auto">
@@ -264,7 +262,7 @@ const HomeView = ({ setView, schedule }) => {
         </section>
       )}
 
-      {/* --- Why Choose Us --- */}
+      {/* Why Choose Us */}
       <section className="py-20 md:py-32 bg-slate-950 relative">
          <div className="container mx-auto px-4 md:px-6 relative z-10">
             <div className="text-center mb-12 md:mb-20">
@@ -297,7 +295,7 @@ const HomeView = ({ setView, schedule }) => {
          </div>
       </section>
 
-      {/* --- Branches (Black Theme with Explicit Locations) --- */}
+      {/* Branches */}
       <section id="branches" className="py-20 md:py-32 bg-black text-white relative">
         <div className="container mx-auto px-4 md:px-6">
            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 md:mb-20 gap-6">
@@ -357,9 +355,8 @@ const HomeView = ({ setView, schedule }) => {
         </div>
       </section>
 
-      {/* --- Schedule (Moved to Bottom - Dark Glassmorphism) --- */}
+      {/* Schedule */}
       <section id="schedule" className="py-20 md:py-32 bg-[#080808] text-white relative overflow-hidden">
-        {/* Background Gradients */}
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-yellow-500/5 blur-[100px] rounded-full pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none"></div>
         
@@ -372,7 +369,6 @@ const HomeView = ({ setView, schedule }) => {
              <p className="text-gray-400 text-base md:text-xl max-w-2xl">اختر الوقت المناسب وانطلق في رحلة التدريب</p>
            </motion.div>
            
-           {/* Grid Layout: 1 col mobile, 2 col tablet, 3 col desktop */}
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
              {(schedule && schedule.length > 0 ? schedule : INITIAL_SCHEDULE).map((cls, idx) => (
                <motion.div 
@@ -383,7 +379,6 @@ const HomeView = ({ setView, schedule }) => {
                  key={cls.id} 
                  className="relative group bg-slate-900/50 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:border-yellow-500/50 transition-all duration-300 hover:bg-slate-900/80 hover:-translate-y-2 overflow-hidden"
                >
-                 {/* Decorative Line */}
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                  
                  <div className="flex justify-between items-start mb-8">
@@ -411,7 +406,7 @@ const HomeView = ({ setView, schedule }) => {
         </div>
       </section>
 
-      {/* --- Footer --- */}
+      {/* Footer */}
       <footer className="bg-black text-white pt-24 pb-12 border-t border-white/10">
          <div className="container mx-auto px-6 text-center">
             <div className="mb-10">
@@ -421,7 +416,7 @@ const HomeView = ({ setView, schedule }) => {
          </div>
       </footer>
 
-      {/* --- Floating WhatsApp --- */}
+      {/* Floating WhatsApp */}
       <motion.button 
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -432,7 +427,7 @@ const HomeView = ({ setView, schedule }) => {
         <div className="absolute inset-0 bg-white rounded-full opacity-0 group-hover:animate-ping"></div>
       </motion.button>
 
-      {/* --- Registration Modal (Dark Mode) --- */}
+      {/* Registration Modal (Dark) */}
       <AnimatePresence>
         {showRegModal && (
           <motion.div 

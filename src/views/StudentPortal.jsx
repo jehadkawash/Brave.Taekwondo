@@ -1,8 +1,7 @@
-// src/views/StudentPortal.jsx
 import React, { useState, useMemo } from 'react';
 import { 
-  Clock, LogOut, ChevronLeft, ChevronRight, Settings, X, Megaphone, 
-  Calendar, CreditCard, User, Wallet, CheckCircle2, ArrowDownLeft 
+  Clock, LogOut, ChevronLeft, ChevronRight, Settings, Megaphone, 
+  Calendar, CreditCard, User, Wallet, ArrowDownLeft, X 
 } from 'lucide-react';
 import { Button, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
@@ -85,7 +84,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   };
 
   return (
-    // ✅ Updated Background to Slate-950
     <div className="min-h-screen bg-slate-950 font-sans text-right text-slate-200 selection:bg-yellow-500/30 selection:text-white" dir="rtl">
       
       {/* Header */}
