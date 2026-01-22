@@ -1,9 +1,8 @@
 // src/views/dashboard/EventsManager.jsx
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
-  Calendar, Plus, UserPlus, Trash2, Printer, Search, 
-  CheckCircle, XCircle, Save, Filter, ChevronDown, User, MoreVertical,
-  MessageCircle, Image as ImageIcon, Zap, Trophy, Download, Share2, X
+  Calendar, Plus, Trash2, Printer, Search, 
+  CheckCircle, X, MessageCircle, Image as ImageIcon, Zap, Download, User
 } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
@@ -14,14 +13,17 @@ import { IMAGES } from '../../lib/constants';
 const EventsManager = ({ students, logActivity }) => {
   // --- States ---
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCardModal, setShowCardModal] = useState(false); // نافذة البطاقة
-  const [cardData, setCardData] = useState(null); // بيانات الطالب للبطاقة
+  const [showCardModal, setShowCardModal] = useState(false); 
+  const [cardData, setCardData] = useState(null); 
   
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', customMessage: '' });
   
+  // ✅ حالة التحميل الجديدة (لمنع التعليق)
+  const [isCreating, setIsCreating] = useState(false);
+
   // Modes
-  const [isLiveMode, setIsLiveMode] = useState(false); // وضع الحضور المباشر
+  const [isLiveMode, setIsLiveMode] = useState(false); 
   
   // Participant Form States
   const [addMode, setAddMode] = useState('existing');
@@ -47,11 +49,12 @@ const EventsManager = ({ students, logActivity }) => {
 
   // --- Handlers ---
 
-  // 1. Create Event
+  // 1. Create Event (Updated with Loading & Error Handling)
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (!newEvent.title) return alert("يجب كتابة اسم الفعالية");
     
+    setIsCreating(true); // ✅ تشغيل التحميل
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
         ...newEvent,
@@ -61,7 +64,12 @@ const EventsManager = ({ students, logActivity }) => {
       setShowCreateModal(false);
       setNewEvent({ title: '', date: '', time: '', customMessage: '' });
       alert("تم إنشاء الفعالية بنجاح");
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error("Error creating event:", err);
+      alert("حدث خطأ أثناء الإنشاء: " + err.message); // ✅ عرض رسالة الخطأ
+    } finally {
+      setIsCreating(false); // ✅ إيقاف التحميل في كل الحالات
+    }
   };
 
   // 2. Delete Event
@@ -85,11 +93,11 @@ const EventsManager = ({ students, logActivity }) => {
             id: Date.now().toString(),
             studentId: student.id,
             name: student.name,
-            phone: student.phone || '', // Store phone for WhatsApp
+            phone: student.phone || '', 
             type: 'student',
             paid: false,
             attended: false,
-            result: '-', // نجح، رسب، ذهبية...
+            result: '-', 
             notes: ''
         };
     } else {
@@ -142,7 +150,6 @@ const EventsManager = ({ students, logActivity }) => {
 
   // 6. WhatsApp Smart Sender
   const sendWhatsApp = (participant) => {
-      // Find updated phone from main students list if possible, else use stored
       const student = students?.find(s => s.id === participant.studentId);
       let phone = student?.phone || participant.phone || '';
       
@@ -151,7 +158,6 @@ const EventsManager = ({ students, logActivity }) => {
           if (!phone) return;
       }
 
-      // Format Phone (Jordan)
       let cleanPhone = phone.replace(/\D/g, '');
       if (cleanPhone.startsWith('07')) cleanPhone = '962' + cleanPhone.substring(1);
       
@@ -181,6 +187,11 @@ const EventsManager = ({ students, logActivity }) => {
           paid: selectedEvent.participants.filter(p => p.paid).length
       };
   }, [selectedEvent]);
+
+  // 9. Print
+  const handlePrint = () => {
+      window.print();
+  };
 
   return (
     <div className="h-full flex flex-col md:flex-row gap-6 relative">
@@ -236,16 +247,20 @@ const EventsManager = ({ students, logActivity }) => {
                             </p>
                         </div>
                         
-                        {/* Live Mode Toggle */}
-                        <button 
-                            onClick={() => setIsLiveMode(!isLiveMode)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all border ${isLiveMode ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-black text-gray-300 border-gray-700 hover:border-white'}`}
-                        >
-                            <Zap size={18}/> {isLiveMode ? 'إيقاف Live' : 'وضع الحضور'}
-                        </button>
+                        <div className="flex gap-2">
+                            <button onClick={handlePrint} className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/10" title="طباعة">
+                                <Printer size={20}/>
+                            </button>
+                            <button 
+                                onClick={() => setIsLiveMode(!isLiveMode)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all border ${isLiveMode ? 'bg-red-500 text-white border-red-500 animate-pulse' : 'bg-black text-gray-300 border-gray-700 hover:border-white'}`}
+                            >
+                                <Zap size={18}/> {isLiveMode ? 'إيقاف Live' : 'وضع الحضور'}
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Progress Bar (Financial/Attendance) */}
+                    {/* Progress Bar */}
                     {!isLiveMode && (
                         <div className="flex gap-4 text-xs font-bold text-gray-400 bg-black/30 p-3 rounded-xl border border-white/5">
                             <div className="flex items-center gap-2"><User size={14}/> العدد: <span className="text-white">{stats.total}</span></div>
@@ -363,7 +378,7 @@ const EventsManager = ({ students, logActivity }) => {
                                             <MessageCircle size={16}/>
                                         </button>
                                         <button onClick={() => openCardGenerator(p)} className="p-1.5 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-black rounded-lg transition-colors" title="بطاقة دعوة">
-                                            <Image as ImageIcon size={16}/>
+                                            <ImageIcon size={16}/>
                                         </button>
                                     </div>
 
@@ -418,7 +433,9 @@ const EventsManager = ({ students, logActivity }) => {
 
                         <div className="flex gap-3 pt-2">
                             <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-gray-300 font-bold">إلغاء</button>
-                            <button type="submit" className="flex-1 py-3 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400">إنشاء</button>
+                            <button type="submit" disabled={isCreating} className="flex-1 py-3 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-50">
+                                {isCreating ? 'جاري الإنشاء...' : 'إنشاء'}
+                            </button>
                         </div>
                     </form>
                 </motion.div>
@@ -468,15 +485,71 @@ const EventsManager = ({ students, logActivity }) => {
                     </div>
 
                     <div className="bg-[#111] p-4 flex gap-3">
-                        {/* Note: Real image download needs html2canvas library. For now we just show the layout. */}
-                        <button onClick={() => alert("لتحميل الصورة فعلياً، يجب إضافة مكتبة html2canvas للمشروع. حالياً هذا تصميم للعرض فقط.")} className="flex-1 bg-yellow-500 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2">
-                            <Download size={18}/> تحميل الصورة
+                        <button onClick={() => alert("يرجى التقاط لقطة شاشة (Screenshot) للصورة لمشاركتها.")} className="flex-1 bg-yellow-500 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+                            <Download size={18}/> حفظ الصورة
                         </button>
                     </div>
                 </motion.div>
             </div>
         )}
       </AnimatePresence>
+
+      {/* --- Print Styles --- */}
+      <style>
+        {`
+          @media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { 
+                position: absolute; left: 0; top: 0; width: 100%; 
+                background: white !important; color: black !important; 
+                direction: rtl; padding: 20px;
+            }
+            .no-print { display: none !important; }
+          }
+        `}
+      </style>
+
+      {/* --- Print Layout --- */}
+      {selectedEvent && (
+          <div className="print-area hidden bg-white text-black p-8">
+              <div className="text-center mb-8 border-b-2 border-black pb-4">
+                  <h1 className="text-4xl font-black mb-2">أكاديمية الشجاع للتايكواندو</h1>
+                  <h2 className="text-2xl font-bold">كشف مشاركين: {selectedEvent.title}</h2>
+                  <p className="text-lg mt-2">
+                      التاريخ: {selectedEvent.date || '-'} | الوقت: {selectedEvent.time || '-'}
+                  </p>
+              </div>
+              <table className="w-full text-right border-collapse border border-black">
+                  <thead>
+                      <tr className="bg-gray-200">
+                          <th className="border border-black p-2 text-center w-10">#</th>
+                          <th className="border border-black p-2">الاسم</th>
+                          <th className="border border-black p-2 text-center">الصفة</th>
+                          <th className="border border-black p-2 text-center">الدفع</th>
+                          <th className="border border-black p-2 text-center">الحضور</th>
+                          <th className="border border-black p-2">ملاحظات</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {selectedEvent.participants?.map((p, i) => (
+                          <tr key={i}>
+                              <td className="border border-black p-2 text-center">{i + 1}</td>
+                              <td className="border border-black p-2 font-bold">{p.name}</td>
+                              <td className="border border-black p-2 text-center text-sm">{p.type === 'student' ? 'طالب' : 'زائر'}</td>
+                              <td className="border border-black p-2 text-center">{p.paid ? '✅' : '❌'}</td>
+                              <td className="border border-black p-2 text-center">{p.attended ? '✅' : '❌'}</td>
+                              <td className="border border-black p-2 text-sm">{p.notes}</td>
+                          </tr>
+                      ))}
+                  </tbody>
+              </table>
+              <div className="mt-8 flex justify-between text-sm font-bold">
+                  <p>العدد الكلي: {selectedEvent.participants?.length}</p>
+                  <p>توقيع المسؤول: .........................</p>
+              </div>
+          </div>
+      )}
 
     </div>
   );
