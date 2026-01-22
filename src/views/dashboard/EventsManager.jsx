@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Calendar, Plus, Trash2, Printer, Search, 
   CheckCircle, X, MessageCircle, Image as ImageIcon, Zap, User, 
-  Download, DollarSign // ✅ تأكد من وجود هذه الأيقونات
+  Download, DollarSign 
 } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
@@ -34,10 +34,9 @@ const EventsManager = ({ students, logActivity }) => {
   const [externalPhone, setExternalPhone] = useState(''); 
   const [searchTerm, setSearchTerm] = useState('');
   
-  // ✅ (جديد) سعر الطالب الفردي عند الإضافة
+  // سعر الطالب الفردي
   const [participantPrice, setParticipantPrice] = useState('');
 
-  // تحديث سعر الطالب تلقائياً عند اختيار فعالية
   useEffect(() => {
       if (selectedEvent) {
           setParticipantPrice(selectedEvent.defaultPrice || '0');
@@ -104,12 +103,10 @@ const EventsManager = ({ students, logActivity }) => {
     } catch (err) { console.error(err); }
   };
 
-  // 3. Add Participant (Updated Logic)
+  // 3. Add Participant
   const handleAddParticipant = async () => {
     if (!selectedEvent) return;
     let newParticipant = null;
-    
-    // ✅ استخدام السعر المدخل يدوياً لهذا الطالب تحديداً
     const specificPrice = Number(participantPrice) || 0;
 
     if (addMode === 'existing') {
@@ -122,8 +119,8 @@ const EventsManager = ({ students, logActivity }) => {
             phone: student.phone || '', 
             type: 'student',
             paid: false,
-            requiredAmount: specificPrice, // السعر المطلوب منه
-            amountPaid: 0, // المدفوع فعلياً
+            requiredAmount: specificPrice,
+            amountPaid: 0,
             attended: false,
             result: '-', 
             notes: ''
@@ -150,12 +147,10 @@ const EventsManager = ({ students, logActivity }) => {
         await updateDoc(eventRef, { participants: updatedParticipants });
         setSelectedEvent({ ...selectedEvent, participants: updatedParticipants });
         
-        // Reset Inputs
         setExternalName('');
         setExternalPhone('');
         setSelectedStudentId('');
         setSearchTerm('');
-        // نعيد السعر للسعر الافتراضي للفعالية لتجهيزه للطالب التالي
         setParticipantPrice(selectedEvent.defaultPrice || '0'); 
     } catch (err) { console.error(err); }
   };
@@ -164,19 +159,13 @@ const EventsManager = ({ students, logActivity }) => {
   const handleUpdateParticipant = async (participantId, field, value) => {
       const updatedParticipants = selectedEvent.participants.map(p => {
           if (p.id !== participantId) return p;
-          
           let updates = { [field]: value };
-          
-          // ذكاء النظام: إذا ضغطت "دفع"، يضع المبلغ المطلوب تلقائياً
           if (field === 'paid') {
               updates.amountPaid = value ? (Number(p.requiredAmount) || Number(selectedEvent.defaultPrice) || 0) : 0;
           }
-          
-          // إذا غيرت المبلغ يدوياً وكان > 0، يفعل "دفع" تلقائياً
           if (field === 'amountPaid') {
               updates.paid = Number(value) > 0;
           }
-
           return { ...p, ...updates };
       });
 
@@ -211,7 +200,6 @@ const EventsManager = ({ students, logActivity }) => {
       let cleanPhone = phone.replace(/\D/g, '');
       if (cleanPhone.startsWith('07')) cleanPhone = '962' + cleanPhone.substring(1);
 
-      // تجميع الأخوة
       const siblings = selectedEvent.participants.filter(p => {
           const sPhone = students?.find(st => st.id === p.studentId)?.phone || p.phone;
           return sPhone && sPhone.replace(/\D/g, '') === cleanPhone;
@@ -332,14 +320,13 @@ const EventsManager = ({ students, logActivity }) => {
                     </div>
                 ) : (
                     <>
-                        {/* ✅ Add Form (With Price Input) */}
+                        {/* Add Form */}
                         <div className="p-4 bg-white/5 border-b border-white/10">
                             <div className="flex gap-2 mb-3">
                                 <button onClick={() => setAddMode('existing')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'existing' ? 'bg-yellow-500 text-black' : 'bg-black text-gray-400'}`}>طالب</button>
                                 <button onClick={() => setAddMode('external')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'external' ? 'bg-yellow-500 text-black' : 'bg-black text-gray-400'}`}>زائر</button>
                             </div>
                             <div className="flex gap-2 items-center">
-                                {/* حقل الاسم */}
                                 {addMode === 'existing' ? (
                                     <div className="flex-[2] relative">
                                         <input className="w-full bg-black border border-white/20 text-white rounded-xl py-3 px-3 text-sm outline-none focus:border-yellow-500" placeholder="ابحث عن الطالب..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
@@ -357,19 +344,10 @@ const EventsManager = ({ students, logActivity }) => {
                                         <input className="flex-1 bg-black border border-white/20 text-white rounded-xl p-3 text-sm outline-none" placeholder="رقم الهاتف..." value={externalPhone} onChange={e => setExternalPhone(e.target.value)}/>
                                     </>
                                 )}
-                                
-                                {/* ✅ حقل السعر المتغير */}
                                 <div className="flex-1 relative">
-                                    <input 
-                                        type="number" 
-                                        className="w-full bg-black border border-white/20 text-white rounded-xl p-3 pl-8 text-sm outline-none font-bold text-center focus:border-yellow-500" 
-                                        placeholder="السعر" 
-                                        value={participantPrice} 
-                                        onChange={e => setParticipantPrice(e.target.value)}
-                                    />
+                                    <input type="number" className="w-full bg-black border border-white/20 text-white rounded-xl p-3 pl-8 text-sm outline-none font-bold text-center focus:border-yellow-500" placeholder="السعر" value={participantPrice} onChange={e => setParticipantPrice(e.target.value)}/>
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">JD</span>
                                 </div>
-
                                 <button onClick={handleAddParticipant} className="bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-xl font-bold"><Plus/></button>
                             </div>
                         </div>
@@ -440,38 +418,67 @@ const EventsManager = ({ students, logActivity }) => {
         )}
       </AnimatePresence>
 
-      {/* --- Card Modal --- */}
+      {/* --- Card Modal (Revised Design White/Gold) --- */}
       <AnimatePresence>
         {showCardModal && cardData && (
             <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="relative bg-white w-full max-w-sm overflow-hidden shadow-2xl rounded-xl">
                     <button onClick={() => setShowCardModal(false)} className="absolute top-2 right-2 z-10 bg-black/50 text-white p-1 rounded-full"><X size={20}/></button>
-                    <div id="invite-card-content" className="relative w-full aspect-[4/5] bg-[#050505] flex flex-col items-center justify-center p-6 border-8 border-[#d4af37]">
-                        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(#d4af37 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
+                    
+                    {/* منطقة التصميم - أبيض وذهبي */}
+                    <div id="invite-card-content" className="relative w-full aspect-[4/5] bg-white flex flex-col items-center justify-center p-6 border-8 border-[#d4af37]">
+                        
                         <div className="relative z-10 w-full text-center">
-                            <div className="w-24 h-24 bg-white rounded-full mx-auto mb-6 flex items-center justify-center p-2 shadow-[0_0_30px_rgba(212,175,55,0.4)]"><img src={IMAGES.LOGO} className="w-full h-full object-contain" alt="Logo"/></div>
-                            <h2 className="text-[#d4af37] text-sm font-bold tracking-[0.4em] mb-4 uppercase">Invitation Card</h2>
-                            <div className="bg-gradient-to-r from-[#d4af37] to-[#fwd700] text-black text-2xl font-black py-3 px-2 w-full mb-6 transform -skew-x-6 shadow-lg"><span className="block transform skew-x-6 leading-tight">{cardData.name}</span></div>
-                            <h1 className="text-white text-2xl font-bold mb-2">{cardData.eventTitle}</h1>
-                            <div className="flex justify-center gap-4 text-gray-300 text-sm mb-6 border-t border-b border-white/10 py-2 mt-4"><div>📅 {cardData.date || '---'}</div><div className="w-px bg-white/20"></div><div>⏰ {cardData.time || '---'}</div></div>
-                            {cardData.note && <div className="bg-white/5 p-3 rounded-lg border border-white/10"><p className="text-[#d4af37] text-xs font-bold mb-1">ملاحظة هامة:</p><p className="text-gray-300 text-xs">{cardData.note}</p></div>}
+                            {/* الشعار بدون دائرة */}
+                            <div className="w-32 h-32 mx-auto mb-4 flex items-center justify-center">
+                                <img src={IMAGES.LOGO} className="w-full h-full object-contain" alt="Logo"/>
+                            </div>
+                            
+                            <h2 className="text-[#d4af37] text-sm font-bold tracking-[0.4em] mb-4 uppercase">دعوة خاصة</h2>
+                            
+                            <div className="bg-[#d4af37] text-white text-xl font-black py-2 px-4 w-full mb-6 shadow-md rounded">
+                                <span className="block leading-tight">{cardData.name}</span>
+                            </div>
+
+                            <h1 className="text-black text-3xl font-black mb-2">{cardData.eventTitle}</h1>
+                            
+                            <div className="flex justify-center gap-4 text-gray-600 text-sm mb-6 border-t border-b border-gray-200 py-3 mt-4">
+                                <div className="font-bold">📅 {cardData.date || '---'}</div>
+                                <div className="w-px bg-gray-300"></div>
+                                <div className="font-bold">⏰ {cardData.time || '---'}</div>
+                            </div>
+
+                            {cardData.note && (
+                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                    <p className="text-[#d4af37] text-xs font-bold mb-1">ملاحظة هامة:</p>
+                                    <p className="text-gray-800 text-xs font-bold">{cardData.note}</p>
+                                </div>
+                            )}
                         </div>
-                        <div className="absolute bottom-4 text-[10px] text-gray-600 tracking-widest uppercase">Brave Taekwondo Academy</div>
+                        
+                        <div className="absolute bottom-4 text-[10px] text-gray-400 tracking-widest uppercase font-bold">Brave Taekwondo Academy</div>
                     </div>
-                    <div className="bg-[#111] p-4"><button onClick={handleDownloadImage} className="w-full bg-yellow-500 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 transition-colors"><Download size={20}/> حفظ الصورة</button></div>
+
+                    <div className="bg-[#111] p-4">
+                        <button onClick={handleDownloadImage} className="w-full bg-yellow-500 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 transition-colors">
+                            <Download size={20}/> حفظ الصورة
+                        </button>
+                    </div>
                 </motion.div>
             </div>
         )}
       </AnimatePresence>
 
-      {/* --- Print Styles --- */}
+      {/* --- Print Styles (Fixed - White Only) --- */}
       <style>{`
           @media print {
-            body > *:not(.print-area) { display: none !important; }
-            .print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: white; color: black; z-index: 9999; padding: 20px; }
+            body { background: white !important; color: black !important; }
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white !important; z-index: 9999; padding: 20px; color: black !important; }
             .print-area table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            .print-area th, .print-area td { border: 1px solid #000; padding: 8px; text-align: center; }
-            .print-area th { background-color: #f0f0f0; font-weight: bold; }
+            .print-area th, .print-area td { border: 1px solid #000; padding: 8px; text-align: center; color: black !important; }
+            .print-area th { background-color: #f0f0f0 !important; font-weight: bold; }
           }
       `}</style>
 
@@ -479,9 +486,12 @@ const EventsManager = ({ students, logActivity }) => {
       {selectedEvent && (
           <div className="print-area hidden">
               <div className="text-center mb-8 border-b-2 border-black pb-4">
-                  <h1 className="text-4xl font-black mb-2">أكاديمية الشجاع للتايكواندو</h1>
-                  <h2 className="text-2xl font-bold">كشف فعالية: {selectedEvent.title}</h2>
-                  <div className="flex justify-center gap-6 mt-4 text-lg"><p>التاريخ: {selectedEvent.date || '-'}</p><p>الوقت: {selectedEvent.time || '-'}</p></div>
+                  <h1 className="text-4xl font-black mb-2 text-black">أكاديمية الشجاع للتايكواندو</h1>
+                  <h2 className="text-2xl font-bold text-black">كشف فعالية: {selectedEvent.title}</h2>
+                  <div className="flex justify-center gap-6 mt-4 text-lg text-black">
+                      <p>التاريخ: {selectedEvent.date || '-'}</p>
+                      <p>الوقت: {selectedEvent.time || '-'}</p>
+                  </div>
               </div>
               <table>
                   <thead><tr><th style={{width: '5%'}}>#</th><th style={{width: '30%'}}>الاسم</th><th style={{width: '10%'}}>الصفة</th><th style={{width: '10%'}}>المبلغ</th><th style={{width: '10%'}}>الدفع</th><th style={{width: '10%'}}>الحضور</th><th style={{width: '25%'}}>ملاحظات</th></tr></thead>
@@ -491,7 +501,11 @@ const EventsManager = ({ students, logActivity }) => {
                       ))}
                   </tbody>
               </table>
-              <div className="mt-8 flex justify-between text-sm font-bold"><p>العدد الكلي: {stats.total}</p><p>مجموع المبالغ: {stats.totalAmount} JD</p><p>التوقيع: .........................</p></div>
+              <div className="mt-8 flex justify-between text-sm font-bold text-black">
+                  <p>العدد الكلي: {stats.total}</p>
+                  <p>مجموع المبالغ: {stats.totalAmount} JD</p>
+                  <p>التوقيع: .........................</p>
+              </div>
           </div>
       )}
     </div>
