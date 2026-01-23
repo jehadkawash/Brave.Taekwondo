@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Calendar, Plus, Trash2, Printer, Search, 
   CheckCircle, X, MessageCircle, Image as ImageIcon, Zap, User, 
-  Download, DollarSign 
+  Download, DollarSign, Users, Filter 
 } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
@@ -16,6 +16,8 @@ const EventsManager = ({ students, logActivity }) => {
   // --- States ---
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCardModal, setShowCardModal] = useState(false); 
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false); // ✅ نافذة الإضافة الجماعية
+  
   const [cardData, setCardData] = useState(null); 
   const [isCreating, setIsCreating] = useState(false);
   const [isLiveMode, setIsLiveMode] = useState(false); 
@@ -27,13 +29,17 @@ const EventsManager = ({ students, logActivity }) => {
       title: '', date: '', time: '', defaultPrice: '0', customMessage: '' 
   });
   
-  // Add Participant Form
+  // Add Participant Form (Single)
   const [addMode, setAddMode] = useState('existing');
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [externalName, setExternalName] = useState('');
   const [externalPhone, setExternalPhone] = useState(''); 
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Bulk Add States
+  const [bulkSearch, setBulkSearch] = useState('');
+  const [selectedBulkIds, setSelectedBulkIds] = useState([]);
+
   // سعر الطالب الفردي
   const [participantPrice, setParticipantPrice] = useState('');
 
@@ -58,6 +64,15 @@ const EventsManager = ({ students, logActivity }) => {
       !selectedEvent?.participants?.some(p => p.studentId === s.id)
     );
   }, [students, searchTerm, selectedEvent]);
+
+  // ✅ قائمة الطلاب المتاحين للإضافة الجماعية (غير الموجودين في الإيفنت)
+  const availableForBulk = useMemo(() => {
+      if (!students || !selectedEvent) return [];
+      return students.filter(s => 
+          !selectedEvent.participants?.some(p => p.studentId === s.id) &&
+          s.name.includes(bulkSearch)
+      );
+  }, [students, selectedEvent, bulkSearch]);
 
   // Stats
   const stats = useMemo(() => {
@@ -103,7 +118,7 @@ const EventsManager = ({ students, logActivity }) => {
     } catch (err) { console.error(err); }
   };
 
-  // 3. Add Participant
+  // 3. Add Participant (Single)
   const handleAddParticipant = async () => {
     if (!selectedEvent) return;
     let newParticipant = null;
@@ -152,6 +167,42 @@ const EventsManager = ({ students, logActivity }) => {
         setSelectedStudentId('');
         setSearchTerm('');
         setParticipantPrice(selectedEvent.defaultPrice || '0'); 
+    } catch (err) { console.error(err); }
+  };
+
+  // ✅ 3.5 Bulk Add Handler (الإضافة الجماعية)
+  const handleBulkAdd = async () => {
+      if (selectedBulkIds.length === 0) return;
+      
+      const specificPrice = Number(participantPrice) || 0;
+      
+      const newParticipants = selectedBulkIds.map(id => {
+          const student = students.find(s => s.id === id);
+          return {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // Unique ID
+            studentId: student.id,
+            name: student.name,
+            phone: student.phone || '', 
+            type: 'student',
+            paid: false,
+            requiredAmount: specificPrice,
+            amountPaid: 0,
+            attended: false,
+            result: '-', 
+            notes: ''
+          };
+      });
+
+      try {
+        const eventRef = doc(db, 'artifacts', appId, 'public', 'data', 'events', selectedEvent.id);
+        const updatedParticipants = [...(selectedEvent.participants || []), ...newParticipants];
+        await updateDoc(eventRef, { participants: updatedParticipants });
+        setSelectedEvent({ ...selectedEvent, participants: updatedParticipants });
+        
+        setShowBulkAddModal(false);
+        setSelectedBulkIds([]);
+        setBulkSearch('');
+        alert(`تم إضافة ${newParticipants.length} طلاب بنجاح`);
     } catch (err) { console.error(err); }
   };
 
@@ -321,11 +372,14 @@ const EventsManager = ({ students, logActivity }) => {
                 ) : (
                     <>
                         {/* Add Form */}
-                        <div className="p-4 bg-white/5 border-b border-white/10">
-                            <div className="flex gap-2 mb-3">
-                                <button onClick={() => setAddMode('existing')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'existing' ? 'bg-yellow-500 text-black' : 'bg-black text-gray-400'}`}>طالب</button>
+                        <div className="p-4 bg-white/5 border-b border-white/10 space-y-3">
+                            <div className="flex gap-2">
+                                <button onClick={() => setAddMode('existing')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'existing' ? 'bg-yellow-500 text-black' : 'bg-black text-gray-400'}`}>طالب فردي</button>
                                 <button onClick={() => setAddMode('external')} className={`flex-1 py-2 rounded-lg text-sm font-bold ${addMode === 'external' ? 'bg-yellow-500 text-black' : 'bg-black text-gray-400'}`}>زائر</button>
+                                {/* ✅ زر الإضافة الجماعية الجديد */}
+                                <button onClick={() => setShowBulkAddModal(true)} className="flex-1 py-2 rounded-lg text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center gap-2"><Users size={16}/> إضافة مجموعة</button>
                             </div>
+                            
                             <div className="flex gap-2 items-center">
                                 {addMode === 'existing' ? (
                                     <div className="flex-[2] relative">
@@ -418,36 +472,109 @@ const EventsManager = ({ students, logActivity }) => {
         )}
       </AnimatePresence>
 
-      {/* --- Card Modal (Revised Design White/Gold) --- */}
+      {/* --- ✅ Bulk Add Modal (النافذة الجديدة للإضافة الجماعية) --- */}
+      <AnimatePresence>
+        {showBulkAddModal && (
+            <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+                <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+                    
+                    {/* Header */}
+                    <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#151515]">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2"><Users className="text-yellow-500"/> إضافة طلاب من القائمة</h3>
+                        <button onClick={() => setShowBulkAddModal(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-white/10"><X size={20}/></button>
+                    </div>
+
+                    {/* Search & Price */}
+                    <div className="p-4 border-b border-white/10 flex gap-3">
+                        <div className="relative flex-1">
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" size={18}/>
+                            <input 
+                                className="w-full bg-black border border-white/20 text-white rounded-xl py-3 pr-10 pl-3 text-sm outline-none focus:border-yellow-500"
+                                placeholder="ابحث بالاسم..."
+                                value={bulkSearch}
+                                onChange={(e) => setBulkSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="relative w-32">
+                            <input 
+                                type="number" 
+                                className="w-full bg-black border border-white/20 text-white rounded-xl p-3 pl-8 text-sm outline-none font-bold text-center focus:border-yellow-500" 
+                                placeholder="السعر" 
+                                value={participantPrice} 
+                                onChange={e => setParticipantPrice(e.target.value)}
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">JD</span>
+                        </div>
+                    </div>
+
+                    {/* List */}
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {availableForBulk.map(s => {
+                                const isSelected = selectedBulkIds.includes(s.id);
+                                return (
+                                    <div 
+                                        key={s.id}
+                                        onClick={() => {
+                                            if (isSelected) setSelectedBulkIds(prev => prev.filter(id => id !== s.id));
+                                            else setSelectedBulkIds(prev => [...prev, s.id]);
+                                        }}
+                                        className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all
+                                            ${isSelected ? 'bg-yellow-500/20 border-yellow-500' : 'bg-white/5 border-transparent hover:bg-white/10'}
+                                        `}
+                                    >
+                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'}`}>
+                                            {isSelected && <CheckCircle size={14} className="text-black"/>}
+                                        </div>
+                                        <div>
+                                            <p className="text-white font-bold text-sm">{s.name}</p>
+                                            <p className="text-gray-400 text-xs">{s.belt || 'بدون حزام'} - {s.branch}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {availableForBulk.length === 0 && <p className="col-span-2 text-center text-gray-500 py-10">لا يوجد طلاب مطابقين للبحث</p>}
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-4 border-t border-white/10 bg-[#151515] flex justify-between items-center">
+                        <span className="text-gray-400 text-sm">تم تحديد: <strong className="text-white">{selectedBulkIds.length}</strong></span>
+                        <button 
+                            onClick={handleBulkAdd} 
+                            disabled={selectedBulkIds.length === 0}
+                            className="bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-bold transition-colors"
+                        >
+                            إضافة المحددين
+                        </button>
+                    </div>
+
+                </motion.div>
+            </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Card Modal (White/Gold Design) --- */}
       <AnimatePresence>
         {showCardModal && cardData && (
             <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="relative bg-white w-full max-w-sm overflow-hidden shadow-2xl rounded-xl">
                     <button onClick={() => setShowCardModal(false)} className="absolute top-2 right-2 z-10 bg-black/50 text-white p-1 rounded-full"><X size={20}/></button>
-                    
-                    {/* منطقة التصميم - أبيض وذهبي */}
                     <div id="invite-card-content" className="relative w-full aspect-[4/5] bg-white flex flex-col items-center justify-center p-6 border-8 border-[#d4af37]">
-                        
                         <div className="relative z-10 w-full text-center">
-                            {/* الشعار بدون دائرة */}
                             <div className="w-32 h-32 mx-auto mb-4 flex items-center justify-center">
                                 <img src={IMAGES.LOGO} className="w-full h-full object-contain" alt="Logo"/>
                             </div>
-                            
                             <h2 className="text-[#d4af37] text-sm font-bold tracking-[0.4em] mb-4 uppercase">دعوة خاصة</h2>
-                            
                             <div className="bg-[#d4af37] text-white text-xl font-black py-2 px-4 w-full mb-6 shadow-md rounded">
                                 <span className="block leading-tight">{cardData.name}</span>
                             </div>
-
                             <h1 className="text-black text-3xl font-black mb-2">{cardData.eventTitle}</h1>
-                            
                             <div className="flex justify-center gap-4 text-gray-600 text-sm mb-6 border-t border-b border-gray-200 py-3 mt-4">
                                 <div className="font-bold">📅 {cardData.date || '---'}</div>
                                 <div className="w-px bg-gray-300"></div>
                                 <div className="font-bold">⏰ {cardData.time || '---'}</div>
                             </div>
-
                             {cardData.note && (
                                 <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                     <p className="text-[#d4af37] text-xs font-bold mb-1">ملاحظة هامة:</p>
@@ -455,10 +582,8 @@ const EventsManager = ({ students, logActivity }) => {
                                 </div>
                             )}
                         </div>
-                        
                         <div className="absolute bottom-4 text-[10px] text-gray-400 tracking-widest uppercase font-bold">Brave Taekwondo Academy</div>
                     </div>
-
                     <div className="bg-[#111] p-4">
                         <button onClick={handleDownloadImage} className="w-full bg-yellow-500 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 transition-colors">
                             <Download size={20}/> حفظ الصورة
@@ -469,7 +594,7 @@ const EventsManager = ({ students, logActivity }) => {
         )}
       </AnimatePresence>
 
-      {/* --- Print Styles (Fixed - White Only) --- */}
+      {/* --- Print Styles --- */}
       <style>{`
           @media print {
             body { background: white !important; color: black !important; }
