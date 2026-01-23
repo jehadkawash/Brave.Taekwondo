@@ -10,6 +10,7 @@ import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; 
 import { IMAGES } from '../lib/constants'; 
 import { CalendarDays } from 'lucide-react'; 
+import { Scale } from 'lucide-react'; // استيراد الأيقونة
 // Import Managers
 import AdminNotesManager from './dashboard/AdminNotesManager';
 import { DashboardStats } from './dashboard/DashboardStats';
@@ -26,6 +27,7 @@ import ReportsManager from './dashboard/ReportsManager';
 import SubscriptionsManager from './dashboard/SubscriptionsManager';
 import NotesManager from './dashboard/NotesManager'; 
 import EventsManager from './dashboard/EventsManager'; 
+import WeightTracker from './dashboard/WeightTracker'; // استيراد الملف الجديد
 
 
 // --- دوال مساعدة ---
@@ -210,7 +212,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
       {id:'registrations', icon:Inbox, label:'طلبات التسجيل', badge: branchRegistrations.length},
       {id:'schedule', icon:Clock, label:'جدول الحصص'},
       {id:'notes', label: 'ملاحظات الإدارة', icon: FileText },
-      {id:'events', icon:CalendarDays, label:'إدارة الفعاليات'},
+      {id:'events', icon:CalendarDays, label:'إدارة التدريبات'},
+      {id:'weight', icon:Scale, label:'الاوزان'}, // 👈 الزر الجديد
       {id:'news', icon:Megaphone, label:'الاخبار والعروض'},
       {id:'reports', icon:FileText, label:'التقارير الشاملة'},
       {id:'captains', icon:Shield, label:'الكباتن والصلاحيات', role: 'admin'},
@@ -464,6 +467,8 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
              {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
              
              {activeTab === 'events' && <EventsManager students={branchStudents} logActivity={handleLog} />}
+
+             {activeTab === 'weight' && <WeightTracker students={branchStudents} logActivity={handleLog} />}
              
              {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
 
