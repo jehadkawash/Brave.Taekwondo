@@ -3,7 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { 
   Scale, Ruler, Activity, Plus, Search, Trash2, 
   ArrowUp, ArrowDown, Minus, ChevronRight, UserPlus, 
-  Printer, Settings, Users, Filter, Briefcase, X, CheckCircle, Calendar as CalendarIcon
+  Printer, Settings, Users, Filter, Briefcase, X, CheckCircle, Calendar as CalendarIcon, 
+  PlusCircle, Shield
 } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
@@ -20,15 +21,18 @@ const WeightTracker = ({ students, logActivity }) => {
   
   const [activeTeam, setActiveTeam] = useState('All');
   
-  // 📅 فلاتر التاريخ للتقارير
+  // Date Range Filter
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
-  const [printMode, setPrintMode] = useState('team'); // 'team' or 'individual'
+  const [printMode, setPrintMode] = useState('team'); 
 
   // Forms
   const [searchTerm, setSearchTerm] = useState('');
   const [bulkSearch, setBulkSearch] = useState('');
   const [selectedBulkIds, setSelectedBulkIds] = useState([]);
+  
+  // ✅ Pro Team Creation State
   const [targetTeamName, setTargetTeamName] = useState('فريق البطولة');
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false); // To toggle input field
 
   const [newMeasure, setNewMeasure] = useState({ 
       date: new Date().toISOString().split('T')[0], 
@@ -41,20 +45,36 @@ const WeightTracker = ({ students, logActivity }) => {
   const { data: trackers } = useCollection('fitness_tracking');
 
   // --- Helpers ---
-  const distinctTeams = useMemo(() => {
+  
+  // 1. استخراج قائمة الفرق الموجودة (بدون تكرار)
+  const existingTeams = useMemo(() => {
       if (!trackers) return ['فريق البطولة'];
-      const teams = trackers.map(t => t.team || 'عام');
-      return ['All', ...new Set(teams)];
+      const teams = trackers.map(t => t.team || 'عام').filter(Boolean);
+      return [...new Set(teams)]; // Remove duplicates
   }, [trackers]);
 
-  const getBirthYear = (tracker) => {
-      let dateVal = tracker.birthDate;
-      if (!dateVal && students) {
-          const student = students.find(s => s.id === tracker.studentId);
-          if (student) dateVal = student.birthDate || student.dob || student.dateOfBirth;
+  const distinctTeamsForTabs = useMemo(() => ['All', ...existingTeams], [existingTeams]);
+
+  // 2. دالة آمنة جداً لاستخراج سنة الميلاد (Anti-Crash)
+  const getBirthYear = (source) => {
+      try {
+          if (!source) return '---';
+          let dateVal = source.birthDate || source.dob || source.dateOfBirth;
+          
+          // إذا لم نجد التاريخ في المصدر المباشر، نبحث في قائمة الطلاب الأصلية
+          if (!dateVal && source.studentId && students) {
+              const originalStudent = students.find(s => s.id === source.studentId);
+              if (originalStudent) {
+                  dateVal = originalStudent.birthDate || originalStudent.dob || originalStudent.dateOfBirth;
+              }
+          }
+
+          if (!dateVal) return '---';
+          const dateObj = new Date(dateVal);
+          return isNaN(dateObj.getFullYear()) ? '---' : dateObj.getFullYear();
+      } catch (e) {
+          return '---';
       }
-      if (!dateVal) return '---';
-      try { return new Date(dateVal).getFullYear(); } catch (e) { return '---'; }
   };
 
   const filteredTrackers = useMemo(() => {
@@ -65,12 +85,11 @@ const WeightTracker = ({ students, logActivity }) => {
       return filtered;
   }, [trackers, searchTerm, activeTeam]);
 
-  // تجهيز البيانات للرسم البياني (عكس المصفوفة لتكون من القديم للحديث)
+  // Chart Data Preparation
   const chartData = useMemo(() => {
       if (!selectedTracker?.records) return [];
-      // نأخذ نسخة ونعكسها لأن records مرتبة الأحدث أولاً، والرسم البياني يحتاج الأقدم أولاً (من اليسار لليمين)
       return [...selectedTracker.records].reverse().map(r => ({
-          name: r.date.substring(5), // شهر-يوم
+          name: r.date.substring(5),
           weight: r.weight,
           fullDate: r.date
       }));
@@ -85,18 +104,40 @@ const WeightTracker = ({ students, logActivity }) => {
       return { diff, trend };
   };
 
+  // ✅ قائمة الطلاب المتاحين (مع حماية ضد الانهيار)
+  const availableStudents = useMemo(() => {
+      if (!students) return [];
+      const trackedIds = new Set(trackers?.map(t => t.studentId) || []);
+      return students.filter(s => !trackedIds.has(s.id));
+  }, [students, trackers]);
+
+  const bulkList = useMemo(() => {
+      return availableStudents.filter(s => s.name && s.name.includes(bulkSearch));
+  }, [availableStudents, bulkSearch]);
+
   // --- Handlers ---
   const handleBulkAdd = async () => {
       if (selectedBulkIds.length === 0) return;
+      if (!targetTeamName) return alert("يرجى اختيار أو إنشاء فريق");
+
       const batchPromises = selectedBulkIds.map(id => {
           const student = students.find(s => s.id === id);
+          if (!student) return null;
+          
           const bDate = student.birthDate || student.dob || student.dateOfBirth || '';
           return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking'), {
               studentId: student.id, name: student.name, belt: student.belt, birthDate: bDate, team: targetTeamName, 
               records: [], targetWeight: '', targetClass: '', lastUpdated: new Date().toISOString()
           });
       });
-      try { await Promise.all(batchPromises); setShowBulkAddModal(false); setSelectedBulkIds([]); setBulkSearch(''); alert(`تم إضافة اللاعبين إلى ${targetTeamName}`); } catch (err) { console.error(err); }
+
+      try { 
+          await Promise.all(batchPromises.filter(p => p !== null)); 
+          setShowBulkAddModal(false); 
+          setSelectedBulkIds([]); 
+          setBulkSearch(''); 
+          alert(`تم إضافة اللاعبين إلى ${targetTeamName}`); 
+      } catch (err) { console.error(err); }
   };
 
   const handleAddMeasurement = async (e) => {
@@ -138,57 +179,45 @@ const WeightTracker = ({ students, logActivity }) => {
       try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedTracker.id), { records: updatedRecords }); } catch (err) { console.error(err); }
   };
 
-  // 🖨️ دوال الطباعة الذكية
-  const handlePrintTeam = () => {
-      setPrintMode('team');
-      setTimeout(() => window.print(), 100);
-  };
-
-  const handlePrintIndividual = () => {
-      if(!selectedTracker) return;
-      setPrintMode('individual');
-      setTimeout(() => window.print(), 100);
-  };
+  const handlePrintTeam = () => { setPrintMode('team'); setTimeout(() => window.print(), 100); };
+  const handlePrintIndividual = () => { if(!selectedTracker) return; setPrintMode('individual'); setTimeout(() => window.print(), 100); };
 
   return (
     <div className="h-full flex flex-col md:flex-row gap-6 relative">
       
       {/* --- Sidebar --- */}
       <div className={`md:w-1/3 w-full bg-[#111] border border-white/10 rounded-3xl p-4 flex flex-col ${selectedTracker ? 'hidden md:flex' : 'flex'}`}>
-        {/* Header & Filters */}
         <div className="mb-4 space-y-3">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-black text-white flex items-center gap-2"><Scale className="text-yellow-500"/> المتابعة</h2>
                 <div className="flex gap-2">
                     <button onClick={handlePrintTeam} className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl" title="طباعة تقرير الفريق"><Printer size={20}/></button>
-                    <button onClick={() => setShowBulkAddModal(true)} className="bg-yellow-500 hover:bg-yellow-400 text-black p-2 rounded-xl font-bold flex items-center gap-1"><UserPlus size={20}/></button>
+                    <button onClick={() => { setTargetTeamName(existingTeams[0] || 'فريق البطولة'); setShowBulkAddModal(true); }} className="bg-yellow-500 hover:bg-yellow-400 text-black p-2 rounded-xl font-bold flex items-center gap-1"><UserPlus size={20}/></button>
                 </div>
             </div>
 
-            {/* Date Range Filter for Report */}
+            {/* Filters */}
             <div className="bg-white/5 p-2 rounded-xl border border-white/10 flex gap-2 items-center">
                 <CalendarIcon size={16} className="text-gray-500"/>
-                <input type="date" className="bg-transparent text-white text-[10px] w-24 outline-none" value={dateRange.from} onChange={e => setDateRange({...dateRange, from: e.target.value})} title="من تاريخ"/>
+                <input type="date" className="bg-transparent text-white text-[10px] w-24 outline-none" value={dateRange.from} onChange={e => setDateRange({...dateRange, from: e.target.value})}/>
                 <span className="text-gray-500 text-xs">إلى</span>
-                <input type="date" className="bg-transparent text-white text-[10px] w-24 outline-none" value={dateRange.to} onChange={e => setDateRange({...dateRange, to: e.target.value})} title="إلى تاريخ"/>
+                <input type="date" className="bg-transparent text-white text-[10px] w-24 outline-none" value={dateRange.to} onChange={e => setDateRange({...dateRange, to: e.target.value})}/>
                 {(dateRange.from || dateRange.to) && <button onClick={() => setDateRange({from:'', to:''})} className="text-red-500 ml-auto"><X size={14}/></button>}
             </div>
 
-            {/* Team Tabs */}
+            {/* Teams Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                {distinctTeams.map(team => (
+                {distinctTeamsForTabs.map(team => (
                     <button key={team} onClick={() => setActiveTeam(team)} className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition-all border ${activeTeam === team ? 'bg-white text-black border-white' : 'bg-black text-gray-400 border-white/10 hover:border-white/30'}`}>{team === 'All' ? 'الكل' : team}</button>
                 ))}
             </div>
         </div>
 
-        {/* Search */}
         <div className="relative mb-3">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" size={16}/>
             <input className="w-full bg-black border border-white/20 text-white rounded-xl py-2 pr-9 pl-3 text-sm outline-none focus:border-yellow-500" placeholder="بحث بالاسم..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
         </div>
 
-        {/* List */}
         <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
             {filteredTrackers.map(tracker => {
                 const lastRecord = tracker.records?.[0];
@@ -226,7 +255,7 @@ const WeightTracker = ({ students, logActivity }) => {
         </div>
       </div>
 
-      {/* --- Main Area: Details --- */}
+      {/* --- Main Area --- */}
       <div className={`md:w-2/3 w-full bg-[#111] border border-white/10 rounded-3xl flex flex-col ${selectedTracker ? 'flex' : 'hidden md:hidden'} overflow-hidden`}>
         {selectedTracker ? (
             <>
@@ -245,16 +274,14 @@ const WeightTracker = ({ students, logActivity }) => {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        {/* 🗑️ زر الحذف */}
-                        <button onClick={() => handleDeleteTracker(selectedTracker.id)} className="p-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all" title="حذف الطالب من المتابعة"><Trash2 size={20}/></button>
-                        {/* 🖨️ زر طباعة الفرد */}
-                        <button onClick={handlePrintIndividual} className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10" title="طباعة تقرير الطالب"><Printer size={20}/></button>
+                        <button onClick={() => handleDeleteTracker(selectedTracker.id)} className="p-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all"><Trash2 size={20}/></button>
+                        <button onClick={handlePrintIndividual} className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10"><Printer size={20}/></button>
                         <button onClick={() => { setTargetSettings({ targetWeight: selectedTracker.targetWeight || '', targetClass: selectedTracker.targetClass || '', team: selectedTracker.team || '' }); setShowSettingsModal(true); }} className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10"><Settings size={20}/></button>
                         <button onClick={() => setShowMeasureModal(true)} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black px-5 py-3 rounded-xl font-bold shadow-lg shadow-yellow-500/20"><Plus size={20}/> قياس</button>
                     </div>
                 </div>
 
-                {/* 📈 Chart Section (الرسم البياني) */}
+                {/* Chart */}
                 <div className="h-48 w-full p-4 bg-black/20 border-b border-white/5">
                      {chartData.length > 1 ? (
                          <ResponsiveContainer width="100%" height="100%">
@@ -271,7 +298,7 @@ const WeightTracker = ({ students, logActivity }) => {
                      )}
                 </div>
 
-                {/* History List */}
+                {/* History */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
                     <h3 className="text-gray-500 text-xs font-bold mb-4 uppercase tracking-widest">سجل القياسات</h3>
                     {selectedTracker.records && selectedTracker.records.length > 0 ? (
@@ -313,37 +340,74 @@ const WeightTracker = ({ students, logActivity }) => {
                 </div>
             </>
         ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-                <Scale size={64} className="opacity-20 mb-4"/><p>اختر لاعباً من القائمة</p>
-            </div>
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-500"><Scale size={64} className="opacity-20 mb-4"/><p>اختر لاعباً من القائمة</p></div>
         )}
       </div>
 
-      {/* --- Modals --- */}
-      {/* 1. Bulk Add */}
+      {/* --- ✅ PRO Bulk Add Modal --- */}
       <AnimatePresence>
         {showBulkAddModal && (
             <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-                <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+                <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-2xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#151515]">
                         <h3 className="text-xl font-bold text-white flex items-center gap-2"><UserPlus className="text-yellow-500"/> إضافة لاعبين للمراقبة</h3>
                         <button onClick={() => setShowBulkAddModal(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-white/10"><X size={20}/></button>
                     </div>
-                    <div className="p-4 bg-black/30 border-b border-white/10">
-                        <label className="block text-xs font-bold text-gray-400 mb-1">تعيين إلى الفريق:</label>
+                    
+                    {/* ✅ New Team Selection (Pills) */}
+                    <div className="p-5 bg-black/20 border-b border-white/10">
+                        <label className="block text-xs font-bold text-gray-400 mb-2">1. اختر الفريق المستهدف:</label>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {existingTeams.map(team => (
+                                <button 
+                                    key={team}
+                                    onClick={() => { setTargetTeamName(team); setIsCreatingTeam(false); }}
+                                    className={`px-4 py-2 rounded-full text-sm font-bold border transition-all 
+                                        ${targetTeamName === team && !isCreatingTeam
+                                            ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-900/50' 
+                                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/30'}`}
+                                >
+                                    {team}
+                                </button>
+                            ))}
+                            <button 
+                                onClick={() => setIsCreatingTeam(true)}
+                                className={`px-4 py-2 rounded-full text-sm font-bold border transition-all flex items-center gap-1
+                                    ${isCreatingTeam ? 'bg-green-600 text-white border-green-500' : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/30'}`}
+                            >
+                                <PlusCircle size={14}/> فريق جديد
+                            </button>
+                        </div>
+                        
+                        {/* حقل إنشاء فريق جديد */}
+                        {isCreatingTeam && (
+                            <motion.input 
+                                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                                className="w-full bg-black border border-green-500/50 text-white rounded-xl p-3 text-sm outline-none focus:border-green-500" 
+                                placeholder="اكتب اسم الفريق الجديد..." 
+                                value={targetTeamName} 
+                                onChange={(e) => setTargetTeamName(e.target.value)}
+                                autoFocus
+                            />
+                        )}
+                    </div>
+
+                    <div className="p-4 border-b border-white/10">
+                        <label className="block text-xs font-bold text-gray-400 mb-2">2. اختر الطلاب:</label>
                         <div className="relative">
-                            <input className="w-full bg-black border border-white/20 text-white rounded-xl p-3 text-sm outline-none focus:border-yellow-500" placeholder="اكتب اسم الفريق (مثال: فريق السفر)..." value={targetTeamName} onChange={(e) => setTargetTeamName(e.target.value)} list="teams-list"/>
-                            <datalist id="teams-list">{distinctTeams.filter(t => t !== 'All').map(t => <option key={t} value={t}/>)}</datalist>
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" size={16}/>
+                            <input className="w-full bg-black border border-white/20 text-white rounded-xl py-3 pr-9 pl-3 text-sm outline-none focus:border-yellow-500" placeholder="ابحث بالاسم..." value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)}/>
                         </div>
                     </div>
-                    <div className="p-4 border-b border-white/10"><input className="w-full bg-black border border-white/20 text-white rounded-xl py-3 px-3 text-sm outline-none focus:border-yellow-500" placeholder="ابحث بالاسم..." value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)}/></div>
+                    
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {bulkList.map(s => {
                                 const isSelected = selectedBulkIds.includes(s.id);
-                                const bYear = s.birthDate || s.dob || s.dateOfBirth ? getBirthYear({birthDate: s.birthDate || s.dob || s.dateOfBirth}) : '---';
+                                const bYear = getBirthYear(s); // Safe birth year
                                 return (
-                                    <div key={s.id} onClick={() => isSelected ? setSelectedBulkIds(prev => prev.filter(id => id !== s.id)) : setSelectedBulkIds(prev => [...prev, s.id])} className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${isSelected ? 'bg-yellow-500/20 border-yellow-500' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
+                                    <div key={s.id} onClick={() => isSelected ? setSelectedBulkIds(prev => prev.filter(id => id !== s.id)) : setSelectedBulkIds(prev => [...prev, s.id])}
+                                        className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${isSelected ? 'bg-yellow-500/20 border-yellow-500' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
                                         <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'}`}>{isSelected && <CheckCircle size={14} className="text-black"/>}</div>
                                         <div><p className="text-white font-bold text-sm">{s.name}</p><p className="text-gray-400 text-xs">{bYear} - {s.belt}</p></div>
                                     </div>
@@ -354,14 +418,16 @@ const WeightTracker = ({ students, logActivity }) => {
                     </div>
                     <div className="p-4 border-t border-white/10 bg-[#151515] flex justify-between items-center">
                         <span className="text-gray-400 text-sm">تم تحديد: <strong className="text-white">{selectedBulkIds.length}</strong></span>
-                        <button onClick={handleBulkAdd} disabled={selectedBulkIds.length === 0} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-bold">إضافة إلى {targetTeamName}</button>
+                        <button onClick={handleBulkAdd} disabled={selectedBulkIds.length === 0 || !targetTeamName} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-bold">
+                            إضافة إلى {isCreatingTeam ? 'الفريق الجديد' : targetTeamName}
+                        </button>
                     </div>
                 </motion.div>
             </div>
         )}
       </AnimatePresence>
 
-      {/* 2. Settings Modal */}
+      {/* --- Settings Modal --- */}
       <AnimatePresence>
         {showSettingsModal && (
             <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -381,7 +447,7 @@ const WeightTracker = ({ students, logActivity }) => {
         )}
       </AnimatePresence>
 
-      {/* 3. Measure Modal */}
+      {/* --- Measure Modal --- */}
       <AnimatePresence>
         {showMeasureModal && (
             <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -417,9 +483,8 @@ const WeightTracker = ({ students, logActivity }) => {
           }
       `}</style>
 
-      {/* --- Print Layouts (2 Modes) --- */}
+      {/* --- Print Layouts --- */}
       <div className="print-area hidden">
-          {/* 1. Team Report */}
           {printMode === 'team' && (
               <>
                 <div className="text-center mb-8 border-b-2 border-black pb-4">
@@ -443,26 +508,18 @@ const WeightTracker = ({ students, logActivity }) => {
                     </thead>
                     <tbody>
                         {filteredTrackers.map((t, i) => {
-                            // منطق الفلترة بالتاريخ
                             let startRec = null;
-                            let endRec = t.records?.[0]; // Default newest
-
+                            let endRec = t.records?.[0]; 
                             if (dateRange.from && dateRange.to) {
-                                // Find records within range
                                 const inRange = t.records?.filter(r => r.date >= dateRange.from && r.date <= dateRange.to);
                                 if (inRange && inRange.length > 0) {
-                                    startRec = inRange[inRange.length - 1]; // Oldest in range
-                                    endRec = inRange[0]; // Newest in range
-                                } else {
-                                    startRec = null;
-                                    endRec = null;
-                                }
+                                    startRec = inRange[inRange.length - 1]; 
+                                    endRec = inRange[0]; 
+                                } else { startRec = null; endRec = null; }
                             }
-
                             const startW = startRec ? Number(startRec.weight) : '-';
                             const endW = endRec ? Number(endRec.weight) : '-';
                             const diff = (startW !== '-' && endW !== '-') ? (endW - startW).toFixed(1) : '-';
-
                             return (
                                 <tr key={i}>
                                     <td>{i + 1}</td>
@@ -480,7 +537,6 @@ const WeightTracker = ({ students, logActivity }) => {
               </>
           )}
 
-          {/* 2. Individual Report */}
           {printMode === 'individual' && selectedTracker && (
              <>
                 <div className="text-center mb-8 border-b-2 border-black pb-4">
@@ -494,8 +550,6 @@ const WeightTracker = ({ students, logActivity }) => {
                         <span>الهدف: {selectedTracker.targetClass || 'غير محدد'}</span>
                     </div>
                 </div>
-                
-                {/* Chart Image Placeholder (Charts don't print well, so we focus on data) */}
                 <div style={{marginBottom: '20px', border: '1px solid #ccc', padding: '10px', textAlign: 'center'}}>
                     <p>ملخص الأداء</p>
                     <div style={{display: 'flex', justifyContent: 'space-around', marginTop: '10px'}}>
@@ -504,17 +558,8 @@ const WeightTracker = ({ students, logActivity }) => {
                          <div>عدد القياسات: <strong>{selectedTracker.records?.length || 0}</strong></div>
                     </div>
                 </div>
-
                 <table>
-                    <thead>
-                        <tr>
-                            <th>التاريخ</th>
-                            <th>الوزن (kg)</th>
-                            <th>الطول (cm)</th>
-                            <th>التغيير</th>
-                            <th>ملاحظات</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>التاريخ</th><th>الوزن (kg)</th><th>الطول (cm)</th><th>التغيير</th><th>ملاحظات</th></tr></thead>
                     <tbody>
                         {selectedTracker.records?.map((r, i) => {
                             const prev = selectedTracker.records[i + 1];
@@ -533,13 +578,11 @@ const WeightTracker = ({ students, logActivity }) => {
                 </table>
              </>
           )}
-
           <div className="mt-8 flex justify-between text-sm font-bold text-black">
               <p>تاريخ الطباعة: {new Date().toLocaleDateString('ar-JO')}</p>
               <p>توقيع المدرب: .........................</p>
           </div>
       </div>
-
     </div>
   );
 };
