@@ -8,8 +8,10 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
   const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null); 
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter archive by search
-  const filteredArchive = archiveCollection.data.filter(s => s.name.includes(searchTerm));
+  // ✅✅ التعديل الوحيد هنا: ترتيب التواريخ تنازلياً (الأحدث يظهر أولاً) ✅✅
+  const filteredArchive = archiveCollection.data
+      .filter(s => s.name.includes(searchTerm))
+      .sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt));
 
   // Function to restore student
   const restoreStudent = async (archivedStudent) => {
