@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { useCollection } from '../../hooks/useCollection'; 
 
-// --- ترتيب الأحزمة الثابت (Custom Sort) ---
+// --- ترتيب الأحزمة الثابت ---
 const BELT_ORDER = [
     'أبيض', 
     'أصفر', 
@@ -35,7 +35,7 @@ const BELT_COLORS_MAP = {
     'أسود': '#171717', 'بوم': '#ea580c'
 };
 
-// --- دالة تنسيق التاريخ الآمنة (Crash Protection) ---
+// --- دالة تنسيق التاريخ الآمنة ---
 const safeDate = (dateStr) => {
     try {
         if (!dateStr) return null;
@@ -169,7 +169,6 @@ export const DashboardStats = ({
   // --- 2. البيانات المالية (حسب السنة المختارة) ---
   const financeData = useMemo(() => {
     const data = [];
-    // إنشاء مصفوفة 12 شهر للسنة المختارة
     for (let i = 0; i < 12; i++) {
         const monthIndex = i + 1;
         const monthKey = `${financialYear}-${String(monthIndex).padStart(2, '0')}`;
@@ -183,7 +182,7 @@ export const DashboardStats = ({
     return data;
   }, [branchPayments, financialYear]);
 
-  // --- 3. القوائم الذكية ---
+  // --- 3. القوائم الذكية (المنطق المصحح) ---
   
   const newStudents = useMemo(() => {
       const oneWeekAgo = new Date();
@@ -194,27 +193,47 @@ export const DashboardStats = ({
       }).slice(0, 5);
   }, [branchStudents]);
 
+  // ✅ تصحيح منطق الغياب
   const absentStudents = useMemo(() => {
+      const today = new Date();
       const fiveDaysAgo = new Date();
-      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-      const fiveDaysStr = fiveDaysAgo.toISOString().split('T')[0];
+      fiveDaysAgo.setDate(today.getDate() - 5);
+      
+      // توحيد الوقت للمقارنة العادلة
+      fiveDaysAgo.setHours(23, 59, 59, 999);
 
       return branchStudents.filter(s => {
-          // الطلاب الذين لديهم سجل حضور فقط نتحقق منهم
-          // إذا لم يكن لديه سجل حضور أبداً، لا نعتبره "غائباً" في هذا السياق لتجنب ملء القائمة بطلاب جدد
-          if (!s.attendance || Object.keys(s.attendance).length === 0) return false; 
+          // 1. إذا كان الطالب جديداً (انضم خلال آخر 5 أيام) لا نعتبره غائباً
+          const joinDate = safeDate(s.joinDate);
+          if (joinDate && joinDate > fiveDaysAgo) return false;
+
+          // 2. إذا لم يكن لديه سجل حضور نهائياً، وانضم من فترة طويلة -> يعتبر غائب
+          if (!s.attendance || Object.keys(s.attendance).length === 0) return true;
           
-          const dates = Object.keys(s.attendance).sort();
-          const lastAtt = dates[dates.length - 1];
-          return lastAtt < fiveDaysStr;
+          // 3. نأخذ آخر تاريخ حضور
+          const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); // تنازلي
+          const lastAttDate = dates[0]; // أحدث تاريخ
+
+          // إذا كان آخر حضور أقدم من 5 أيام -> يعتبر غائب
+          return lastAttDate < fiveDaysAgo;
       }).slice(0, 10); 
   }, [branchStudents]);
 
+  // ✅ تصحيح منطق الفحوصات (مقارنة تواريخ صحيحة)
   const upcomingTests = useMemo(() => {
       if (!beltTests) return [];
-      const today = new Date().toISOString().split('T')[0];
+      
+      // تاريخ اليوم مصفر الوقت (00:00:00)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       return beltTests
-        .filter(t => t.date >= today && t.branch === selectedBranch)
+        .filter(t => {
+            const testDate = safeDate(t.date);
+            // إذا التاريخ غير صالح أو قديم، نستبعده
+            // إذا كان التاريخ أكبر من أو يساوي اليوم
+            return testDate && testDate >= today && t.branch === selectedBranch;
+        })
         .sort((a,b) => new Date(a.date) - new Date(b.date))
         .slice(0, 5);
   }, [beltTests, selectedBranch]);
@@ -436,7 +455,7 @@ export const DashboardStats = ({
                           </button>
                       </div>
                   </div>
-              )) : <p className="text-center text-slate-600 text-xs py-4">الالتزام ممتاز! لا يوجد غياب لاحد ضمن 5 ايام </p>}
+              )) : <p className="text-center text-slate-600 text-xs py-4">الالتزام ممتاز! لا يوجد غياب طويل</p>}
           </ListCard>
 
       </div>
