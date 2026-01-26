@@ -4,7 +4,7 @@ import {
   Scale, Ruler, Activity, Plus, Search, Trash2, 
   ArrowUp, ArrowDown, ChevronRight, UserPlus, 
   Printer, Settings, Users, Briefcase, X, CheckCircle, Calendar as CalendarIcon, 
-  PlusCircle, Tag
+  PlusCircle, Tag, Clock
 } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
@@ -31,11 +31,13 @@ const WeightTracker = ({ students, logActivity }) => {
   const [selectedBulkIds, setSelectedBulkIds] = useState([]);
   
   // Team Management
-  const [targetTeamName, setTargetTeamName] = useState(''); // للفريق المختار في المودال
-  const [newTeamInput, setNewTeamInput] = useState(''); // لإضافة فريق جديد داخل الاعدادات
+  const [targetTeamName, setTargetTeamName] = useState(''); 
+  const [newTeamInput, setNewTeamInput] = useState(''); 
 
+  // ✅ New Measure Form (Added Time)
   const [newMeasure, setNewMeasure] = useState({ 
       date: new Date().toISOString().split('T')[0], 
+      time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), // Default current time
       weight: '', height: '', note: '' 
   });
 
@@ -46,27 +48,22 @@ const WeightTracker = ({ students, logActivity }) => {
 
   // --- Helpers ---
   
-  // ✅ 1. استخراج كافة الفرق (القديمة والجديدة)
   const allTeams = useMemo(() => {
       if (!trackers) return ['عام'];
       const teamsSet = new Set();
-      teamsSet.add('عام'); // Default
-      
+      teamsSet.add('عام'); 
       trackers.forEach(t => {
-          // دعم البيانات القديمة (string) والجديدة (array)
           if (t.teams && Array.isArray(t.teams)) {
               t.teams.forEach(team => teamsSet.add(team));
           } else if (t.team) {
               teamsSet.add(t.team);
           }
       });
-      
       return Array.from(teamsSet);
   }, [trackers]);
 
   const distinctTeamsForTabs = useMemo(() => ['الكل', ...allTeams], [allTeams]);
 
-  // دالة مساعدة لمعرفة فرق الطالب (توحيد القديم والجديد)
   const getStudentTeams = (tracker) => {
       if (tracker.teams && Array.isArray(tracker.teams)) return tracker.teams;
       if (tracker.team) return [tracker.team];
@@ -87,31 +84,25 @@ const WeightTracker = ({ students, logActivity }) => {
       } catch (e) { return '---'; }
   };
 
-  // ✅ فلترة ذكية تدعم التعدد
   const filteredTrackers = useMemo(() => {
       if (!trackers) return [];
       let filtered = trackers;
-      
-      // Filter by Team
       if (activeTeam !== 'الكل') {
           filtered = filtered.filter(t => {
               const teams = getStudentTeams(t);
               return teams.includes(activeTeam);
           });
       }
-
-      // Filter by Search
-      if (searchTerm) {
-          filtered = filtered.filter(t => t.name.includes(searchTerm));
-      }
+      if (searchTerm) filtered = filtered.filter(t => t.name.includes(searchTerm));
       return filtered;
   }, [trackers, searchTerm, activeTeam]);
 
   // Chart Data
   const chartData = useMemo(() => {
       if (!selectedTracker?.records) return [];
+      // نعكس المصفوفة (لأننا نخزن الأحدث أولاً، والرسم يحتاج الأقدم أولاً)
       return [...selectedTracker.records].reverse().map(r => ({
-          name: r.date.substring(5),
+          name: `${r.date.substring(5)} (${r.time || ''})`, // نظهر الوقت في الرسم أيضاً
           weight: r.weight,
           fullDate: r.date
       }));
@@ -126,7 +117,6 @@ const WeightTracker = ({ students, logActivity }) => {
       return { diff, trend };
   };
 
-  // قائمة الطلاب المتاحين (للبحث العام)
   const bulkList = useMemo(() => {
       if (!students) return [];
       return students.filter(s => s.name && s.name.includes(bulkSearch));
@@ -134,36 +124,28 @@ const WeightTracker = ({ students, logActivity }) => {
 
   // --- Handlers ---
 
-  // ✅ 1. Bulk Add (Updated for Multi-Team Logic)
   const handleBulkAdd = async () => {
       if (selectedBulkIds.length === 0) return;
       if (!targetTeamName) return alert("يرجى كتابة اسم الفريق أو اختياره");
 
       const promises = selectedBulkIds.map(async (id) => {
-          // 1. هل الطالب موجود أصلاً في المتابعة؟
           const existingTracker = trackers.find(t => t.studentId === id);
-          
           if (existingTracker) {
-              // ✅ إذا موجود: فقط نضيف الفريق الجديد للقائمة (بدون تكرار)
               const currentTeams = getStudentTeams(existingTracker);
               if (!currentTeams.includes(targetTeamName)) {
                   const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', existingTracker.id);
-                  // نحول الحقل القديم team إلى teams إذا لزم الأمر
                   return updateDoc(docRef, {
                       teams: arrayUnion(targetTeamName),
-                      team: targetTeamName // نبقي القديم مؤقتاً للتوافق ولكن الاعتماد ع الجديد
+                      team: targetTeamName 
                   });
               }
           } else {
-              // ✅ إذا غير موجود: ننشئ ملف جديد
               const student = students.find(s => s.id === id);
               if (!student) return null;
               const bDate = student.birthDate || student.dob || student.dateOfBirth || '';
-              
               return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking'), {
                   studentId: student.id, name: student.name, belt: student.belt, birthDate: bDate,
-                  teams: [targetTeamName], // Array format
-                  team: targetTeamName, // Legacy format backup
+                  teams: [targetTeamName], team: targetTeamName,
                   records: [], targetWeight: '', targetClass: '', lastUpdated: new Date().toISOString()
               });
           }
@@ -178,27 +160,52 @@ const WeightTracker = ({ students, logActivity }) => {
       } catch (err) { console.error(err); }
   };
 
+  // ✅ 2. إضافة قياس (مع الترتيب حسب الوقت والتاريخ)
   const handleAddMeasurement = async (e) => {
       e.preventDefault();
       if (!newMeasure.weight || !newMeasure.date) return alert("الوزن والتاريخ مطلوبان");
-      const record = { id: Date.now().toString(), date: newMeasure.date, weight: Number(newMeasure.weight), height: newMeasure.height ? Number(newMeasure.height) : null, note: newMeasure.note || '' };
+      
+      const record = { 
+          id: Date.now().toString(), 
+          date: newMeasure.date, 
+          time: newMeasure.time || '00:00', // حفظ الوقت
+          weight: Number(newMeasure.weight), 
+          height: newMeasure.height ? Number(newMeasure.height) : null, 
+          note: newMeasure.note || '' 
+      };
+
       try {
           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedTracker.id);
-          const updatedRecords = [...(selectedTracker.records || []), record].sort((a,b) => new Date(b.date) - new Date(a.date));
+          
+          // دمج السجلات الجديدة مع القديمة
+          const currentRecords = selectedTracker.records || [];
+          const updatedRecords = [...currentRecords, record];
+
+          // ✅✅ الفرز الذكي: حسب التاريخ ثم الوقت (الأحدث أولاً)
+          updatedRecords.sort((a, b) => {
+              const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+              const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+              return dateB - dateA; // تنازلي (الأحدث في الأعلى)
+          });
+
           await updateDoc(docRef, { records: updatedRecords, lastUpdated: new Date().toISOString() });
+          
           setSelectedTracker({ ...selectedTracker, records: updatedRecords });
           setShowMeasureModal(false);
-          setNewMeasure({ date: new Date().toISOString().split('T')[0], weight: '', height: '', note: '' });
+          // Reset form with current date/time
+          setNewMeasure({ 
+              date: new Date().toISOString().split('T')[0], 
+              time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+              weight: '', height: '', note: '' 
+          });
       } catch (err) { console.error(err); }
   };
 
-  // ✅ إدارة الفرق من داخل الإعدادات (حذف/إضافة)
   const handleAddTeamToStudent = async () => {
       if(!newTeamInput) return;
       try {
           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedTracker.id);
           await updateDoc(docRef, { teams: arrayUnion(newTeamInput) });
-          // Update local state
           const updatedTeams = [...getStudentTeams(selectedTracker), newTeamInput];
           setSelectedTracker({...selectedTracker, teams: updatedTeams});
           setNewTeamInput('');
@@ -210,7 +217,6 @@ const WeightTracker = ({ students, logActivity }) => {
       try {
           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedTracker.id);
           await updateDoc(docRef, { teams: arrayRemove(teamToRemove) });
-          // Update local state
           const updatedTeams = getStudentTeams(selectedTracker).filter(t => t !== teamToRemove);
           setSelectedTracker({...selectedTracker, teams: updatedTeams});
       } catch(err) { console.error(err); }
@@ -261,7 +267,6 @@ const WeightTracker = ({ students, logActivity }) => {
                 </div>
             </div>
 
-            {/* Filters */}
             <div className="bg-white/5 p-2 rounded-xl border border-white/10 flex gap-2 items-center">
                 <CalendarIcon size={16} className="text-gray-500"/>
                 <input type="date" className="bg-transparent text-white text-[10px] w-24 outline-none" value={dateRange.from} onChange={e => setDateRange({...dateRange, from: e.target.value})}/>
@@ -270,7 +275,6 @@ const WeightTracker = ({ students, logActivity }) => {
                 {(dateRange.from || dateRange.to) && <button onClick={() => setDateRange({from:'', to:''})} className="text-red-500 ml-auto"><X size={14}/></button>}
             </div>
 
-            {/* Teams Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                 {distinctTeamsForTabs.map(team => (
                     <button key={team} onClick={() => setActiveTeam(team)} className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition-all border ${activeTeam === team ? 'bg-white text-black border-white' : 'bg-black text-gray-400 border-white/10 hover:border-white/30'}`}>{team}</button>
@@ -299,7 +303,6 @@ const WeightTracker = ({ students, logActivity }) => {
                                     <h3 className="font-bold text-white text-sm">{tracker.name}</h3>
                                     <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 rounded">{birthYear}</span>
                                 </div>
-                                {/* Teams Tags */}
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                     {studentTeams.map(team => (
                                         <span key={team} className="text-[10px] text-blue-300 border border-blue-500/30 bg-blue-900/20 px-1.5 rounded">{team}</span>
@@ -382,9 +385,11 @@ const WeightTracker = ({ students, logActivity }) => {
                                 return (
                                     <div key={record.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between group relative hover:bg-white/10 transition-colors">
                                         <div className="flex items-center gap-4">
+                                            {/* Date Box */}
                                             <div className="bg-black/40 px-3 py-2 rounded-lg text-center min-w-[60px]">
                                                 <span className="block text-white font-bold text-sm">{record.date.split('-')[2]}/{record.date.split('-')[1]}</span>
-                                                <span className="block text-gray-500 text-[10px]">{record.date.split('-')[0]}</span>
+                                                {/* عرض الوقت تحت التاريخ */}
+                                                <span className="block text-blue-400 font-mono text-[10px] mt-1">{record.time || '--:--'}</span>
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
@@ -423,25 +428,16 @@ const WeightTracker = ({ students, logActivity }) => {
             <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
                 <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-2xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#151515]">
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2"><UserPlus className="text-yellow-500"/> إضافة لاعبين للفرق</h3>
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2"><UserPlus className="text-yellow-500"/> إضافة لاعبين للمراقبة</h3>
                         <button onClick={() => setShowBulkAddModal(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-white/10"><X size={20}/></button>
                     </div>
                     
                     <div className="p-5 bg-black/20 border-b border-white/10">
                         <label className="block text-xs font-bold text-gray-400 mb-2">1. اكتب اسم الفريق:</label>
                         <div className="flex gap-2">
-                            <input 
-                                className="flex-1 bg-black border border-white/20 text-white rounded-xl p-3 text-sm outline-none focus:border-yellow-500" 
-                                placeholder="اكتب اسم الفريق (مثال: فريق السفر)..." 
-                                value={targetTeamName} 
-                                onChange={(e) => setTargetTeamName(e.target.value)}
-                                list="teams-list"
-                            />
-                            <datalist id="teams-list">
-                                {allTeams.filter(t => t !== 'عام').map(t => <option key={t} value={t}/>)}
-                            </datalist>
+                            <input className="flex-1 bg-black border border-white/20 text-white rounded-xl p-3 text-sm outline-none focus:border-yellow-500" placeholder="اكتب اسم الفريق (مثال: فريق السفر)..." value={targetTeamName} onChange={(e) => setTargetTeamName(e.target.value)} list="teams-list"/>
+                            <datalist id="teams-list">{allTeams.filter(t => t !== 'عام').map(t => <option key={t} value={t}/>)}</datalist>
                         </div>
-                        {/* اقتراحات سريعة */}
                         <div className="flex flex-wrap gap-2 mt-2">
                             {allTeams.filter(t => t !== 'عام').map(team => (
                                 <button key={team} onClick={() => setTargetTeamName(team)} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 px-2 py-1 rounded-lg">{team}</button>
@@ -450,7 +446,7 @@ const WeightTracker = ({ students, logActivity }) => {
                     </div>
 
                     <div className="p-4 border-b border-white/10">
-                        <label className="block text-xs font-bold text-gray-400 mb-2">2. اختر الطلاب (الموجودين والجدد):</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2">2. اختر الطلاب:</label>
                         <div className="relative">
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" size={16}/>
                             <input className="w-full bg-black border border-white/20 text-white rounded-xl py-3 pr-9 pl-3 text-sm outline-none focus:border-yellow-500" placeholder="ابحث بالاسم..." value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)}/>
@@ -461,7 +457,6 @@ const WeightTracker = ({ students, logActivity }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {bulkList.map(s => {
                                 const isSelected = selectedBulkIds.includes(s.id);
-                                // هل الطالب موجود أصلاً في المتابعة؟
                                 const existing = trackers?.find(t => t.studentId === s.id);
                                 const currentTeams = existing ? getStudentTeams(existing) : [];
                                 
@@ -481,25 +476,22 @@ const WeightTracker = ({ students, logActivity }) => {
                     </div>
                     <div className="p-4 border-t border-white/10 bg-[#151515] flex justify-between items-center">
                         <span className="text-gray-400 text-sm">تم تحديد: <strong className="text-white">{selectedBulkIds.length}</strong></span>
-                        <button onClick={handleBulkAdd} disabled={selectedBulkIds.length === 0 || !targetTeamName} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-bold">
-                            تحديث الفرق
-                        </button>
+                        <button onClick={handleBulkAdd} disabled={selectedBulkIds.length === 0 || !targetTeamName} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-bold">تحديث الفرق</button>
                     </div>
                 </motion.div>
             </div>
         )}
       </AnimatePresence>
 
-      {/* --- Settings Modal (إدارة الفرق) --- */}
+      {/* --- Settings Modal --- */}
       <AnimatePresence>
         {showSettingsModal && (
             <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
                     <h3 className="text-xl font-bold text-white mb-6 text-center">إعدادات اللاعب</h3>
                     
-                    {/* إدارة الفرق */}
                     <div className="mb-6 p-4 bg-black/30 rounded-xl border border-white/10">
-                        <label className="block text-xs font-bold text-gray-400 mb-2">إدارة الفرق المسجل بها:</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-2">إدارة الفرق:</label>
                         <div className="flex flex-wrap gap-2 mb-3">
                             {getStudentTeams(selectedTracker).map(team => (
                                 <span key={team} className="flex items-center gap-1 text-xs bg-blue-900/30 text-blue-300 border border-blue-500/30 px-2 py-1 rounded-lg">
@@ -527,14 +519,23 @@ const WeightTracker = ({ students, logActivity }) => {
         )}
       </AnimatePresence>
 
-      {/* --- Measure Modal --- */}
+      {/* --- Measure Modal (With Time) --- */}
       <AnimatePresence>
         {showMeasureModal && (
             <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
                 <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-sm p-6 shadow-2xl">
                     <h3 className="text-xl font-bold text-white mb-6 text-center">قياس جديد</h3>
                     <form onSubmit={handleAddMeasurement} className="space-y-4">
-                        <div><label className="block text-xs font-bold text-gray-400 mb-1">التاريخ</label><input type="date" className="w-full bg-black border border-white/20 p-3 rounded-xl text-white outline-none focus:border-yellow-500" value={newMeasure.date} onChange={e => setNewMeasure({...newMeasure, date: e.target.value})}/></div>
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-gray-400 mb-1">التاريخ</label>
+                                <input type="date" className="w-full bg-black border border-white/20 p-3 rounded-xl text-white outline-none focus:border-yellow-500" value={newMeasure.date} onChange={e => setNewMeasure({...newMeasure, date: e.target.value})}/>
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-gray-400 mb-1">الوقت</label>
+                                <input type="time" className="w-full bg-black border border-white/20 p-3 rounded-xl text-white outline-none focus:border-yellow-500" value={newMeasure.time} onChange={e => setNewMeasure({...newMeasure, time: e.target.value})}/>
+                            </div>
+                        </div>
                         <div className="flex gap-4">
                             <div className="flex-1"><label className="block text-xs font-bold text-gray-400 mb-1">الوزن (kg) <span className="text-red-500">*</span></label><input type="number" step="0.1" className="w-full bg-black border border-white/20 p-3 rounded-xl text-white outline-none focus:border-yellow-500 font-bold text-lg" value={newMeasure.weight} onChange={e => setNewMeasure({...newMeasure, weight: e.target.value})} autoFocus/></div>
                             <div className="flex-1"><label className="block text-xs font-bold text-gray-400 mb-1">الطول (cm)</label><input type="number" className="w-full bg-black border border-white/20 p-3 rounded-xl text-white outline-none focus:border-yellow-500" value={newMeasure.height} onChange={e => setNewMeasure({...newMeasure, height: e.target.value})}/></div>
@@ -639,14 +640,14 @@ const WeightTracker = ({ students, logActivity }) => {
                     </div>
                 </div>
                 <table>
-                    <thead><tr><th>التاريخ</th><th>الوزن (kg)</th><th>الطول (cm)</th><th>التغيير</th><th>ملاحظات</th></tr></thead>
+                    <thead><tr><th>التاريخ / الوقت</th><th>الوزن (kg)</th><th>الطول (cm)</th><th>التغيير</th><th>ملاحظات</th></tr></thead>
                     <tbody>
                         {selectedTracker.records?.map((r, i) => {
                             const prev = selectedTracker.records[i + 1];
                             const diff = prev ? (r.weight - prev.weight).toFixed(1) : '-';
                             return (
                                 <tr key={i}>
-                                    <td>{r.date}</td>
+                                    <td>{r.date} <span style={{fontSize: '10px', color: '#555'}}>({r.time || '-'})</span></td>
                                     <td style={{fontWeight: 'bold'}}>{r.weight}</td>
                                     <td>{r.height || '-'}</td>
                                     <td style={{direction: 'ltr'}}>{diff > 0 ? `+${diff}` : diff}</td>
