@@ -5,7 +5,7 @@ import {
   Users, DollarSign, Activity, 
   AlertCircle, PieChart as PieIcon, BarChart3,
   Clock, UserPlus, Award, UserX, Phone, MessageCircle, 
-  X, Calendar, List
+  X, List, Calendar, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -13,25 +13,36 @@ import {
 } from 'recharts';
 import { useCollection } from '../../hooks/useCollection'; 
 
-// --- ترتيب الأحزمة الثابت ---
+// --- ترتيب الأحزمة الثابت (Custom Sort) ---
 const BELT_ORDER = [
     'أبيض', 
     'أصفر', 
-    'أخضر 1', 'أخضر 2', 'أخضر', // دمجنا الاحتمالات
+    'أخضر 1', 'أخضر 2', 'أخضر',
     'أزرق 1', 'أزرق 2', 'أزرق',
-    'بني 1', 'بني 2', 'بني', 'أحمر', // أحيانا يسمونه بني أو أحمر
-    'أحمر 1', 'أحمر 2', 
+    'بني 1', 'بني 2', 'بني', 
+    'أحمر 1', 'أحمر 2', 'أحمر',
     'أسود', 'بوم'
 ];
 
+// --- ألوان الأحزمة ---
 const BELT_COLORS_MAP = {
     'أبيض': '#f8fafc',       
     'أصفر': '#facc15',       
-    'أخضر 1': '#4ade80', 'أخضر 2': '#22c55e', 'أخضر': '#22c55e',
-    'أزرق 1': '#60a5fa', 'أزرق 2': '#3b82f6', 'أزرق': '#3b82f6',
-    'بني 1': '#a855f7', 'بني 2': '#7e22ce', // استخدمنا البنفسجي للبني للتمييز
-    'أحمر 1': '#f87171', 'أحمر 2': '#ef4444', 'أحمر': '#ef4444',
+    'أخضر 1': '#4ade80', 'أخضر 2': '#22c55e', 'أخضر': '#16a34a',
+    'أزرق 1': '#60a5fa', 'أزرق 2': '#3b82f6', 'أزرق': '#2563eb',
+    'بني 1': '#c084fc', 'بني 2': '#a855f7', 'بني': '#9333ea',
+    'أحمر 1': '#f87171', 'أحمر 2': '#ef4444', 'أحمر': '#dc2626',
     'أسود': '#171717', 'بوم': '#ea580c'
+};
+
+// --- دالة تنسيق التاريخ الآمنة (Crash Protection) ---
+const safeDate = (dateStr) => {
+    try {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        return d;
+    } catch { return null; }
 };
 
 // --- مودال سجل الحركات الكامل ---
@@ -48,18 +59,26 @@ const LogsModal = ({ isOpen, onClose, logs }) => {
                     <button onClick={onClose}><X size={24} className="text-slate-500 hover:text-red-500"/></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2">
-                    {logs.map((log, i) => (
-                        <div key={i} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                            <div>
-                                <p className="text-slate-200 font-bold text-sm">{log.action}</p>
-                                <p className="text-slate-500 text-xs mt-1">{log.details}</p>
+                    {logs.map((log, i) => {
+                        const dateObj = safeDate(log.timestamp);
+                        return (
+                            <div key={i} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <p className="text-slate-200 font-bold text-sm">{log.action}</p>
+                                    <p className="text-slate-500 text-xs mt-1">{log.details}</p>
+                                </div>
+                                <div className="text-left min-w-[80px]">
+                                    <span className="block text-[10px] text-blue-400 bg-blue-900/10 px-2 py-1 rounded mb-1 text-center">{log.performedBy || 'System'}</span>
+                                    <span className="text-[10px] text-slate-600 dir-ltr block text-center">
+                                        {dateObj ? dateObj.toLocaleDateString('en-GB') : '-'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-600 dir-ltr block text-center">
+                                        {dateObj ? dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="text-left">
-                                <span className="block text-[10px] text-blue-400 bg-blue-900/10 px-2 py-1 rounded mb-1">{log.performedBy}</span>
-                                <span className="text-[10px] text-slate-600 dir-ltr">{new Date(log.timestamp).toLocaleDateString('en-GB')} {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>,
@@ -102,9 +121,9 @@ const ListCard = ({ title, icon: Icon, children, colorClass = "text-yellow-500",
 );
 
 export const DashboardStats = ({ 
-  user, selectedBranch, branchStudents, netProfit, 
-  activeStudentsCount, nearEndCount, activityLogs, 
-  branchPayments, branchRegistrations, totalAttendance 
+  user, selectedBranch, branchStudents = [], netProfit, 
+  activeStudentsCount, nearEndCount, activityLogs = [], 
+  branchPayments = [], branchRegistrations = [], totalAttendance = 0 
 }) => {
   
   // States
@@ -169,7 +188,10 @@ export const DashboardStats = ({
   const newStudents = useMemo(() => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      return branchStudents.filter(s => new Date(s.joinDate) >= oneWeekAgo).slice(0, 5);
+      return branchStudents.filter(s => {
+          const join = safeDate(s.joinDate);
+          return join && join >= oneWeekAgo;
+      }).slice(0, 5);
   }, [branchStudents]);
 
   const absentStudents = useMemo(() => {
@@ -178,11 +200,14 @@ export const DashboardStats = ({
       const fiveDaysStr = fiveDaysAgo.toISOString().split('T')[0];
 
       return branchStudents.filter(s => {
-          if (!s.attendance) return true; 
+          // الطلاب الذين لديهم سجل حضور فقط نتحقق منهم
+          // إذا لم يكن لديه سجل حضور أبداً، لا نعتبره "غائباً" في هذا السياق لتجنب ملء القائمة بطلاب جدد
+          if (!s.attendance || Object.keys(s.attendance).length === 0) return false; 
+          
           const dates = Object.keys(s.attendance).sort();
           const lastAtt = dates[dates.length - 1];
-          return !lastAtt || lastAtt < fiveDaysStr;
-      }).slice(0, 10); // عرضنا 10 طلاب
+          return lastAtt < fiveDaysStr;
+      }).slice(0, 10); 
   }, [branchStudents]);
 
   const upcomingTests = useMemo(() => {
@@ -227,7 +252,7 @@ export const DashboardStats = ({
         <div className="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl flex items-center gap-4 shadow-lg w-full md:w-auto justify-between md:justify-start">
            <div className="text-left">
                <p className="text-lg font-black text-white dir-ltr leading-none">
-                   {time.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: true})}
+                   {time.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', second: '2-digit', hour12: true})}
                </p>
            </div>
            <div className="h-8 w-px bg-slate-700"></div>
@@ -264,7 +289,7 @@ export const DashboardStats = ({
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 items-center">
                 <button onClick={() => setFinancialYear(y => y - 1)} className="p-1 hover:text-white text-slate-500"><ChevronLeft size={16}/></button>
                 <span className="px-3 font-bold text-slate-200 text-sm">{financialYear}</span>
-                <button onClick={() => setFinancialYear(y => y + 1)} className="p-1 hover:text-white text-slate-500 rotate-180"><ChevronLeft size={16}/></button>
+                <button onClick={() => setFinancialYear(y => y + 1)} className="p-1 hover:text-white text-slate-500"><ChevronRight size={16}/></button>
             </div>
           </div>
           
@@ -319,6 +344,7 @@ export const DashboardStats = ({
               </PieChart>
             </ResponsiveContainer>
             
+            {/* Center Text */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                <div className="text-center">
                  <span className="block text-3xl font-black text-white">{branchStudents.length}</span>
@@ -355,7 +381,9 @@ export const DashboardStats = ({
                   <div key={i} className="text-sm border-b border-slate-800/50 pb-2 last:border-0 group">
                       <div className="flex justify-between">
                           <p className="text-slate-200 font-bold text-xs">{log.action}</p>
-                          <span className="text-[9px] text-slate-600 dir-ltr">{new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                          <span className="text-[9px] text-slate-600 dir-ltr">
+                              {safeDate(log.timestamp) ? safeDate(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-'}
+                          </span>
                       </div>
                       <p className="text-slate-500 text-[10px] truncate">{log.details}</p>
                   </div>
@@ -385,7 +413,7 @@ export const DashboardStats = ({
                       </div>
                       <div className="text-center bg-slate-900 px-2 py-1 rounded border border-slate-700">
                           <span className="block text-[8px] text-slate-500">سعر</span>
-                          <span className="text-xs text-yellow-500 font-bold">{t.price}</span>
+                          <span className="text-xs text-yellow-500 font-bold">{t.price} JD</span>
                       </div>
                   </div>
               )) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد فحوصات قادمة</p>}
@@ -408,7 +436,7 @@ export const DashboardStats = ({
                           </button>
                       </div>
                   </div>
-              )) : <p className="text-center text-slate-600 text-xs py-4">الالتزام ممتاز! لا يوجد غياب طويل</p>}
+              )) : <p className="text-center text-slate-600 text-xs py-4">الالتزام ممتاز! لا يوجد غياب لاحد ضمن 5 ايام </p>}
           </ListCard>
 
       </div>
