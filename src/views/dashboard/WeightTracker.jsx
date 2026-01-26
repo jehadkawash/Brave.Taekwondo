@@ -4,7 +4,7 @@ import {
   Scale, Ruler, Activity, Plus, Search, Trash2, 
   ArrowUp, ArrowDown, ChevronRight, UserPlus, 
   Printer, Settings, Users, Briefcase, X, CheckCircle, Calendar as CalendarIcon, 
-  PlusCircle, Clock
+  PlusCircle, Tag, Clock
 } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
@@ -14,7 +14,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const WeightTracker = ({ students, logActivity }) => {
   // --- States ---
-  const [selectedStudent, setSelectedStudent] = useState(null); // تم تغيير الاسم ليعكس أنه طالب قد يكون مراقباً أو لا
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [showMeasureModal, setShowMeasureModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -47,8 +47,7 @@ const WeightTracker = ({ students, logActivity }) => {
 
   // --- Helpers ---
   
-  // ✅ 1. دمج الطلاب مع بيانات المراقبة (Merge Logic)
-  // هذه الخطوة تضمن ظهور جميع طلاب الأكاديمية سواء كان لهم سجل وزن أم لا
+  // ✅ 1. دمج الطلاب مع بيانات المراقبة (ليظهر الجميع)
   const combinedList = useMemo(() => {
       if (!students) return [];
       return students.map(student => {
@@ -56,23 +55,21 @@ const WeightTracker = ({ students, logActivity }) => {
           const tracker = trackers?.find(t => t.studentId === student.id);
           
           return {
-              ...student, // بيانات الطالب الأساسية من سجل الطلاب
-              // بيانات المراقبة (إذا وجدت) أو قيم افتراضية
-              trackerId: tracker?.id || null, // مهم جداً للتمييز هل هو جديد أم قديم
-              teams: tracker?.teams || (tracker?.team ? [tracker.team] : []),
+              ...student, // بيانات الطالب الأساسية
+              trackerId: tracker?.id || null, // هل هو مراقب أم لا؟
+              teams: tracker?.teams || (tracker?.team ? [tracker.team] : []), // توحيد صيغة الفرق
               records: tracker?.records || [],
               targetWeight: tracker?.targetWeight || '',
               targetClass: tracker?.targetClass || '',
-              // استخدام تاريخ الميلاد من سجل الطالب الأصلي كأولوية
+              // الأولوية لتاريخ الميلاد من سجل الطالب
               birthDate: student.birthDate || student.dob || tracker?.birthDate || ''
           };
       });
   }, [students, trackers]);
 
-  // استخراج الفرق الموجودة من البيانات
+  // استخراج الفرق
   const allTeams = useMemo(() => {
       const teamsSet = new Set();
-      // teamsSet.add('عام'); 
       trackers?.forEach(t => {
           if (t.teams && Array.isArray(t.teams)) t.teams.forEach(tm => teamsSet.add(tm));
           else if (t.team) teamsSet.add(t.team);
@@ -82,13 +79,13 @@ const WeightTracker = ({ students, logActivity }) => {
 
   const distinctTeamsForTabs = useMemo(() => ['الكل', ...allTeams], [allTeams]);
 
-  // ✅ الفلترة بناءً على القائمة المدمجة (الكل موجود)
+  // ✅ الفلترة بناءً على القائمة المدمجة
   const filteredList = useMemo(() => {
       let filtered = combinedList;
 
       // فلتر الفريق
       if (activeTeam !== 'الكل') {
-          // هنا نعرض فقط الطلاب المنضمين للفريق المختار
+          // يظهر الطالب فقط إذا كان ضمن الفريق المختار
           filtered = filtered.filter(s => s.teams.includes(activeTeam));
       }
 
@@ -100,7 +97,7 @@ const WeightTracker = ({ students, logActivity }) => {
       return filtered;
   }, [combinedList, searchTerm, activeTeam]);
 
-  // تجهيز بيانات الطالب المختار عند النقر
+  // عند اختيار طالب
   const handleSelectStudent = (student) => {
       setSelectedStudent(student);
       setTargetSettings({
@@ -109,7 +106,6 @@ const WeightTracker = ({ students, logActivity }) => {
       });
   };
 
-  // Helper Functions
   const getBirthYear = (dateStr) => {
       if (!dateStr) return '---';
       try { return new Date(dateStr).getFullYear(); } catch { return '---'; }
@@ -135,7 +131,7 @@ const WeightTracker = ({ students, logActivity }) => {
 
   // --- Handlers ---
 
-  // ✅ 1. إضافة قياس (وإنشاء ملف تتبع تلقائياً إذا لم يوجد)
+  // ✅ 1. إضافة قياس (وإنشاء ملف تلقائي للجدد)
   const handleAddMeasurement = async (e) => {
       e.preventDefault();
       if (!newMeasure.weight || !newMeasure.date) return alert("الوزن والتاريخ مطلوبان");
@@ -151,7 +147,7 @@ const WeightTracker = ({ students, logActivity }) => {
 
       try {
           if (selectedStudent.trackerId) {
-              // ✅ الحالة أ: الطالب مراقب سابقاً، نحدث ملفه
+              // تحديث الملف الموجود
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedStudent.trackerId);
               const updatedRecords = [...selectedStudent.records, record].sort((a, b) => {
                   const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
@@ -159,24 +155,21 @@ const WeightTracker = ({ students, logActivity }) => {
                   return dateB - dateA;
               });
               await updateDoc(docRef, { records: updatedRecords, lastUpdated: new Date().toISOString() });
-              
-              // تحديث محلي
               setSelectedStudent({...selectedStudent, records: updatedRecords});
           } else {
-              // ✅ الحالة ب: الطالب غير مراقب، ننشئ له ملف جديد
+              // إنشاء ملف جديد للطالب غير المراقب
               const newTrackerData = {
                   studentId: selectedStudent.id,
                   name: selectedStudent.name,
                   belt: selectedStudent.belt,
                   birthDate: selectedStudent.birthDate || '',
-                  teams: [], // لا يوجد فريق افتراضي إلا إذا حددنا
+                  teams: [], 
                   records: [record],
                   targetWeight: '',
                   targetClass: '',
                   lastUpdated: new Date().toISOString()
               };
               const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking'), newTrackerData);
-              // تحديث محلي ليصبح "مراقب" فوراً
               setSelectedStudent({ ...selectedStudent, trackerId: docRef.id, records: [record] });
           }
 
@@ -185,28 +178,21 @@ const WeightTracker = ({ students, logActivity }) => {
       } catch (err) { console.error(err); }
   };
 
-  // ✅ 2. تحديث الفرق والإعدادات (وإنشاء ملف تتبع إذا لم يوجد)
+  // ✅ 2. تحديث الفرق والإعدادات (وإنشاء ملف تلقائي للجدد)
   const handleUpdateSettings = async (e) => {
       e.preventDefault();
       try {
           if (selectedStudent.trackerId) {
-              // تحديث
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedStudent.trackerId);
               await updateDoc(docRef, { 
                   targetWeight: targetSettings.targetWeight, 
                   targetClass: targetSettings.targetClass 
               });
           } else {
-              // إنشاء
               const newTrackerData = {
-                  studentId: selectedStudent.id,
-                  name: selectedStudent.name,
-                  belt: selectedStudent.belt,
-                  birthDate: selectedStudent.birthDate || '',
-                  teams: [],
-                  records: [],
-                  targetWeight: targetSettings.targetWeight,
-                  targetClass: targetSettings.targetClass,
+                  studentId: selectedStudent.id, name: selectedStudent.name, belt: selectedStudent.belt, birthDate: selectedStudent.birthDate || '',
+                  teams: [], records: [],
+                  targetWeight: targetSettings.targetWeight, targetClass: targetSettings.targetClass,
                   lastUpdated: new Date().toISOString()
               };
               const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking'), newTrackerData);
@@ -225,7 +211,6 @@ const WeightTracker = ({ students, logActivity }) => {
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedStudent.trackerId);
               await updateDoc(docRef, { teams: arrayUnion(newTeamInput) });
           } else {
-              // إنشاء إذا لم يوجد
               const newTrackerData = {
                   studentId: selectedStudent.id, name: selectedStudent.name, belt: selectedStudent.belt, birthDate: selectedStudent.birthDate || '',
                   teams: [newTeamInput], records: [], targetWeight: '', targetClass: '', lastUpdated: new Date().toISOString()
@@ -233,7 +218,6 @@ const WeightTracker = ({ students, logActivity }) => {
               const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking'), newTrackerData);
               setSelectedStudent(prev => ({ ...prev, trackerId: docRef.id }));
           }
-          // تحديث محلي
           const updatedTeams = [...(selectedStudent.teams || []), newTeamInput];
           setSelectedStudent(prev => ({ ...prev, teams: updatedTeams }));
           setNewTeamInput('');
@@ -251,7 +235,7 @@ const WeightTracker = ({ students, logActivity }) => {
       } catch(err) { console.error(err); }
   };
 
-  // ✅ 3. Bulk Add (لإضافة فرق لمجموعة طلاب دفعة واحدة)
+  // ✅ 3. Bulk Add (محدث ليعمل مع الجميع)
   const handleBulkAdd = async () => {
       if (selectedBulkIds.length === 0) return;
       if (!targetTeamName) return alert("اختر الفريق");
@@ -259,16 +243,14 @@ const WeightTracker = ({ students, logActivity }) => {
       const promises = selectedBulkIds.map(async (id) => {
           const tracker = trackers?.find(t => t.studentId === id);
           if (tracker) {
-              // إذا موجود: أضف الفريق
               const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', tracker.id);
-              return updateDoc(docRef, { teams: arrayUnion(targetTeamName), team: targetTeamName });
+              return updateDoc(docRef, { teams: arrayUnion(targetTeamName) });
           } else {
-              // إذا غير موجود: أنشئ ملف
               const student = students.find(s => s.id === id);
               if (!student) return;
               return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking'), {
                   studentId: student.id, name: student.name, belt: student.belt, birthDate: student.birthDate || '',
-                  teams: [targetTeamName], team: targetTeamName,
+                  teams: [targetTeamName],
                   records: [], targetWeight: '', targetClass: '', lastUpdated: new Date().toISOString()
               });
           }
@@ -284,9 +266,8 @@ const WeightTracker = ({ students, logActivity }) => {
       try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', selectedStudent.trackerId), { records: updatedRecords }); } catch (err) { console.error(err); }
   };
 
-  // حذف الطالب من "المتابعة" فقط (لا يحذف من الأكاديمية)
   const handleDeleteTracker = async (id) => {
-      if(!confirm("⚠️ هل أنت متأكد من حذف سجلات أوزان هذا الطالب؟ (لن يتم حذف الطالب من الأكاديمية)")) return;
+      if(!confirm("⚠️ هل أنت متأكد؟ سيتم حذف جميع سجلات الوزن والأفرقة لهذا الطالب.")) return;
       try {
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'fitness_tracking', id));
           setSelectedStudent(null);
@@ -306,7 +287,6 @@ const WeightTracker = ({ students, logActivity }) => {
                 <h2 className="text-xl font-black text-white flex items-center gap-2"><Scale className="text-yellow-500"/> مراقبة الوزن</h2>
                 <div className="flex gap-2">
                     <button onClick={handlePrintTeam} className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl" title="طباعة القائمة"><Printer size={20}/></button>
-                    {/* زر الإضافة للمجموعات */}
                     <button onClick={() => { setTargetTeamName(''); setShowBulkAddModal(true); }} className="bg-yellow-500 hover:bg-yellow-400 text-black p-2 rounded-xl font-bold flex items-center gap-1" title="إدارة المجموعات"><Users size={20}/></button>
                 </div>
             </div>
