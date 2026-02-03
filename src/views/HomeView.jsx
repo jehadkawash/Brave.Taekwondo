@@ -412,7 +412,7 @@ const HomeView = ({ setView, schedule }) => {
             <div className="mb-10">
                <img src={IMAGES.LOGO} alt="Logo" className="w-20 h-20 mx-auto opacity-50 grayscale hover:grayscale-0 transition-all duration-500 hover:scale-110" />
             </div>
-            <p className="text-gray-500 text-sm font-medium tracking-wide">© 2024 أكاديمية الشجاع للتايكواندو. جميع الحقوق محفوظة.</p>
+            <p className="text-gray-500 text-sm font-medium tracking-wide">© 2020 أكاديمية الشجاع للتايكواندو. جميع الحقوق محفوظة.</p>
          </div>
       </footer>
 
