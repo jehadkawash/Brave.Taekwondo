@@ -151,7 +151,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
       await studentsCollection.update(studentId, { group: newGroup });
   };
 
-  // --- Print Report Function ---
+  // --- Print Report Function (Compact & First/Last Name) ---
   const printReport = () => {
     const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -159,12 +159,22 @@ export default function AttendanceManager({ students, studentsCollection, groups
     // Generate Headers (Days)
     let daysHeaders = '';
     for(let i=1; i<=daysInMonth; i++) {
-        daysHeaders += `<th style="font-size:10px; width:20px; border:1px solid #ccc; background:#f9f9f9;">${i}</th>`;
+        daysHeaders += `<th style="font-size:10px; width:16px; border:1px solid #000; background:#f9f9f9; padding:2px 0;">${i}</th>`;
     }
 
     // Generate Rows (Students)
     let rowsHtml = '';
     processedStudents.forEach((s, idx) => {
+        // --- Name formatting (First and Last name only) ---
+        let displayName = s.name || "";
+        const nameParts = displayName.trim().split(/\s+/);
+        if (nameParts.length > 1) {
+            displayName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+        } else if (nameParts.length === 1) {
+            displayName = nameParts[0];
+        }
+        // ----------------------------------------------------
+
         let cells = '';
         for(let i=1; i<=daysInMonth; i++) {
             const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
@@ -175,20 +185,20 @@ export default function AttendanceManager({ students, studentsCollection, groups
             let bg = '';
             
             if (isFriday) {
-                bg = '#eee';
+                bg = '#e5e7eb'; // Gray for Friday
             } else if (isPresent) {
                 content = '✓';
                 bg = '#dcfce7'; 
             }
             
-            cells += `<td style="border:1px solid #ccc; background:${bg}; text-align:center; font-size:12px; color:#166534; font-weight:bold;">${content}</td>`;
+            cells += `<td style="border:1px solid #000; background:${bg}; text-align:center; font-size:11px; color:#166534; font-weight:bold; padding:1px 0;">${content}</td>`;
         }
         
         rowsHtml += `
             <tr>
-                <td style="border:1px solid #ccc; padding:5px; font-weight:bold; text-align:center;">${idx + 1}</td>
-                <td style="border:1px solid #ccc; padding:5px; text-align:right;">${s.name}</td>
-                <td style="border:1px solid #ccc; padding:5px; text-align:center; font-size:11px;">${s.group || '-'}</td>
+                <td style="border:1px solid #000; padding:2px; font-weight:bold; text-align:center; font-size:10px;">${idx + 1}</td>
+                <td style="border:1px solid #000; padding:2px 5px; text-align:right; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${displayName}</td>
+                <td style="border:1px solid #000; padding:2px; text-align:center; font-size:10px;">${s.group || '-'}</td>
                 ${cells}
             </tr>
         `;
@@ -201,42 +211,50 @@ export default function AttendanceManager({ students, studentsCollection, groups
           <title>كشف الحضور - ${monthNames[month]} ${year}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-            body { font-family: 'Cairo', sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            h1 { text-align: center; color: #b45309; margin-bottom: 5px; }
-            .header-info { text-align: center; margin-bottom: 20px; font-weight:bold; color:#555; }
-            @page { size: A4 landscape; margin: 10mm; }
+            body { font-family: 'Cairo', sans-serif; padding: 0; margin: 0; }
+            .print-container { padding: 10px 15px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            h1 { text-align: center; color: #000; margin: 0 0 2px 0; font-size: 18px; }
+            .header-info { text-align: center; margin-bottom: 10px; font-weight:bold; color:#333; font-size: 12px; }
+            @page { size: A4 landscape; margin: 5mm; } 
+            
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              td, th { border: 1px solid #000 !important; }
+            }
           </style>
         </head>
         <body>
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #b45309; padding-bottom:10px;">
-                <div>
-                    <h1>أكاديمية الشجاع للتايكواندو</h1>
-                    <div style="font-size:12px;">فرع: ${selectedBranch}</div>
+            <div class="print-container">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom: 5px;">
+                    <div>
+                        <h1>أكاديمية الشجاع للتايكواندو</h1>
+                        <div style="font-size:11px; font-weight:bold;">فرع: ${selectedBranch}</div>
+                    </div>
+                    <img src="${logoUrl}" style="height:40px;" onerror="this.style.display='none'"/>
                 </div>
-                <img src="${logoUrl}" style="height:60px;" onerror="this.style.display='none'"/>
-            </div>
 
-            <div class="header-info">
-                سجل الحضور والغياب | شهر: ${monthNames[month]} ${year} | المجموعة: ${selectedGroup}
-            </div>
+                <div class="header-info">
+                    سجل الحضور والغياب | شهر: ${monthNames[month]} ${year} | المجموعة: ${selectedGroup}
+                </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th style="border:1px solid #ccc; background:#eee; width:30px;">#</th>
-                        <th style="border:1px solid #ccc; background:#eee; width:200px;">اسم الطالب</th>
-                        <th style="border:1px solid #ccc; background:#eee; width:80px;">المجموعة</th>
-                        ${daysHeaders}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-            
-            <div style="margin-top:20px; font-size:10px; text-align:left; color:#777;">
-                تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')}
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:20px; font-size:11px; padding:3px;">#</th>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:150px; font-size:11px; padding:3px;">اسم الطالب</th>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:50px; font-size:11px; padding:3px;">الفترة</th>
+                            ${daysHeaders}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top:10px; font-size:9px; text-align:left; color:#555;">
+                    تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')} | تم الإنشاء بواسطة نظام إدارة الأكاديمية
+                </div>
             </div>
         </body>
       </html>
@@ -319,7 +337,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     {isReordering ? "حفظ الترتيب" : "ترتيب"}
                 </Button>
                 
-                {/* زر الطباعة الجديد */}
+                {/* زر الطباعة */}
                 <Button 
                     onClick={printReport}
                     className="bg-slate-800 text-slate-300 gap-2 hover:bg-slate-700 hover:text-white border border-slate-700"
