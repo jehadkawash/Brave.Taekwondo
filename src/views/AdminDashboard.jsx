@@ -3,14 +3,14 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, 
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin, 
-  Award, Calendar, ChevronDown, X, MessageSquare 
+  Award, Calendar, ChevronDown, X, MessageSquare, ArrowRight 
 } from 'lucide-react'; 
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; 
 import { IMAGES } from '../lib/constants'; 
-import { CalendarDays } from 'lucide-react'; 
-import { Scale } from 'lucide-react'; // استيراد الأيقونة
+import { CalendarDays, Scale } from 'lucide-react'; 
+
 // Import Managers
 import AdminNotesManager from './dashboard/AdminNotesManager';
 import { DashboardStats } from './dashboard/DashboardStats';
@@ -27,7 +27,7 @@ import ReportsManager from './dashboard/ReportsManager';
 import SubscriptionsManager from './dashboard/SubscriptionsManager';
 import NotesManager from './dashboard/NotesManager'; 
 import EventsManager from './dashboard/EventsManager'; 
-import WeightTracker from './dashboard/WeightTracker'; // استيراد الملف الجديد
+import WeightTracker from './dashboard/WeightTracker'; 
 
 
 // --- دوال مساعدة ---
@@ -51,7 +51,7 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// --- مكون القائمة المنسدلة (Updated for Dark/Pro Theme) ---
+// --- مكون القائمة المنسدلة ---
 const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -113,6 +113,36 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleCollection, handleLogout, onSwitchBranch }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // --- التوجيه الذكي المتوافق مع App.jsx ---
+  useEffect(() => {
+      // 1. عند فتح الصفحة، افحص الهاش لو كان موجوداً
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+          setActiveTab(hash);
+          window.history.replaceState({ view: 'admin_dashboard', tab: hash }, '', `#${hash}`);
+      } else {
+          window.history.replaceState({ view: 'admin_dashboard', tab: 'dashboard' }, '', '#dashboard');
+      }
+
+      // 2. الاستماع لزر الرجوع في المتصفح/الجوال
+      const handlePopState = (event) => {
+          // نتأكد أننا ما زلنا في الإدارة حتى لا نكسر App.jsx
+          if (event.state && event.state.view === 'admin_dashboard') {
+              setActiveTab(event.state.tab || 'dashboard');
+          }
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // دالة تغيير التبويب المركزية (هذه ما يجعل زر الرجوع يعمل)
+  const changeTab = (tabId) => {
+      setActiveTab(tabId);
+      window.history.pushState({ view: 'admin_dashboard', tab: tabId }, '', `#${tabId}`);
+      setMobileMenuOpen(false); // إغلاق القائمة في الموبايل عند الاختيار
+  };
 
   // جلب البيانات
   const paymentsCollection = useCollection('payments');
@@ -195,37 +225,36 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
     downloadAnchorNode.remove();
   };
 
-  // --- تعريف المجموعات الجديدة ---
-  
-  // المجموعة الأولى: طلاب
+  // --- تعريف المجموعات (مع تطبيق الصلاحيات RBAC) ---
+  const isManager = user.role === 'admin' || user.isSuper;
+
+  // المجموعة الأولى: طلاب (نخفي الأشياء الحساسة عن الكابتن)
   const studentGroups = [
       {id:'students', icon:Users, label:'الطلاب'}, 
       {id:'student_notes', icon:MessageSquare, label:'الملاحظات والرسائل'}, 
       {id:'subscriptions', icon:Calendar, label:'اشتراكات'},
       {id:'tests', icon:Award, label:'فحص'},
-      {id:'finance', icon:DollarSign, label:'وصولات'},
-      {id:'archive', icon:Archive, label:'الأرشيف'},
-  ];
+      {id:'finance', icon:DollarSign, label:'المالية والوصولات', role: 'admin'}, // الإدارة فقط
+      {id:'archive', icon:Archive, label:'الأرشيف', role: 'admin'}, // الإدارة فقط
+  ].filter(i => !i.role || isManager);
 
-  // المجموعة الثانية: الإدارة
+  // المجموعة الثانية: الإدارة (نخفي الأشياء الحساسة عن الكابتن)
   const adminGroups = [
       {id:'registrations', icon:Inbox, label:'طلبات التسجيل', badge: branchRegistrations.length},
       {id:'schedule', icon:Clock, label:'جدول الحصص'},
-      {id:'notes', label: 'ملاحظات الإدارة', icon: FileText },
       {id:'events', icon:CalendarDays, label:'إدارة التدريبات'},
-      {id:'weight', icon:Scale, label:'الاوزان'}, // 👈 الزر الجديد
+      {id:'weight', icon:Scale, label:'الاوزان'},
       {id:'news', icon:Megaphone, label:'الاخبار والعروض'},
-      {id:'reports', icon:FileText, label:'التقارير الشاملة'},
-      {id:'captains', icon:Shield, label:'الكباتن والصلاحيات', role: 'admin'},
-      // زر الباك اب كخيار في القائمة
+      {id:'notes', label: 'ملاحظات الإدارة الداخلية', icon: FileText, role: 'admin' }, // الإدارة فقط
+      {id:'reports', icon:FileText, label:'التقارير الشاملة', role: 'admin'}, // الإدارة فقط
+      {id:'captains', icon:Shield, label:'الكباتن والصلاحيات', role: 'admin'}, // الإدارة فقط
       {id:'backup', icon:Database, label:'باك اب داتابيس', role: 'admin', action: handleBackup, special: true}, 
-  ].filter(i => !i.role || i.role === user.role);
+  ].filter(i => !i.role || isManager);
 
   return (
-    // ✨ Changed to Dark Mode (Slate-950) with refined typography
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans flex flex-col selection:bg-yellow-500/30" dir="rtl">
       
-      {/* --- الشريط العلوي (Pro Header) --- */}
+      {/* --- الشريط العلوي --- */}
       <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white shadow-lg sticky top-0 z-40 transition-all duration-300">
           <div className="container mx-auto px-4 h-16 flex justify-between items-center">
               
@@ -245,7 +274,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       <div className="text-xs text-yellow-500 font-bold flex items-center gap-1">
                           {user.name} 
                           <span className="text-slate-600">|</span> 
-                          <span className="text-slate-400">{selectedBranch === 'شفا بدران' ? 'فرع شفا بدران' : 'فرع أبو نصير'}</span>
+                          <span className="text-slate-400">{selectedBranch}</span>
                       </div>
                   </div>
               </div>
@@ -253,7 +282,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
               {/* القائمة الرئيسية (لابتوب) */}
               <nav className="hidden md:flex items-center gap-2">
                   <button 
-                      onClick={() => setActiveTab('dashboard')}
+                      onClick={() => changeTab('dashboard')}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 font-bold text-sm border border-transparent
                           ${activeTab === 'dashboard' 
                             ? 'text-yellow-400 bg-slate-800 border-slate-700 shadow-lg shadow-black/20' 
@@ -269,12 +298,12 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       icon={Users} 
                       items={studentGroups} 
                       activeTab={activeTab} 
-                      onSelect={setActiveTab}
+                      onSelect={changeTab}
                   />
 
-                  {/* زر الحضور والغياب (أساسي) - High Visibility Style */}
+                  {/* زر الحضور والغياب */}
                   <button 
-                      onClick={() => setActiveTab('attendance')}
+                      onClick={() => changeTab('attendance')}
                       className={`flex items-center gap-2 px-4 py-2 mx-2 rounded-xl transition-all duration-300 font-bold text-sm border 
                           ${activeTab === 'attendance' 
                             ? 'bg-yellow-500 text-slate-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)] scale-105' 
@@ -289,13 +318,13 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       icon={Shield} 
                       items={adminGroups} 
                       activeTab={activeTab} 
-                      onSelect={setActiveTab}
+                      onSelect={changeTab}
                   />
               </nav>
 
               {/* أدوات إضافية (موبايل + خروج) */}
               <div className="flex items-center gap-3">
-                  {onSwitchBranch && (
+                  {onSwitchBranch && user.isSuper && (
                       <div className="hidden md:block relative group">
                           <div className="p-2 rounded-lg bg-slate-800 border border-slate-700 group-hover:border-yellow-500/50 transition-colors">
                             <MapPin size={20} className="text-slate-400 group-hover:text-yellow-500 cursor-pointer transition-colors"/>
@@ -321,11 +350,11 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
               </div>
           </div>
 
-          {/* --- قائمة الموبايل (Pro Mobile Menu) --- */}
+          {/* --- قائمة الموبايل --- */}
           {mobileMenuOpen && (
               <div className="md:hidden bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-4 space-y-4 animate-in slide-in-from-top-5 duration-300 absolute w-full left-0 z-50 shadow-2xl h-[calc(100vh-64px)] overflow-y-auto">
                   
-                  {onSwitchBranch && (
+                  {onSwitchBranch && user.isSuper && (
                       <div className="bg-slate-800/50 border border-slate-700 p-3 rounded-xl flex items-center justify-between mb-4">
                           <span className="text-slate-400 text-sm font-medium">الفرع الحالي:</span>
                           <select 
@@ -339,20 +368,19 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       </div>
                   )}
 
-                  <button onClick={() => {setActiveTab('dashboard'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-white font-bold border border-slate-700 hover:border-yellow-500/50 transition-all">
+                  <button onClick={() => changeTab('dashboard')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-white font-bold border border-slate-700 hover:border-yellow-500/50 transition-all">
                       <Activity size={20} className="text-yellow-500"/> الرئيسية
                   </button>
 
-                  <button onClick={() => {setActiveTab('attendance'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg shadow-yellow-500/20">
+                  <button onClick={() => changeTab('attendance')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg shadow-yellow-500/20">
                       <CheckCircle size={20}/> حضور وغياب
                   </button>
 
-                  {/* مجموعة الطلاب (موبايل) */}
                   <div className="space-y-2">
                       <h3 className="text-[10px] font-black text-slate-500 px-2 uppercase tracking-wider">الطلاب</h3>
                       <div className="grid grid-cols-2 gap-3">
                           {studentGroups.map(item => (
-                              <button key={item.id} onClick={() => {setActiveTab(item.id); setMobileMenuOpen(false);}} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-xs font-bold border transition-all duration-200 
+                              <button key={item.id} onClick={() => changeTab(item.id)} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-xs font-bold border transition-all duration-200 
                                   ${activeTab === item.id 
                                     ? 'bg-yellow-500 text-slate-900 border-yellow-500 shadow-md' 
                                     : 'bg-slate-800/50 text-slate-400 border-slate-800 hover:bg-slate-800 hover:border-slate-700'}`}>
@@ -362,7 +390,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       </div>
                   </div>
 
-                  {/* مجموعة الإدارة (موبايل) */}
                   <div className="space-y-2">
                       <h3 className="text-[10px] font-black text-slate-500 px-2 uppercase tracking-wider">الادارة</h3>
                       <div className="grid grid-cols-2 gap-3">
@@ -371,8 +398,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                                   key={item.id} 
                                   onClick={() => { 
                                       if (item.action) item.action();
-                                      else setActiveTab(item.id); 
-                                      setMobileMenuOpen(false);
+                                      else changeTab(item.id); 
                                   }} 
                                   className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-xs font-bold border transition-all duration-200
                                       ${item.special 
@@ -390,92 +416,55 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
           )}
       </header>
 
-      {/* --- المحتوى الرئيسي --- */}
-      <main className="flex-1 w-full px-4 md:px-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mx-auto">
-         <div className="bg-slate-900/0 rounded-2xl min-h-[500px]"> {/* Container for content */}
-             {activeTab === 'dashboard' && <DashboardStats 
-                 user={user} 
-                 selectedBranch={selectedBranch} 
-                 branchStudents={branchStudents} 
-                 netProfit={netProfit} 
-                 totalAttendance={totalAttendance} 
-                 expiredCount={expiredCount} 
-                 activeStudentsCount={activeStudentsCount} 
-                 nearEndCount={nearEndCount} 
-                 totalStudents={totalStudents} 
-                 branchRegistrations={branchRegistrations} 
-                 branchPayments={branchPayments} 
-                 activityLogs={branchActivityLogs}
-             />}
+      {/* --- المحتوى الرئيسي (يأخذ المساحة كاملة ولا يكسر الأبعاد) --- */}
+      <main className="flex-1 w-full px-4 md:px-8 py-6 flex flex-col max-w-7xl mx-auto overflow-x-hidden">
+         
+         {/* زر الرجوع للرئيسية لا يكسر الأبعاد لأنه موضوع داخل هيكل ثابت */}
+         {activeTab !== 'dashboard' && (
+             <div className="mb-4 shrink-0 animate-in fade-in slide-in-from-right-4 duration-300">
+                 <button 
+                    onClick={() => changeTab('dashboard')} 
+                    className="flex items-center gap-2 text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 px-4 py-2.5 rounded-xl border border-slate-800 transition-all w-fit shadow-md group"
+                 >
+                     <ArrowRight size={18} className="transition-transform group-hover:-translate-x-1" />
+                     <span className="font-bold text-sm">الرجوع للرئيسية</span>
+                 </button>
+             </div>
+         )}
 
-             {activeTab === 'students' && <StudentsManager 
-                 students={branchStudents} 
-                 groups={branchGroups} 
-                 studentsCollection={studentsCollection} 
-                 archiveCollection={archiveCollection} 
-                 selectedBranch={selectedBranch} 
-                 logActivity={handleLog}
-             />}
+         {/* حاوية الشاشات (تأخذ المساحة المتبقية كاملة) */}
+         <div className="flex-1 w-full bg-slate-900/0 rounded-2xl relative animate-in fade-in zoom-in-95 duration-300"> 
+             {activeTab === 'dashboard' && <DashboardStats user={user} selectedBranch={selectedBranch} branchStudents={branchStudents} netProfit={netProfit} totalAttendance={totalAttendance} expiredCount={expiredCount} activeStudentsCount={activeStudentsCount} nearEndCount={nearEndCount} totalStudents={totalStudents} branchRegistrations={branchRegistrations} branchPayments={branchPayments} activityLogs={branchActivityLogs} />}
              
-             {activeTab === 'tests' && <BeltTestsManager 
-                 students={branchStudents}
-                 studentsCollection={studentsCollection}
-                 logActivity={handleLog}
-             />}
-
-             {activeTab === 'reports' && <ReportsManager 
-                students={branchStudents}
-                payments={branchPayments}
-                expenses={branchExpenses}
-                activityLogs={branchActivityLogs}
-                registrations={branchRegistrations}
-                adminNotes={branchAdminNotes}
-                selectedBranch={selectedBranch}
-             />}
-
-             {activeTab === 'subscriptions' && <SubscriptionsManager 
-                students={branchStudents} 
-                studentsCollection={studentsCollection} 
-                logActivity={handleLog} 
-                selectedBranch={selectedBranch}
-             />}
-
-             {activeTab === 'finance' && <FinanceManager 
-                 students={branchStudents} 
-                 payments={branchPayments} 
-                 expenses={branchExpenses} 
-                 paymentsCollection={paymentsCollection} 
-                 expensesCollection={expensesCollection} 
-                 financeReasons={branchFinanceReasons}
-                 financeReasonsCollection={financeReasonsCollection}
-                 selectedBranch={selectedBranch} 
-                 logActivity={handleLog} 
-             />}
-
-             {activeTab === 'attendance' && <AttendanceManager 
-                 students={branchStudents} 
-                 groups={branchGroups} 
-                 groupsCollection={groupsCollection}
-                 studentsCollection={studentsCollection}
-                 selectedBranch={selectedBranch}
-             />}
-
+             {activeTab === 'students' && <StudentsManager students={branchStudents} groups={branchGroups} studentsCollection={studentsCollection} archiveCollection={archiveCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
+             
+             {activeTab === 'tests' && <BeltTestsManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} />}
+             
+             {/* الصفحات المخفية عن الكابتن يجب التحقق من صلاحياتها هنا أيضاً أمنياً */}
+             {activeTab === 'reports' && isManager && <ReportsManager students={branchStudents} payments={branchPayments} expenses={branchExpenses} activityLogs={branchActivityLogs} registrations={branchRegistrations} adminNotes={branchAdminNotes} selectedBranch={selectedBranch} />}
+             
+             {activeTab === 'subscriptions' && <SubscriptionsManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
+             
+             {activeTab === 'finance' && isManager && <FinanceManager students={branchStudents} payments={branchPayments} expenses={branchExpenses} paymentsCollection={paymentsCollection} expensesCollection={expensesCollection} financeReasons={branchFinanceReasons} financeReasonsCollection={financeReasonsCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
+             
+             {activeTab === 'attendance' && <AttendanceManager students={branchStudents} groups={branchGroups} groupsCollection={groupsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} />}
+             
              {activeTab === 'registrations' && <RegistrationsManager registrations={branchRegistrations} students={students} registrationsCollection={registrationsCollection} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={handleLog} />}
-
+             
              {activeTab === 'schedule' && <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />}
-
-             {activeTab === 'archive' && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
+             
+             {activeTab === 'archive' && isManager && <ArchiveManager archiveCollection={archiveCollection} studentsCollection={studentsCollection} payments={payments} logActivity={handleLog} />}
              
              {activeTab === 'events' && <EventsManager students={branchStudents} logActivity={handleLog} />}
-
+             
              {activeTab === 'weight' && <WeightTracker students={branchStudents} logActivity={handleLog} />}
              
-             {activeTab === 'captains' && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
-
+             {activeTab === 'captains' && isManager && <CaptainsManager captains={captains} captainsCollection={captainsCollection} />}
+             
              {activeTab === 'news' && <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />}
-
-             {activeTab === 'notes' && <AdminNotesManager />}
-
+             
+             {activeTab === 'notes' && isManager && <AdminNotesManager />}
+             
              {activeTab === 'student_notes' && <NotesManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} selectedBranch={selectedBranch} />}
          </div>
       </main>
