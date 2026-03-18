@@ -135,7 +135,6 @@ export default function FinanceManager({
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     
-    // دمج الأسماء في حال وجود أخ
     const paymentName = payForm.extraName 
         ? `${selectedStudent.name} و ${payForm.extraName}` 
         : selectedStudent.name;
@@ -168,7 +167,6 @@ export default function FinanceManager({
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // --- دالة طباعة التقرير المالي المجمع للإدارة (معدلة لتكون مضغوطة مع الاسم الأول والأخير) ---
   const handlePrintReport = (startDate, endDate) => {
     const reportData = branchPayments.filter(p => {
         const pDate = new Date(p.date); 
@@ -195,6 +193,9 @@ export default function FinanceManager({
                 displayName = nameParts[0];
             }
         }
+        
+        // إصلاح تداخل الكود هنا
+        const extraDetails = p.details ? ' (' + p.details + ')' : '';
 
         rowsHtml += `
             <tr>
@@ -203,7 +204,7 @@ export default function FinanceManager({
                 <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-size:12px; font-weight:bold;">${displayName}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center; font-size:12px; font-weight:bold;">${p.amount}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center; font-size:11px;">${p.method === 'cliq' ? 'كليك (CliQ)' : 'كاش'}</td>
-                <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-size:11px;">${p.reason} ${p.details ? `(${p.details})` : ''}</td>
+                <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-size:11px;">${p.reason}${extraDetails}</td>
             </tr>
         `;
     });
@@ -301,11 +302,13 @@ export default function FinanceManager({
     setShowReportModal(false);
   };
 
-  // --- دالة طباعة السند الفردي للطالب (بالضبط كما كانت بالكود الأصلي تبعك بدون أي تغيير) ---
   const printReceipt = (payment) => {
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
     const methodText = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
+    
+    // إصلاح تداخل الكود هنا
+    const extraDetails = payment.details ? ' (' + payment.details + ')' : '';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -378,7 +381,7 @@ export default function FinanceManager({
               </div>
               <div class="row">
                 <span class="label">وذلك عن:</span>
-                <span class="value">${payment.reason} ${payment.details ? \`(\${payment.details})\` : ''}</span>
+                <span class="value">${payment.reason}${extraDetails}</span>
               </div>
             </div>
             <div class="footer">
