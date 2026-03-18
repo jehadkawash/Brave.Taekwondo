@@ -1,8 +1,8 @@
 // src/views/dashboard/BeltTestsManager.jsx
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, ArrowUp, Calendar, CheckCircle, Award, Edit3 } from 'lucide-react';
-import { Card } from '../../components/UIComponents';
-import { BELTS } from '../../lib/constants'; 
+import { Search, Filter, ArrowUp, Calendar, CheckCircle, Award, Edit3, Printer } from 'lucide-react';
+import { Card, Button } from '../../components/UIComponents';
+import { BELTS, IMAGES } from '../../lib/constants'; 
 
 // دالة مساعدة لتلوين الأحزمة
 const getBeltColor = (beltName) => {
@@ -17,7 +17,18 @@ const getBeltColor = (beltName) => {
     return 'bg-slate-800 text-slate-300';
 };
 
-export default function BeltTestsManager({ students, studentsCollection, logActivity }) {
+// دالة لتنسيق التاريخ للطباعة
+const formatDateForPrint = (dateString) => {
+    if (!dateString) return 'غير محدد';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'غير محدد';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+};
+
+export default function BeltTestsManager({ students, studentsCollection, logActivity, selectedBranch }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOption, setSortOption] = useState('dateAsc'); 
 
@@ -45,9 +56,8 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
         }
     };
 
-    // 3. تحديث تاريخ الفحص القادم (الطريقة الأصلية المستقرة)
+    // 3. تحديث تاريخ الفحص القادم
     const handleDateChange = async (studentId, newDate) => {
-        // newDate تأتي مباشرة من الـ input بصيغة yyyy-mm-dd أو نص فارغ
         await studentsCollection.update(studentId, { nextTestDate: newDate });
     };
 
@@ -73,6 +83,99 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
         return result;
     }, [students, searchTerm, sortOption]);
 
+    // --- Print Report Function (Compact & First/Last Name) ---
+    const handlePrintReport = () => {
+        const printWin = window.open('', 'PRINT', 'height=800,width=1000');
+        const logoUrl = window.location.origin + IMAGES.LOGO;
+        const dateNow = formatDateForPrint(new Date());
+
+        let rowsHtml = '';
+        processedStudents.forEach((s, i) => {
+            // --- استخراج الاسم الأول والأخير فقط ---
+            let displayName = s.name || "";
+            const nameParts = displayName.trim().split(/\s+/);
+            if (nameParts.length > 1) {
+                displayName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+            } else if (nameParts.length === 1) {
+                displayName = nameParts[0];
+            }
+            // ----------------------------------------
+
+            rowsHtml += `
+                <tr>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; font-weight:bold; font-size:11px;">${i + 1}</td>
+                    <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; font-size:12px;">${displayName}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; font-size:11px; font-weight:bold;">${s.belt || '-'}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; direction:ltr; font-size:12px; color:#333;">${formatDateForPrint(s.nextTestDate)}</td>
+                </tr>
+            `;
+        });
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>كشف اختبارات الأحزمة - ${selectedBranch || 'عام'}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+                    body { font-family: 'Cairo', sans-serif; padding: 0; margin: 0; }
+                    .print-container { padding: 15px; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+                    .logo { height: 50px; }
+                    .title-section h2 { margin: 0 0 5px 0; font-size: 18px; color: #000; }
+                    .title-section p { margin: 0; font-size: 12px; font-weight: bold; color: #444; }
+                    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px; }
+                    th { border: 1px solid #000; padding: 6px; background-color: #f3f4f6; text-align: center; font-size: 12px; }
+                    @page { size: A4 portrait; margin: 10mm; } 
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        td, th { border: 1px solid #000 !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="print-container">
+                    <div class="header">
+                        <div class="title-section">
+                            <h2>أكاديمية الشجاع للتايكواندو - كشف اختبارات الأحزمة</h2>
+                            <p>الفرع: ${selectedBranch || 'عام'} | عدد الطلاب في الكشف: ${processedStudents.length}</p>
+                            <p>تاريخ استخراج التقرير: ${dateNow}</p>
+                        </div>
+                        <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th style="width: 250px;">اسم الطالب</th>
+                                <th style="width: 150px;">الحزام الحالي</th>
+                                <th style="width: 150px;">تاريخ الفحص القادم</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                    
+                    <div style="font-size:10px; color:#666; text-align:left; margin-top:10px;">
+                        تم الإنشاء بواسطة نظام إدارة الأكاديمية
+                    </div>
+                </div>
+                <script>
+                    window.onload = () => {
+                        window.focus();
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+        printWin.document.write(htmlContent);
+        printWin.document.close();
+    };
+
     return (
         <div className="space-y-6 animate-fade-in pb-20 md:pb-0 font-sans">
             {/* شريط الأدوات العلوي */}
@@ -88,7 +191,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                     />
                 </div>
 
-                {/* الفرز */}
+                {/* الفرز والطباعة */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                         <select 
@@ -103,6 +206,14 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                         </select>
                         <Filter size={16} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/>
                     </div>
+                    
+                    {/* زر الطباعة الجديد */}
+                    <Button 
+                        onClick={handlePrintReport} 
+                        className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 border-none whitespace-nowrap px-4"
+                    >
+                        <Printer size={18} /> <span className="hidden md:inline mr-2">طباعة الكشف</span>
+                    </Button>
                 </div>
             </div>
 
@@ -144,7 +255,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                         </td>
 
                                         <td className="p-4">
-                                            {/* ✅ منتقي التاريخ الأصلي (Native Picker) */}
+                                            {/* منتقي التاريخ الأصلي */}
                                             <div className="flex items-center gap-2 bg-slate-950 w-fit p-1 rounded-lg border border-slate-700 hover:border-yellow-500/50 transition-colors">
                                                 <Calendar size={16} className="text-slate-500 mr-1"/>
                                                 <input 
@@ -210,7 +321,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                                 </div>
                             </div>
 
-                            {/* ✅ منتقي التاريخ للموبايل (الأصلي) */}
+                            {/* منتقي التاريخ للموبايل */}
                             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
                                 <label className="text-[10px] font-bold text-slate-500 mb-1 block">تاريخ الفحص القادم</label>
                                 <div className="flex items-center gap-2">
