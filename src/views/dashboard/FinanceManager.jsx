@@ -135,7 +135,6 @@ export default function FinanceManager({
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     
-    // دمج الأسماء في حال وجود أخ
     const paymentName = payForm.extraName 
         ? `${selectedStudent.name} و ${payForm.extraName}` 
         : selectedStudent.name;
@@ -168,7 +167,6 @@ export default function FinanceManager({
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // --- دالة طباعة التقرير المالي المجمع ---
   const handlePrintReport = (startDate, endDate) => {
     const reportData = branchPayments.filter(p => {
         const pDate = new Date(p.date); 
@@ -301,9 +299,10 @@ export default function FinanceManager({
     setShowReportModal(false);
   };
 
-  // --- دالة طباعة وصل القبض الفردي الفاخر ---
+
+  // --- دالة طباعة وصل القبض الفردي (معدلة للحجم الفاخر والكامل) ---
   const printReceipt = (payment) => {
-    const receiptWindow = window.open('', 'PRINT', 'height=900,width=800');
+    const receiptWindow = window.open('', 'PRINT', 'height=1000,width=800');
     const logoUrl = window.location.origin + IMAGES.LOGO;
     const methodText = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
 
@@ -316,90 +315,104 @@ export default function FinanceManager({
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
             
-            @page { size: letter portrait; margin: 0; }
+            /* ضبط الورقة لتكون A4 Portrait بشكل صريح */
+            @page { size: A4 portrait; margin: 0; }
             
             body { 
                 font-family: 'Cairo', sans-serif; 
                 margin: 0; 
-                padding: 15mm; 
+                padding: 0; 
                 background-color: #fff; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact; 
-                color: #111;
+                color: #000;
             }
             
-            .receipt-container {
+            /* الصفحة الوهمية بالملليمترات لتطابق الورقة الحقيقية */
+            .page-wrapper {
+                width: 210mm;
+                height: 297mm;
+                padding: 15mm; /* هوامش الطباعة */
+                box-sizing: border-box;
                 position: relative;
-                border: 3px solid #b45309;
-                padding: 6px;
-                border-radius: 16px;
-                min-height: 55vh; 
+                margin: auto;
+            }
+            
+            /* الإطار الخارجي السميك */
+            .receipt-border {
+                border: 4px solid #b45309;
+                height: 100%;
+                border-radius: 20px;
+                padding: 8px;
+                box-sizing: border-box;
+            }
+            
+            /* الإطار الداخلي والمحتوى */
+            .receipt-inner {
+                border: 2px solid #b45309;
+                height: 100%;
+                border-radius: 12px;
+                padding: 40px;
+                box-sizing: border-box;
+                position: relative;
                 display: flex;
                 flex-direction: column;
                 background-color: #fff;
             }
             
-            .receipt-inner {
-                border: 1px solid #b45309;
-                border-radius: 10px;
-                padding: 30px 40px;
-                flex-grow: 1;
-                position: relative;
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-                background-color: rgba(255, 255, 255, 0.95);
-            }
-            
+            /* العلامة المائية الشفافة في المنتصف */
             .watermark { 
                 position: absolute; 
                 top: 50%; 
                 left: 50%; 
                 transform: translate(-50%, -50%); 
-                width: 55%; 
-                opacity: 0.06; 
+                width: 60%; 
+                opacity: 0.05; 
                 z-index: 1; 
                 pointer-events: none; 
+                filter: grayscale(100%);
             }
             
+            /* الترويسة العليا */
             .header { 
                 display: flex; 
                 justify-content: space-between; 
-                align-items: center; 
-                border-bottom: 2px solid #eee; 
+                align-items: flex-start; 
+                border-bottom: 3px double #000; 
                 padding-bottom: 20px; 
-                margin-bottom: 35px; 
+                margin-bottom: 40px; 
                 position: relative; 
                 z-index: 2; 
             }
             
-            .company-info { flex: 1; }
-            .company-info h1 { margin: 0 0 5px 0; font-size: 26px; color: #b45309; font-weight: 900; }
-            .company-info p { margin: 0; font-size: 15px; font-weight: bold; color: #555; }
+            .company-info h1 { margin: 0 0 10px 0; font-size: 32px; color: #000; font-weight: 900; }
+            .company-info p { margin: 0; font-size: 16px; font-weight: bold; color: #444; }
             
-            .logo-container { flex: 1; text-align: center; }
-            .logo-container img { height: 100px; object-fit: contain; }
+            .logo-container img { height: 120px; object-fit: contain; }
             
-            .meta-info { flex: 1; text-align: left; font-size: 15px; font-weight: bold; color: #333; }
+            .meta-info { text-align: left; font-size: 16px; font-weight: bold; color: #222; }
             .meta-info table { width: 100%; text-align: left; }
-            .meta-info td { padding: 3px 0; }
-            .meta-info .label { color: #888; padding-left: 10px; }
+            .meta-info td { padding: 5px 0; }
+            .meta-info .label { color: #555; padding-left: 15px; }
             
+            /* العنوان الرئيسي والمبلغ */
             .title-area {
                 text-align: center;
-                margin-bottom: 45px;
+                margin-bottom: 50px;
                 position: relative;
                 z-index: 2;
             }
             
             .title-area h2 {
                 display: inline-block;
-                font-size: 30px;
+                font-size: 36px;
                 font-weight: 900;
                 color: #000;
                 margin: 0;
-                padding: 5px 40px;
-                border-bottom: 4px double #b45309;
+                padding: 10px 50px;
+                background: #f8f9fa;
+                border: 2px solid #000;
+                border-radius: 10px;
             }
             
             .amount-box {
@@ -407,145 +420,148 @@ export default function FinanceManager({
                 left: 0;
                 top: 50%;
                 transform: translateY(-50%);
-                background: #fef3c7; 
-                border: 2px solid #b45309;
-                color: #b45309;
-                padding: 12px 30px;
-                border-radius: 8px;
-                font-size: 24px;
+                background: #fff; 
+                border: 3px solid #b45309;
+                color: #000;
+                padding: 15px 35px;
+                border-radius: 10px;
+                font-size: 28px;
                 font-weight: 900;
                 direction: ltr;
-                box-shadow: 4px 4px 0px rgba(180, 83, 9, 0.15);
             }
             
-            .content { position: relative; z-index: 2; flex-grow: 1; font-size: 18px; line-height: 2; }
-            .row { display: flex; align-items: flex-end; margin-bottom: 25px; }
-            .row .label { font-weight: bold; color: #444; white-space: nowrap; margin-left: 15px; font-size: 20px; }
+            /* صفوف المحتوى */
+            .content { position: relative; z-index: 2; flex-grow: 1; margin-top: 20px; }
+            .row { display: flex; align-items: flex-end; margin-bottom: 40px; font-size: 22px; }
+            .row .label { font-weight: bold; color: #000; white-space: nowrap; margin-left: 20px; }
             .row .value { 
                 flex: 1; 
-                border-bottom: 2px dotted #888; 
+                border-bottom: 2px dotted #000; 
                 font-weight: 900; 
                 color: #000; 
                 padding: 0 10px 5px 10px; 
-                font-size: 20px;
             }
             
+            /* التواقيع والفوتر */
             .footer { 
-                margin-top: 50px; 
+                margin-top: auto; 
                 position: relative; 
                 z-index: 2; 
                 display: flex;
                 flex-direction: column;
-                gap: 40px;
+                gap: 50px;
             }
             
             .signatures { 
                 display: flex; 
                 justify-content: space-between; 
                 align-items: flex-end;
-                padding: 0 20px;
+                padding: 0 30px;
             }
             
-            .sign-box { text-align: center; width: 200px; }
-            .sign-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 10px; }
-            .sign-title { font-size: 16px; font-weight: bold; color: #333; }
+            .sign-box { text-align: center; width: 220px; }
+            .sign-line { border-bottom: 2px solid #000; height: 50px; margin-bottom: 15px; }
+            .sign-title { font-size: 18px; font-weight: bold; color: #000; }
             
             .stamp-area {
                 color: #b45309;
-                border: 2px dashed #b45309;
-                padding: 15px;
+                border: 3px dashed #b45309;
+                padding: 20px;
                 border-radius: 50%;
-                width: 90px;
-                height: 90px;
+                width: 120px;
+                height: 120px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 margin: 0 auto;
                 font-weight: 900;
-                opacity: 0.3;
+                font-size: 20px;
+                opacity: 0.4;
             }
             
             .contact-bar {
-                background: #b45309;
-                color: #fff;
-                border-radius: 8px;
-                padding: 12px 30px;
+                background: #eee;
+                color: #000;
+                border: 2px solid #000;
+                border-radius: 10px;
+                padding: 15px 40px;
                 display: flex;
                 justify-content: space-between;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: bold;
             }
-            .contact-bar span { direction: ltr; unicode-bidi: embed; font-size: 15px; }
+            .contact-bar span { direction: ltr; unicode-bidi: embed; font-size: 18px; color: #b45309; margin-right: 5px; }
           </style>
         </head>
         <body>
-          <div class="receipt-container">
-            <div class="receipt-inner">
-                
-                <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
-                
-                <div class="header">
-                  <div class="company-info">
-                    <h1>أكاديمية الشجاع للتايكواندو</h1>
-                    <p>فرع: ${selectedBranch}</p>
-                  </div>
-                  <div class="logo-container">
-                    <img src="${logoUrl}" onerror="this.style.display='none'"/>
-                  </div>
-                  <div class="meta-info">
-                    <table dir="rtl">
-                        <tr><td class="label">رقم السند:</td><td style="font-family:monospace; font-size:18px;">${payment.id.slice(-6)}</td></tr>
-                        <tr><td class="label">التاريخ:</td><td>${payment.date}</td></tr>
-                    </table>
-                  </div>
-                </div>
-                
-                <div class="title-area">
-                    <h2>سند قبض مالي</h2>
-                    <div class="amount-box">${payment.amount} JD</div>
-                </div>
-                
-                <div class="content">
-                  <div class="row">
-                    <span class="label">استلمنا من الطالب/ة:</span>
-                    <span class="value">${payment.name}</span>
-                  </div>
-                  <div class="row">
-                    <span class="label">مبلغ وقدره:</span>
-                    <span class="value">${payment.amount} دينار أردني فقط لا غير</span>
-                  </div>
-                  <div class="row">
-                    <span class="label">وذلك عن:</span>
-                    <span class="value">${payment.reason} ${payment.details ? `(${payment.details})` : ''}</span>
-                  </div>
-                  <div class="row">
-                    <span class="label">طريقة الدفع:</span>
-                    <span class="value">${methodText}</span>
-                  </div>
-                </div>
-                
-                <div class="footer">
-                  <div class="signatures">
-                    <div class="sign-box">
-                        <div class="sign-line"></div>
-                        <div class="sign-title">توقيع المستلم</div>
+          <div class="page-wrapper">
+            <div class="receipt-border">
+              <div class="receipt-inner">
+                  
+                  <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
+                  
+                  <div class="header">
+                    <div class="company-info">
+                      <h1>أكاديمية الشجاع للتايكواندو</h1>
+                      <p>فرع: ${selectedBranch}</p>
                     </div>
-                    <div class="sign-box">
-                        <div class="stamp-area">الختم<br/>الرسمي</div>
+                    <div class="logo-container">
+                      <img src="${logoUrl}" onerror="this.style.display='none'"/>
                     </div>
-                    <div class="sign-box">
-                        <div class="sign-line"></div>
-                        <div class="sign-title">توقيع الإدارة</div>
+                    <div class="meta-info">
+                      <table dir="rtl">
+                          <tr><td class="label">رقم السند:</td><td style="font-family:monospace; font-size:20px;">${payment.id.slice(-6)}</td></tr>
+                          <tr><td class="label">التاريخ:</td><td>${payment.date}</td></tr>
+                      </table>
                     </div>
                   </div>
                   
-                  <div class="contact-bar">
-                    <div>شفابدران - شارع رفعت شموط <span>0795629606</span></div>
-                    <div>|</div>
-                    <div>أبو نصير - دوار البحرية <span>0790368603</span></div>
+                  <div class="title-area">
+                      <h2>سند قبض مالي</h2>
+                      <div class="amount-box">${payment.amount} JD</div>
                   </div>
-                </div>
-                
+                  
+                  <div class="content">
+                    <div class="row">
+                      <span class="label">استلمنا من الطالب/ة:</span>
+                      <span class="value">${payment.name}</span>
+                    </div>
+                    <div class="row">
+                      <span class="label">مبلغ وقدره:</span>
+                      <span class="value">${payment.amount} دينار أردني فقط لا غير</span>
+                    </div>
+                    <div class="row">
+                      <span class="label">وذلك عن:</span>
+                      <span class="value">${payment.reason} ${payment.details ? `(${payment.details})` : ''}</span>
+                    </div>
+                    <div class="row">
+                      <span class="label">طريقة الدفع:</span>
+                      <span class="value">${methodText}</span>
+                    </div>
+                  </div>
+                  
+                  <div class="footer">
+                    <div class="signatures">
+                      <div class="sign-box">
+                          <div class="sign-line"></div>
+                          <div class="sign-title">توقيع المستلم</div>
+                      </div>
+                      <div class="sign-box">
+                          <div class="stamp-area">الختم<br/>الرسمي</div>
+                      </div>
+                      <div class="sign-box">
+                          <div class="sign-line"></div>
+                          <div class="sign-title">توقيع الإدارة</div>
+                      </div>
+                    </div>
+                    
+                    <div class="contact-bar">
+                      <div>شفابدران - شارع رفعت شموط <span>0795629606</span></div>
+                      <div>أبو نصير - دوار البحرية <span>0790368603</span></div>
+                    </div>
+                  </div>
+                  
+              </div>
             </div>
           </div>
         </body>
