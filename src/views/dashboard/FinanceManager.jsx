@@ -507,7 +507,7 @@ export default function FinanceManager({
                 
                 <div class="content">
                   <div class="row">
-                    <span class="label">استلمنا من السيد/ة:</span>
+                    <span class="label">استلمنا من الطالب/ة:</span>
                     <span class="value">${payment.name}</span>
                   </div>
                   <div class="row">
