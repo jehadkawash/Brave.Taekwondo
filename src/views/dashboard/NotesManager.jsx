@@ -18,7 +18,6 @@ export default function NotesManager({ students, studentsCollection, logActivity
         if (!student) return [];
         let allNotes = [];
 
-        // أ: الملاحظة القديمة
         if (student.note && typeof student.note === 'string' && student.note.trim() !== "") {
             allNotes.push({
                 id: 'legacy_note', 
@@ -29,7 +28,6 @@ export default function NotesManager({ students, studentsCollection, logActivity
             });
         }
 
-        // ب: الملاحظات الجديدة
         const modernNotes = student.notes || []; 
         const internalNotes = student.internalNotes || []; 
         
@@ -133,73 +131,190 @@ export default function NotesManager({ students, studentsCollection, logActivity
         }
     };
 
-    // --- 5. التحضير للتعديل ---
     const startEdit = (note) => {
         setEditingNote(note);
         setNoteText(note.text);
         setNoteType(note.type || 'private');
     };
 
-    // --- 6. الطباعة ---
-    const handlePrint = () => {
+    // --- 5. طباعة التقرير الإداري المجمع (جدول لجميع الطلاب) ---
+    const handlePrintAll = () => {
         const printWin = window.open('', 'PRINT', 'height=800,width=1000');
         const logoUrl = window.location.origin + IMAGES.LOGO;
         
+        let rowsHtml = '';
+        let counter = 1;
+
+        studentsWithNotes.forEach(s => {
+            const notes = getCombinedNotes(s);
+            notes.forEach(n => {
+                rowsHtml += `
+                    <tr>
+                        <td style="border:1px solid #000; padding:6px; text-align:center;">${counter++}</td>
+                        <td style="border:1px solid #000; padding:6px; font-weight:bold; white-space:nowrap;">${s.name}</td>
+                        <td style="border:1px solid #000; padding:6px; text-align:center; font-size:11px;">${s.belt || '-'}</td>
+                        <td style="border:1px solid #000; padding:6px; text-align:center; white-space:nowrap; direction:ltr;">${n.date}</td>
+                        <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:bold; color:${n.type === 'private' ? '#991b1b' : '#166534'}">${n.type === 'private' ? 'إدارية (خاص)' : 'عامة'}</td>
+                        <td style="border:1px solid #000; padding:6px; text-align:right;">${n.text}</td>
+                    </tr>
+                `;
+            });
+        });
+
+        if (studentsWithNotes.length === 0) {
+            rowsHtml = `<tr><td colspan="6" style="text-align:center; padding:20px;">لا يوجد ملاحظات مسجلة لأي طالب حالياً.</td></tr>`;
+        }
+
         const htmlContent = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>سجل الملاحظات - ${selectedBranch}</title>
+                <title>التقرير الإداري للملاحظات - ${selectedBranch}</title>
                 <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-                    body { font-family: 'Cairo', sans-serif; padding: 20px; font-size: 12px; color: #333; }
-                    .header { text-align: center; border-bottom: 3px solid #fbbf24; padding-bottom: 20px; margin-bottom: 30px; }
-                    .logo { height: 70px; margin-bottom: 10px; }
-                    .student-box { border: 1px solid #eee; margin-bottom: 20px; border-radius: 8px; overflow: hidden; page-break-inside: avoid; }
-                    .student-header { background: #f9fafb; padding: 10px 15px; border-bottom: 1px solid #eee; font-weight: bold; display: flex; justify-content: space-between; }
-                    .note-row { padding: 10px 15px; border-bottom: 1px solid #f0f0f0; display: flex; gap: 15px; align-items: flex-start; }
-                    .note-label { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; min-width: 80px; text-align: center; }
-                    .label-private { background: #fee2e2; color: #991b1b; }
-                    .label-public { background: #dcfce7; color: #166534; }
-                    .note-text { flex: 1; line-height: 1.5; }
-                    .note-date { color: #999; font-size: 10px; margin-top: 4px; }
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; background: #fff; color: #000; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                    .header-info h1 { margin: 0; font-size: 20px; color: #000; font-weight: 900; }
+                    .header-info p { margin: 5px 0 0 0; font-size: 13px; font-weight: bold; color: #444; }
+                    .logo { height: 60px; object-fit: contain; }
+                    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                    th { background-color: #f3f4f6; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: center; }
+                    td { border: 1px solid #000; vertical-align: top; }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        th, td { border: 1px solid #000 !important; }
+                    }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-                    <h2>سجل الملاحظات والرسائل</h2>
-                    <p>الفرع: ${selectedBranch} | التاريخ: ${new Date().toLocaleDateString('ar-EG')}</p>
-                </div>
-                ${studentsWithNotes.map(s => {
-                    const notes = getCombinedNotes(s);
-                    return `
-                    <div class="student-box">
-                        <div class="student-header">
-                            <span>${s.name}</span>
-                            <span style="color:#666; font-size:11px;">${s.belt}</span>
-                        </div>
-                        ${notes.map(n => `
-                            <div class="note-row">
-                                <div>
-                                    <div class="note-label ${n.type === 'private' ? 'label-private' : 'label-public'}">
-                                        ${n.type === 'private' ? 'إدارية' : 'عامة'}
-                                    </div>
-                                    <div class="note-date">${n.date}</div>
-                                </div>
-                                <div class="note-text">${n.text}</div>
-                            </div>
-                        `).join('')}
+                    <div class="header-info">
+                        <h1>التقرير الإداري لسجل الملاحظات</h1>
+                        <p>الفرع: ${selectedBranch || 'عام'} | تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')}</p>
                     </div>
-                    `;
-                }).join('')}
-                <script>window.onload = function() { window.print(); }</script>
+                    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 180px;">اسم الطالب</th>
+                            <th style="width: 80px;">الحزام</th>
+                            <th style="width: 100px;">تاريخ الإضافة</th>
+                            <th style="width: 100px;">النوع</th>
+                            <th>نص الملاحظة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+                <div style="font-size:10px; color:#666; text-align:left; margin-top:15px;">
+                    تم الإنشاء بواسطة نظام إدارة أكاديمية الشجاع للتايكواندو
+                </div>
+                <script>window.onload = function() { window.print(); window.close(); }</script>
             </body>
             </html>
         `;
         printWin.document.write(htmlContent);
         printWin.document.close();
+    };
+
+    // --- 6. طباعة تقرير طالب محدد (لأولياء الأمور) ---
+    const handlePrintStudentNotes = () => {
+        if (!selectedStudent) return;
+        const notesToPrint = getCombinedNotes(selectedStudent);
+        const printWin = window.open('', 'PRINT', 'height=800,width=800');
+        const logoUrl = window.location.origin + IMAGES.LOGO;
+
+        let rowsHtml = notesToPrint.map((n, i) => `
+            <div class="note-card">
+                <div class="note-header">
+                    <span class="note-type ${n.type === 'private' ? 'type-private' : 'type-public'}">
+                        ${n.type === 'private' ? 'ملاحظة إدارية' : 'ملاحظة عامة'}
+                    </span>
+                    <span class="note-date">${n.date}</span>
+                </div>
+                <div class="note-content">${n.text}</div>
+            </div>
+        `).join('');
+
+        if (notesToPrint.length === 0) {
+            rowsHtml = `<div style="text-align:center; padding: 40px; color:#666;">لا توجد ملاحظات مسجلة لهذا الطالب.</div>`;
+        }
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>تقرير ملاحظات - ${selectedStudent.name}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+                    @page { size: A4 portrait; margin: 15mm; }
+                    body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; background: #fff; color: #111; }
+                    
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #b45309; padding-bottom: 15px; margin-bottom: 30px; }
+                    .company-info h1 { margin: 0 0 5px 0; font-size: 22px; color: #b45309; font-weight: 900; }
+                    .logo { height: 70px; object-fit: contain; }
+                    
+                    .student-info { background: #f9fafb; border: 1px solid #e5e7eb; padding: 15px 20px; border-radius: 8px; margin-bottom: 30px; display: flex; justify-content: space-between; font-size: 14px; }
+                    .student-info .name { font-size: 18px; font-weight: 900; color: #b45309; }
+                    
+                    .section-title { font-size: 18px; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-bottom: 20px; }
+                    
+                    .note-card { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 15px; overflow: hidden; page-break-inside: avoid; }
+                    .note-header { background: #f3f4f6; padding: 8px 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; }
+                    .note-content { padding: 15px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+                    .note-type { font-weight: bold; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+                    .type-private { background: #fee2e2; color: #991b1b; }
+                    .type-public { background: #dcfce7; color: #166534; }
+                    .note-date { font-size: 12px; color: #666; font-weight: bold; }
+                    
+                    .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #eee; padding-top: 15px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="company-info">
+                        <h1>أكاديمية الشجاع للتايكواندو</h1>
+                        <div style="font-weight:bold; color:#555;">تقرير ملاحظات وسلوكيات الطالب</div>
+                    </div>
+                    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+                </div>
+
+                <div class="student-info">
+                    <div>
+                        <div class="name">${selectedStudent.name}</div>
+                        <div style="margin-top:5px; color:#555; font-weight:bold;">الحزام: ${selectedStudent.belt || 'غير محدد'}</div>
+                    </div>
+                    <div style="text-align:left; color:#555;">
+                        <div>تاريخ التقرير: ${new Date().toLocaleDateString('ar-JO')}</div>
+                        <div style="margin-top:5px;">الفرع: ${selectedBranch}</div>
+                    </div>
+                </div>
+
+                <div class="section-title">سجل الملاحظات (${notesToPrint.length})</div>
+                
+                <div class="notes-container">
+                    ${rowsHtml}
+                </div>
+
+                <div class="footer">
+                    تم استخراج هذا التقرير من نظام إدارة أكاديمية الشجاع للتايكواندو
+                </div>
+            </body>
+            </html>
+        `;
+
+        printWin.document.write(htmlContent);
+        printWin.document.close();
+        printWin.onload = () => {
+            printWin.focus();
+            setTimeout(() => { printWin.print(); printWin.close(); }, 500);
+        };
     };
 
     const displayNotes = getCombinedNotes(selectedStudent);
@@ -219,8 +334,8 @@ export default function NotesManager({ students, studentsCollection, logActivity
                         onClear={() => setSelectedStudent(null)}
                         placeholder="ابحث عن طالب..." 
                     />
-                    <Button onClick={handlePrint} variant="outline" className="w-full mt-3 text-xs border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800">
-                        <Printer size={16}/> طباعة تقرير الملاحظات
+                    <Button onClick={handlePrintAll} variant="outline" className="w-full mt-3 text-xs border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800">
+                        <Printer size={16}/> طباعة تقرير إداري للجميع
                     </Button>
                 </div>
 
@@ -246,7 +361,6 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                     </div>
                                 </div>
                                 <div className="flex gap-1">
-                                    {/* مؤشرات بصرية لنوع الملاحظات */}
                                     {getCombinedNotes(s).some(n=>n.type === 'private') && <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_#ef4444]"></div>}
                                     {getCombinedNotes(s).some(n=>n.type === 'public') && <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]"></div>}
                                 </div>
@@ -262,7 +376,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
             <div className="w-full md:w-2/3 bg-slate-900 rounded-2xl shadow-xl border border-slate-800 flex flex-col overflow-hidden">
                 {selectedStudent ? (
                     <>
-                        {/* Header */}
+                        {/* Header with Print Button */}
                         <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-slate-800 text-yellow-500 rounded-xl flex items-center justify-center font-bold text-lg border border-slate-700">
@@ -273,7 +387,18 @@ export default function NotesManager({ students, studentsCollection, logActivity
                                     <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded text-[10px] border border-slate-700">{selectedStudent.belt}</span>
                                 </div>
                             </div>
-                            <div className="text-xs text-slate-600 font-mono">ID: {selectedStudent.id.substring(0,6)}</div>
+                            
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={handlePrintStudentNotes} 
+                                    className="flex items-center gap-1 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                                    title="طباعة ملاحظات هذا الطالب"
+                                >
+                                    <Printer size={14}/> 
+                                    <span className="hidden sm:inline">طباعة للطالب</span>
+                                </button>
+                                <div className="text-xs text-slate-600 font-mono hidden sm:block">ID: {selectedStudent.id.substring(0,6)}</div>
+                            </div>
                         </div>
 
                         {/* Notes Feed (Area) */}
