@@ -54,7 +54,7 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
     );
 };
 
-// --- مكون نافذة التقرير المالي (الجديد) ---
+// --- مكون نافذة التقرير المالي ---
 const ReportModal = ({ isOpen, onClose, onGenerate }) => {
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -135,7 +135,7 @@ export default function FinanceManager({
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     
-    // دمج الأسماء
+    // دمج الأسماء في حال وجود أخ
     const paymentName = payForm.extraName 
         ? `${selectedStudent.name} و ${payForm.extraName}` 
         : selectedStudent.name;
@@ -168,7 +168,7 @@ export default function FinanceManager({
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // --- 1. دالة طباعة التقرير المالي المجمع (تصميم مضغوط واحترافي) ---
+  // --- دالة طباعة التقرير المالي المجمع ---
   const handlePrintReport = (startDate, endDate) => {
     const reportData = branchPayments.filter(p => {
         const pDate = new Date(p.date); 
@@ -186,7 +186,6 @@ export default function FinanceManager({
 
     let rowsHtml = '';
     reportData.forEach((p, i) => {
-        // --- ميزة الاسم الأول والأخير (مع استثناء إذا كان هناك "و" للأخوة) ---
         let displayName = p.name || "";
         if (!displayName.includes(' و ')) {
             const nameParts = displayName.trim().split(/\s+/);
@@ -302,9 +301,9 @@ export default function FinanceManager({
     setShowReportModal(false);
   };
 
-  // --- 2. دالة طباعة وصل القبض الفردي (تصميم فاتورة رسمية) ---
+  // --- دالة طباعة وصل القبض الفردي الفاخر ---
   const printReceipt = (payment) => {
-    const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
+    const receiptWindow = window.open('', 'PRINT', 'height=900,width=800');
     const logoUrl = window.location.origin + IMAGES.LOGO;
     const methodText = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
 
@@ -316,66 +315,173 @@ export default function FinanceManager({
           <title>سند قبض - ${payment.name}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-            @page { size: A5 landscape; margin: 0; }
+            
+            @page { size: letter portrait; margin: 0; }
+            
             body { 
                 font-family: 'Cairo', sans-serif; 
                 margin: 0; 
-                padding: 5mm 10mm; 
-                background-color: white; 
+                padding: 15mm; 
+                background-color: #fff; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact; 
-                height: 100vh; 
-                box-sizing: border-box; 
-                color: #000;
+                color: #111;
             }
-            .receipt-border { 
-                border: 2px solid #000; 
-                padding: 4px; 
-                height: 94%; 
-                box-sizing: border-box; 
+            
+            .receipt-container {
+                position: relative;
+                border: 3px solid #b45309;
+                padding: 6px;
+                border-radius: 16px;
+                min-height: 55vh; 
+                display: flex;
+                flex-direction: column;
+                background-color: #fff;
             }
+            
             .receipt-inner {
-                border: 1px solid #000; 
-                height: 100%; 
-                position: relative; 
-                padding: 15px; 
-                box-sizing: border-box; 
-                display: flex; 
-                flex-direction: column; 
+                border: 1px solid #b45309;
+                border-radius: 10px;
+                padding: 30px 40px;
+                flex-grow: 1;
+                position: relative;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                background-color: rgba(255, 255, 255, 0.95);
             }
-            .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 250px; opacity: 0.05; z-index: 0; pointer-events: none; filter: grayscale(100%); }
             
-            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; position: relative; z-index: 2; }
-            .company-info h1 { margin: 0 0 5px 0; font-size: 20px; color: #000; font-weight: 900; }
-            .company-info p { margin: 0; font-size: 12px; font-weight: bold; color: #000; }
-            .logo { height: 60px; object-fit: contain; }
+            .watermark { 
+                position: absolute; 
+                top: 50%; 
+                left: 50%; 
+                transform: translate(-50%, -50%); 
+                width: 55%; 
+                opacity: 0.06; 
+                z-index: 1; 
+                pointer-events: none; 
+            }
             
-            .meta-info { text-align: left; font-size: 12px; font-weight:bold; }
-            .meta-info div { margin-bottom: 5px; }
+            .header { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                border-bottom: 2px solid #eee; 
+                padding-bottom: 20px; 
+                margin-bottom: 35px; 
+                position: relative; 
+                z-index: 2; 
+            }
             
-            .content { position: relative; z-index: 2; flex-grow: 1; margin-top: 10px; }
-            .title-wrapper { text-align: center; margin-bottom: 20px; position:relative; }
-            .title { display: inline-block; font-size: 20px; font-weight: 900; border: 2px solid #000; padding: 5px 20px; border-radius: 5px; background: #eee; }
+            .company-info { flex: 1; }
+            .company-info h1 { margin: 0 0 5px 0; font-size: 26px; color: #b45309; font-weight: 900; }
+            .company-info p { margin: 0; font-size: 15px; font-weight: bold; color: #555; }
             
-            .amount-box { position: absolute; left: 0; top: 0; border: 2px solid #000; padding: 5px 15px; background: #fff; font-size: 18px; font-weight: 900; direction: ltr; }
+            .logo-container { flex: 1; text-align: center; }
+            .logo-container img { height: 100px; object-fit: contain; }
             
-            .row { display: flex; align-items: flex-end; margin-bottom: 15px; font-size: 15px; }
-            .label { font-weight: bold; width: 100px; color: #000; }
-            .value { flex: 1; border-bottom: 1px dashed #000; font-weight: 700; padding: 0 5px 2px 5px; color: #000; }
+            .meta-info { flex: 1; text-align: left; font-size: 15px; font-weight: bold; color: #333; }
+            .meta-info table { width: 100%; text-align: left; }
+            .meta-info td { padding: 3px 0; }
+            .meta-info .label { color: #888; padding-left: 10px; }
             
-            .footer { margin-top: 20px; position: relative; z-index: 2; border-top: 1px solid #000; padding-top: 10px; }
-            .signatures { display: flex; justify-content: space-between; padding: 0 30px; margin-bottom: 15px; }
-            .sign-box { text-align: center; width: 150px; }
-            .sign-title { font-size: 12px; font-weight: bold; color: #000; margin-top: 25px; border-top: 1px solid #000; padding-top: 5px; }
+            .title-area {
+                text-align: center;
+                margin-bottom: 45px;
+                position: relative;
+                z-index: 2;
+            }
             
-            .branches-box { font-size: 10px; display: flex; justify-content: space-between; font-weight:bold; }
-            .branch span { margin-left: 10px; }
-            .phone { direction: ltr; display:inline-block; }
+            .title-area h2 {
+                display: inline-block;
+                font-size: 30px;
+                font-weight: 900;
+                color: #000;
+                margin: 0;
+                padding: 5px 40px;
+                border-bottom: 4px double #b45309;
+            }
+            
+            .amount-box {
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                background: #fef3c7; 
+                border: 2px solid #b45309;
+                color: #b45309;
+                padding: 12px 30px;
+                border-radius: 8px;
+                font-size: 24px;
+                font-weight: 900;
+                direction: ltr;
+                box-shadow: 4px 4px 0px rgba(180, 83, 9, 0.15);
+            }
+            
+            .content { position: relative; z-index: 2; flex-grow: 1; font-size: 18px; line-height: 2; }
+            .row { display: flex; align-items: flex-end; margin-bottom: 25px; }
+            .row .label { font-weight: bold; color: #444; white-space: nowrap; margin-left: 15px; font-size: 20px; }
+            .row .value { 
+                flex: 1; 
+                border-bottom: 2px dotted #888; 
+                font-weight: 900; 
+                color: #000; 
+                padding: 0 10px 5px 10px; 
+                font-size: 20px;
+            }
+            
+            .footer { 
+                margin-top: 50px; 
+                position: relative; 
+                z-index: 2; 
+                display: flex;
+                flex-direction: column;
+                gap: 40px;
+            }
+            
+            .signatures { 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: flex-end;
+                padding: 0 20px;
+            }
+            
+            .sign-box { text-align: center; width: 200px; }
+            .sign-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 10px; }
+            .sign-title { font-size: 16px; font-weight: bold; color: #333; }
+            
+            .stamp-area {
+                color: #b45309;
+                border: 2px dashed #b45309;
+                padding: 15px;
+                border-radius: 50%;
+                width: 90px;
+                height: 90px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto;
+                font-weight: 900;
+                opacity: 0.3;
+            }
+            
+            .contact-bar {
+                background: #b45309;
+                color: #fff;
+                border-radius: 8px;
+                padding: 12px 30px;
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            .contact-bar span { direction: ltr; unicode-bidi: embed; font-size: 15px; }
           </style>
         </head>
         <body>
-          <div class="receipt-border">
+          <div class="receipt-container">
             <div class="receipt-inner">
+                
                 <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
                 
                 <div class="header">
@@ -383,19 +489,23 @@ export default function FinanceManager({
                     <h1>أكاديمية الشجاع للتايكواندو</h1>
                     <p>فرع: ${selectedBranch}</p>
                   </div>
-                  <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+                  <div class="logo-container">
+                    <img src="${logoUrl}" onerror="this.style.display='none'"/>
+                  </div>
                   <div class="meta-info">
-                    <div>الرقم التسلسلي: <span style="font-family:monospace; font-size:14px;">${payment.id.slice(-6)}</span></div>
-                    <div>التاريخ: ${payment.date}</div>
+                    <table dir="rtl">
+                        <tr><td class="label">رقم السند:</td><td style="font-family:monospace; font-size:18px;">${payment.id.slice(-6)}</td></tr>
+                        <tr><td class="label">التاريخ:</td><td>${payment.date}</td></tr>
+                    </table>
                   </div>
                 </div>
                 
+                <div class="title-area">
+                    <h2>سند قبض مالي</h2>
+                    <div class="amount-box">${payment.amount} JD</div>
+                </div>
+                
                 <div class="content">
-                  <div class="title-wrapper">
-                      <div class="title">سند قبض مالي</div>
-                      <div class="amount-box">${payment.amount} JD</div>
-                  </div>
-                  
                   <div class="row">
                     <span class="label">استلمنا من السيد/ة:</span>
                     <span class="value">${payment.name}</span>
@@ -405,31 +515,37 @@ export default function FinanceManager({
                     <span class="value">${payment.amount} دينار أردني فقط لا غير</span>
                   </div>
                   <div class="row">
-                    <span class="label">طريقة الدفع:</span>
-                    <span class="value">${methodText}</span>
-                  </div>
-                  <div class="row">
                     <span class="label">وذلك عن:</span>
                     <span class="value">${payment.reason} ${payment.details ? `(${payment.details})` : ''}</span>
+                  </div>
+                  <div class="row">
+                    <span class="label">طريقة الدفع:</span>
+                    <span class="value">${methodText}</span>
                   </div>
                 </div>
                 
                 <div class="footer">
                   <div class="signatures">
-                    <div class="sign-box"><div class="sign-title">توقيع المستلم</div></div>
-                    <div class="sign-box"><div class="sign-title">توقيع الإدارة / الختم</div></div>
+                    <div class="sign-box">
+                        <div class="sign-line"></div>
+                        <div class="sign-title">توقيع المستلم</div>
+                    </div>
+                    <div class="sign-box">
+                        <div class="stamp-area">الختم<br/>الرسمي</div>
+                    </div>
+                    <div class="sign-box">
+                        <div class="sign-line"></div>
+                        <div class="sign-title">توقيع الإدارة</div>
+                    </div>
                   </div>
-                  <div class="branches-box">
-                    <div class="branch">
-                      <span>الفرع الأول: شفابدران - شارع رفعت شموط</span>
-                      <span class="phone">0795629606</span>
-                    </div>
-                    <div class="branch">
-                      <span>الفرع الثاني: أبو نصير - دوار البحرية</span>
-                      <span class="phone">0790368603</span>
-                    </div>
+                  
+                  <div class="contact-bar">
+                    <div>شفابدران - شارع رفعت شموط <span>0795629606</span></div>
+                    <div>|</div>
+                    <div>أبو نصير - دوار البحرية <span>0790368603</span></div>
                   </div>
                 </div>
+                
             </div>
           </div>
         </body>
@@ -494,7 +610,6 @@ export default function FinanceManager({
                   <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." />
               </div>
               
-              {/* ✅ الحقل الجديد: اسم إضافي */}
               <div className="col-span-1">
                   <label className="text-xs block mb-1 font-bold text-slate-400">اسم الاخ (اختياري)</label>
                   <input 
@@ -522,7 +637,7 @@ export default function FinanceManager({
                   </select>
               </div>
 
-              {/* قائمة الأسباب مع زر الإعدادات */}
+              {/* قائمة الأسباب */}
               <div className="relative">
                   <label className="text-xs block mb-1 font-bold text-slate-400 flex justify-between">
                       السبب
@@ -564,7 +679,7 @@ export default function FinanceManager({
              <StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} />
           </div>
 
-          {/* --- DESKTOP VIEW (Table) --- */}
+          {/* --- DESKTOP VIEW --- */}
           <div className="hidden md:block">
             <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
                 <table className="w-full text-sm text-right">
@@ -606,7 +721,7 @@ export default function FinanceManager({
             </Card>
           </div>
 
-          {/* --- MOBILE VIEW (Cards) --- */}
+          {/* --- MOBILE VIEW --- */}
           <div className="md:hidden grid gap-4">
               {filteredPayments.map(p => (
                   <div key={p.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col gap-3 relative overflow-hidden">
