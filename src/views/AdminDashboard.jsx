@@ -3,14 +3,14 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive, 
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin, 
-  Award, Calendar, ChevronDown, X, MessageSquare 
+  Award, Calendar, ChevronDown, X, MessageSquare, ArrowRight 
 } from 'lucide-react'; 
 import { addDoc, collection } from "firebase/firestore"; 
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection'; 
 import { IMAGES } from '../lib/constants'; 
 import { CalendarDays } from 'lucide-react'; 
-import { Scale } from 'lucide-react'; // استيراد الأيقونة
+import { Scale } from 'lucide-react'; 
 // Import Managers
 import AdminNotesManager from './dashboard/AdminNotesManager';
 import { DashboardStats } from './dashboard/DashboardStats';
@@ -27,7 +27,7 @@ import ReportsManager from './dashboard/ReportsManager';
 import SubscriptionsManager from './dashboard/SubscriptionsManager';
 import NotesManager from './dashboard/NotesManager'; 
 import EventsManager from './dashboard/EventsManager'; 
-import WeightTracker from './dashboard/WeightTracker'; // استيراد الملف الجديد
+import WeightTracker from './dashboard/WeightTracker'; 
 
 
 // --- دوال مساعدة ---
@@ -51,7 +51,7 @@ const logActivity = async (action, details, branch, user) => {
   } catch (e) { console.error("Log error", e); }
 };
 
-// --- مكون القائمة المنسدلة (Updated for Dark/Pro Theme) ---
+// --- مكون القائمة المنسدلة ---
 const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -113,6 +113,30 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
 const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleCollection, handleLogout, onSwitchBranch }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // --- ربط التبويبات مع زر الرجوع في المتصفح والهاش (Hash Routing) ---
+  useEffect(() => {
+      const handleHashChange = () => {
+          const hash = window.location.hash.replace('#', '');
+          if (hash) {
+              setActiveTab(hash);
+          } else {
+              setActiveTab('dashboard'); // الافتراضي
+          }
+      };
+
+      // قراءة الهاش عند تحميل الصفحة أول مرة
+      handleHashChange();
+
+      // الاستماع لتغيرات الهاش (عند ضغط زر الرجوع أو التقدم في المتصفح)
+      window.addEventListener('hashchange', handleHashChange);
+      return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // دالة تغيير التبويب التي ستضيف الرابط لسجل المتصفح
+  const changeTab = (tabId) => {
+      window.location.hash = tabId; 
+  };
 
   // جلب البيانات
   const paymentsCollection = useCollection('payments');
@@ -196,8 +220,6 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   };
 
   // --- تعريف المجموعات الجديدة ---
-  
-  // المجموعة الأولى: طلاب
   const studentGroups = [
       {id:'students', icon:Users, label:'الطلاب'}, 
       {id:'student_notes', icon:MessageSquare, label:'الملاحظات والرسائل'}, 
@@ -207,22 +229,19 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
       {id:'archive', icon:Archive, label:'الأرشيف'},
   ];
 
-  // المجموعة الثانية: الإدارة
   const adminGroups = [
       {id:'registrations', icon:Inbox, label:'طلبات التسجيل', badge: branchRegistrations.length},
       {id:'schedule', icon:Clock, label:'جدول الحصص'},
       {id:'notes', label: 'ملاحظات الإدارة', icon: FileText },
       {id:'events', icon:CalendarDays, label:'إدارة التدريبات'},
-      {id:'weight', icon:Scale, label:'الاوزان'}, // 👈 الزر الجديد
+      {id:'weight', icon:Scale, label:'الاوزان'},
       {id:'news', icon:Megaphone, label:'الاخبار والعروض'},
       {id:'reports', icon:FileText, label:'التقارير الشاملة'},
       {id:'captains', icon:Shield, label:'الكباتن والصلاحيات', role: 'admin'},
-      // زر الباك اب كخيار في القائمة
       {id:'backup', icon:Database, label:'باك اب داتابيس', role: 'admin', action: handleBackup, special: true}, 
   ].filter(i => !i.role || i.role === user.role);
 
   return (
-    // ✨ Changed to Dark Mode (Slate-950) with refined typography
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans flex flex-col selection:bg-yellow-500/30" dir="rtl">
       
       {/* --- الشريط العلوي (Pro Header) --- */}
@@ -253,7 +272,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
               {/* القائمة الرئيسية (لابتوب) */}
               <nav className="hidden md:flex items-center gap-2">
                   <button 
-                      onClick={() => setActiveTab('dashboard')}
+                      onClick={() => changeTab('dashboard')}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 font-bold text-sm border border-transparent
                           ${activeTab === 'dashboard' 
                             ? 'text-yellow-400 bg-slate-800 border-slate-700 shadow-lg shadow-black/20' 
@@ -269,12 +288,12 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       icon={Users} 
                       items={studentGroups} 
                       activeTab={activeTab} 
-                      onSelect={setActiveTab}
+                      onSelect={changeTab}
                   />
 
-                  {/* زر الحضور والغياب (أساسي) - High Visibility Style */}
+                  {/* زر الحضور والغياب */}
                   <button 
-                      onClick={() => setActiveTab('attendance')}
+                      onClick={() => changeTab('attendance')}
                       className={`flex items-center gap-2 px-4 py-2 mx-2 rounded-xl transition-all duration-300 font-bold text-sm border 
                           ${activeTab === 'attendance' 
                             ? 'bg-yellow-500 text-slate-900 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)] scale-105' 
@@ -289,7 +308,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       icon={Shield} 
                       items={adminGroups} 
                       activeTab={activeTab} 
-                      onSelect={setActiveTab}
+                      onSelect={changeTab}
                   />
               </nav>
 
@@ -339,11 +358,11 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       </div>
                   )}
 
-                  <button onClick={() => {setActiveTab('dashboard'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-white font-bold border border-slate-700 hover:border-yellow-500/50 transition-all">
+                  <button onClick={() => {changeTab('dashboard'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-white font-bold border border-slate-700 hover:border-yellow-500/50 transition-all">
                       <Activity size={20} className="text-yellow-500"/> الرئيسية
                   </button>
 
-                  <button onClick={() => {setActiveTab('attendance'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg shadow-yellow-500/20">
+                  <button onClick={() => {changeTab('attendance'); setMobileMenuOpen(false);}} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-yellow-600 to-yellow-500 text-slate-900 font-bold shadow-lg shadow-yellow-500/20">
                       <CheckCircle size={20}/> حضور وغياب
                   </button>
 
@@ -352,7 +371,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                       <h3 className="text-[10px] font-black text-slate-500 px-2 uppercase tracking-wider">الطلاب</h3>
                       <div className="grid grid-cols-2 gap-3">
                           {studentGroups.map(item => (
-                              <button key={item.id} onClick={() => {setActiveTab(item.id); setMobileMenuOpen(false);}} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-xs font-bold border transition-all duration-200 
+                              <button key={item.id} onClick={() => {changeTab(item.id); setMobileMenuOpen(false);}} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-xs font-bold border transition-all duration-200 
                                   ${activeTab === item.id 
                                     ? 'bg-yellow-500 text-slate-900 border-yellow-500 shadow-md' 
                                     : 'bg-slate-800/50 text-slate-400 border-slate-800 hover:bg-slate-800 hover:border-slate-700'}`}>
@@ -371,7 +390,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                                   key={item.id} 
                                   onClick={() => { 
                                       if (item.action) item.action();
-                                      else setActiveTab(item.id); 
+                                      else changeTab(item.id); 
                                       setMobileMenuOpen(false);
                                   }} 
                                   className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-xs font-bold border transition-all duration-200
@@ -391,8 +410,20 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
       </header>
 
       {/* --- المحتوى الرئيسي --- */}
-      <main className="flex-1 w-full px-4 md:px-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mx-auto">
-         <div className="bg-slate-900/0 rounded-2xl min-h-[500px]"> {/* Container for content */}
+      <main className="flex-1 w-full px-4 md:px-8 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mx-auto max-w-7xl">
+         
+         {/* زر الرجوع للرئيسية */}
+         {activeTab !== 'dashboard' && (
+             <button 
+                onClick={() => changeTab('dashboard')} 
+                className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 px-4 py-2.5 rounded-xl border border-slate-800 transition-all w-fit shadow-md group"
+             >
+                 <ArrowRight size={18} className="transition-transform group-hover:-translate-x-1" />
+                 <span className="font-bold text-sm">الرجوع للرئيسية</span>
+             </button>
+         )}
+
+         <div className="bg-slate-900/0 rounded-2xl min-h-[500px]"> 
              {activeTab === 'dashboard' && <DashboardStats 
                  user={user} 
                  selectedBranch={selectedBranch} 
