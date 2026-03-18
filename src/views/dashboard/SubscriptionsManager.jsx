@@ -87,67 +87,104 @@ export default function SubscriptionsManager({ students, studentsCollection, log
         }).sort((a, b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0)); 
     }, [students, filterStudentId, statusFilter]);
 
-    // --- Print Report Function ---
+    // --- Print Report Function (Compact & First/Last Name) ---
     const handlePrintReport = () => {
         const printWin = window.open('', 'PRINT', 'height=800,width=1000');
         const logoUrl = window.location.origin + IMAGES.LOGO;
         const dateNow = formatDate(new Date());
+
+        let rowsHtml = '';
+        filteredStudents.forEach((s, i) => {
+            // --- ميزة استخراج الاسم الأول والأخير فقط ---
+            let displayName = s.name || "";
+            const nameParts = displayName.trim().split(/\s+/);
+            if (nameParts.length > 1) {
+                displayName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+            } else if (nameParts.length === 1) {
+                displayName = nameParts[0];
+            }
+            // --------------------------------------------
+
+            const status = calculateStatus(s.subEnd);
+            const statusText = getStatusLabel(status);
+            
+            // ألوان مخصصة للطباعة تظهر بوضوح على الورق
+            let statusBg = '';
+            let statusColor = '#000';
+            if (status === 'active') { statusBg = '#dcfce7'; statusColor = '#166534'; }
+            else if (status === 'near_end') { statusBg = '#fef08a'; statusColor = '#854d0e'; }
+            else if (status === 'expired') { statusBg = '#fee2e2'; statusColor = '#991b1b'; }
+
+            rowsHtml += `
+                <tr>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; font-weight:bold; font-size:11px;">${i + 1}</td>
+                    <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; font-size:12px;">${displayName}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; font-size:11px;">${s.belt || '-'}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; direction:ltr; font-weight:bold; font-size:12px;">${formatDate(s.subEnd)}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center; background-color:${statusBg}; color:${statusColor}; font-weight:bold; font-size:11px;">${statusText}</td>
+                </tr>
+            `;
+        });
 
         const htmlContent = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>تقرير الاشتراكات - ${selectedBranch || ''}</title>
+                <title>تقرير الاشتراكات - ${selectedBranch || 'عام'}</title>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-                    body { font-family: 'Cairo', sans-serif; padding: 20px; }
-                    .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                    .logo { height: 80px; margin-bottom: 10px; }
-                    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                    th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
-                    th { background-color: #f3f4f6; }
-                    .status-active { color: green; font-weight: bold; }
-                    .status-near_end { color: orange; font-weight: bold; }
-                    .status-expired { color: red; font-weight: bold; }
-                    @media print { button { display: none; } }
+                    body { font-family: 'Cairo', sans-serif; padding: 0; margin: 0; }
+                    .print-container { padding: 15px; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+                    .logo { height: 50px; }
+                    .title-section h2 { margin: 0 0 5px 0; font-size: 18px; color: #000; }
+                    .title-section p { margin: 0; font-size: 12px; font-weight: bold; color: #444; }
+                    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px; }
+                    th { border: 1px solid #000; padding: 6px; background-color: #f3f4f6; text-align: center; font-size: 12px; }
+                    @page { size: A4 portrait; margin: 10mm; } /* طولي لتوفير الورق */
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        td, th { border: 1px solid #000 !important; }
+                    }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-                    <h2>تقرير متابعة الاشتراكات</h2>
-                    <p>التاريخ: ${dateNow}</p>
-                    <p>عدد الطلاب في القائمة: ${filteredStudents.length}</p>
+                <div class="print-container">
+                    <div class="header">
+                        <div class="title-section">
+                            <h2>أكاديمية الشجاع للتايكواندو - كشف الاشتراكات</h2>
+                            <p>الفرع: ${selectedBranch || 'عام'} | عدد الطلاب في الكشف: ${filteredStudents.length}</p>
+                            <p>تاريخ استخراج التقرير: ${dateNow}</p>
+                        </div>
+                        <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 30px;">#</th>
+                                <th style="width: 200px;">اسم الطالب</th>
+                                <th style="width: 80px;">الحزام</th>
+                                <th style="width: 120px;">تاريخ الانتهاء</th>
+                                <th>حالة الاشتراك</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                    
+                    <div style="font-size:10px; color:#666; text-align:left; margin-top:10px;">
+                        تم الإنشاء بواسطة نظام إدارة الأكاديمية
+                    </div>
                 </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>الطالب</th>
-                            <th>الحزام</th>
-                            <th>تاريخ الانتهاء</th>
-                            <th>الحالة</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filteredStudents.map((s, i) => {
-                            const status = calculateStatus(s.subEnd);
-                            const statusText = getStatusLabel(status);
-                            const statusClass = `status-${status}`;
-                            return `
-                                <tr>
-                                    <td>${i + 1}</td>
-                                    <td>${s.name}</td>
-                                    <td>${s.belt}</td>
-                                    <td style="direction:ltr; text-align:right">${formatDate(s.subEnd)}</td>
-                                    <td class="${statusClass}">${statusText}</td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-                <script>window.onload = function() { window.print(); }</script>
+                <script>
+                    window.onload = () => {
+                        window.focus();
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    }
+                </script>
             </body>
             </html>
         `;
