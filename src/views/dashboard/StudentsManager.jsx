@@ -4,10 +4,10 @@ import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
   X, Search, Filter, SortAsc, SortDesc, Send, Sparkles, 
-  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock 
+  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer 
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
-import { BELTS } from '../../lib/constants';
+import { BELTS, IMAGES } from '../../lib/constants';
 import { writeBatch, doc } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
 
@@ -23,7 +23,6 @@ const generateCredentials = () => {
   return { username, password };
 };
 
-// --- Helper: Date Formatter (dd/mm/yyyy) ---
 const formatDate = (dateString) => {
   if (!dateString) return '-';
   const d = new Date(dateString);
@@ -194,7 +193,7 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
     );
 };
 
-// --- 2. Notes Manager Modal (Updated with Legacy Support) ---
+// --- 2. Notes Manager Modal ---
 const NotesManagerModal = ({ student, onClose, onSave }) => {
     const [activeTab, setActiveTab] = useState('private'); 
     const [noteText, setNoteText] = useState('');
@@ -204,7 +203,7 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
         const newNote = {
             id: Date.now().toString(),
             text: noteText,
-            date: formatDate(new Date()), // Use formatDate here for dd/mm/yyyy
+            date: formatDate(new Date()), 
             timestamp: new Date().toISOString()
         };
         onSave(student.id, activeTab, 'add', newNote);
@@ -216,7 +215,6 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
         onSave(student.id, activeTab, 'delete', { id: noteId, isLegacy });
     };
 
-    // ✅ دمج الملاحظات القديمة (note) مع الجديدة (internalNotes) للملاحظات الخاصة
     const notesList = useMemo(() => {
         if (activeTab === 'private') {
             let list = student.internalNotes || [];
@@ -355,12 +353,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [editingStudent, setEditingStudent] = useState(null); 
   const [createdCreds, setCreatedCreds] = useState(null);
   
-  // States for Modals
   const [studentForNotes, setStudentForNotes] = useState(null);
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [renewingStudent, setRenewingStudent] = useState(null); 
 
-  // استخراج المجموعات
   const availableGroups = useMemo(() => {
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
@@ -374,7 +370,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [newS, setNewS] = useState(defaultForm);
   const [linkFamily, setLinkFamily] = useState('new');
   
-  // --- التعديل الذكي: تجميع العائلات + استنتاج الاسم المفقود ---
   const uniqueFamilies = useMemo(() => {
       const familiesMap = {};
       
@@ -451,6 +446,117 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
       return result;
   }, [students, search, statusFilter, sortOption]);
+
+  // --- دالة طباعة كشف الطلاب (Smart Print) ---
+  const handlePrintStudents = () => {
+    const printWin = window.open('', 'PRINT', 'height=800,width=1100');
+    const logoUrl = window.location.origin + IMAGES.LOGO;
+    const dateNow = new Date().toLocaleDateString('ar-JO');
+
+    let rowsHtml = '';
+    processedStudents.forEach((s, i) => {
+        // اختصار الاسم الأول والأخير لتوفير المساحة
+        let displayName = s.name || "";
+        const nameParts = displayName.trim().split(/\s+/);
+        if (nameParts.length > 1) {
+            displayName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+        } else if (nameParts.length === 1) {
+            displayName = nameParts[0];
+        }
+
+        const status = calculateStatus(s.subEnd);
+        let statusText = 'فعال';
+        let statusColor = '#166534';
+        let statusBg = '#dcfce7';
+
+        if (status === 'expired') {
+            statusText = 'منتهي';
+            statusColor = '#991b1b';
+            statusBg = '#fee2e2';
+        } else if (status === 'near_end') {
+            statusText = 'قارب الانتهاء';
+            statusColor = '#854d0e';
+            statusBg = '#fef08a';
+        }
+
+        const balanceText = s.balance > 0 ? `<span style="color:#991b1b; font-weight:bold;">عليه ${s.balance}</span>` : '<span style="color:#166534;">مدفوع</span>';
+
+        rowsHtml += `
+            <tr>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${i + 1}</td>
+                <td style="border:1px solid #000; padding:6px; font-weight:bold; font-size:13px;">${displayName}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${s.belt || '-'}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${s.group || '-'}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${s.phone || '-'}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; background-color:${s.balance > 0 ? '#fee2e2' : 'transparent'};">${balanceText}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${formatDate(s.subEnd)}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-weight:bold; color:${statusColor}; background-color:${statusBg};">${statusText}</td>
+            </tr>
+        `;
+    });
+
+    if (processedStudents.length === 0) {
+        rowsHtml = `<tr><td colspan="8" style="text-align:center; padding:20px;">لا يوجد طلاب مطابقين لخيارات البحث.</td></tr>`;
+    }
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>كشف بيانات الطلاب - ${selectedBranch || 'عام'}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+                @page { size: A4 landscape; margin: 10mm; }
+                body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; background: #fff; color: #000; }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                .header-info h1 { margin: 0; font-size: 20px; color: #000; font-weight: 900; }
+                .header-info p { margin: 5px 0 0 0; font-size: 13px; font-weight: bold; color: #444; }
+                .logo { height: 60px; object-fit: contain; }
+                table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                th { background-color: #f3f4f6; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: center; }
+                td { border: 1px solid #000; }
+                @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    th, td { border: 1px solid #000 !important; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="header-info">
+                    <h1>كشف سجلات الطلاب الشامل</h1>
+                    <p>الفرع: ${selectedBranch || 'عام'} | تاريخ الطباعة: ${dateNow} | العدد: ${processedStudents.length}</p>
+                </div>
+                <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">#</th>
+                        <th style="width: 180px;">اسم الطالب</th>
+                        <th style="width: 80px;">الحزام</th>
+                        <th style="width: 100px;">المجموعة / الفترة</th>
+                        <th style="width: 120px;">رقم الهاتف</th>
+                        <th style="width: 100px;">الرصيد/المديونية</th>
+                        <th style="width: 120px;">نهاية الاشتراك</th>
+                        <th style="width: 100px;">حالة الاشتراك</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+            <div style="font-size:10px; color:#666; text-align:left; margin-top:15px;">
+                تم الإنشاء بواسطة نظام إدارة أكاديمية الشجاع للتايكواندو
+            </div>
+            <script>window.onload = function() { window.print(); window.close(); }</script>
+        </body>
+        </html>
+    `;
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+  };
 
   const addStudent = async (e) => {
     e.preventDefault(); 
@@ -559,7 +665,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
-  // --- ✅ التعامل مع الملاحظات (إضافة وحذف) ---
   const handleNoteAction = async (studentId, type, action, noteObj) => {
       const student = students.find(s => s.id === studentId);
       if (!student) return;
@@ -625,7 +730,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       }
   };
 
-  // --- حفظ التجديد السريع ---
   const handleRenewSave = async (studentId, newDate) => {
       await studentsCollection.update(studentId, { subEnd: newDate });
       
@@ -648,25 +752,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     let cleanPhone = student.phone.replace(/\D/g, ''); 
     if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
     
-    const message = `مرحباً ${student.name} 🔥
-
-أهلاً بك في أكاديمية الشجاع للتايكواندو !
-إليك بيانات الدخول الخاصة بك بالموقع :
-
-👤 اسم المستخدم: ${student.username}
-🔑 كلمة المرور: ${student.password}
-
-موقعنا الالكتروني :
-https://bravetkd.bar/
-
-نتمنى لك التوفيق يا بطل! 🥋
-
-📍 فروعنا :
-✅ الفرع الأول: شفابدران – شارع رفعت شموط
-📞 0795629606
-
-✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري
-📞 0790368603`;
+    const message = `مرحباً ${student.name} 🔥\n\nأهلاً بك في أكاديمية الشجاع للتايكواندو !\nإليك بيانات الدخول الخاصة بك بالموقع :\n\n👤 اسم المستخدم: ${student.username}\n🔑 كلمة المرور: ${student.password}\n\nموقعنا الالكتروني :\nhttps://bravetkd.bar/\n\nنتمنى لك التوفيق يا بطل! 🥋\n\n📍 فروعنا :\n✅ الفرع الأول: شفابدران – شارع رفعت شموط\n📞 0795629606\n\n✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري\n📞 0790368603`;
     
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
@@ -674,7 +760,6 @@ https://bravetkd.bar/
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
-      {/* Broadcast Modal */}
       <BroadcastModal 
          isOpen={showBroadcast}
          onClose={() => setShowBroadcast(false)}
@@ -683,7 +768,6 @@ https://bravetkd.bar/
          onSend={handleBroadcast}
       />
 
-      {/* Single Student Notes Modal */}
       {studentForNotes && (
           <NotesManagerModal 
               student={studentForNotes}
@@ -692,7 +776,6 @@ https://bravetkd.bar/
           />
       )}
 
-      {/* Quick Renewal Modal */}
       {renewingStudent && (
           <SubscriptionModal 
               student={renewingStudent}
@@ -701,7 +784,6 @@ https://bravetkd.bar/
           />
       )}
 
-      {/* Credential Success Modal */}
       {createdCreds && (
         <ModalOverlay onClose={() => setCreatedCreds(null)}>
             <div className="p-8 text-center">
@@ -744,6 +826,11 @@ https://bravetkd.bar/
           </div>
 
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+             {/* زر الطباعة الذكي الجديد */}
+             <Button onClick={handlePrintStudents} className="bg-blue-600 text-white border border-blue-500/30 hover:bg-blue-500 whitespace-nowrap flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                 <Printer size={18}/> <span className="hidden sm:inline">طباعة الكشف</span>
+             </Button>
+
              <Button onClick={() => setShowBroadcast(true)} className="bg-blue-900/20 text-blue-400 border border-blue-500/30 hover:bg-blue-900/40 whitespace-nowrap flex items-center gap-2">
                  <Megaphone size={18}/> <span className="hidden sm:inline">إعلان للكل</span>
              </Button>
@@ -1015,7 +1102,6 @@ https://bravetkd.bar/
                              </select>
                         </div>
 
-                        {/* --- القائمة الجديدة للعائلات --- */}
                         {!editingStudent && (
                             <div className="md:col-span-2 bg-blue-900/10 p-3 rounded-xl border border-blue-500/20">
                                 <label className="block text-xs font-bold text-blue-400 mb-1">العائلة (للخصومات)</label>
