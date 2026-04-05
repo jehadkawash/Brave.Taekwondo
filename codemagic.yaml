@@ -1,4 +1,4 @@
-# خطة بناء الآيفون - أكاديمية الشجاع (نسخة SPM)
+# خطة بناء الآيفون - أكاديمية الشجاع (نسخة SPM الحديثة)
 workflows:
   ios-workflow:
     name: Brave Taekwondo iOS Build
@@ -17,12 +17,13 @@ workflows:
       - name: Resolve Swift Package Dependencies
         script: |
           cd ios/App
-          # الماك رح يدور على التبعيات في المسار اللي لقيناه
-          xcodebuild -resolvePackageDependencies -workspace App.xcworkspace -scheme App
+          # التعديل هنا: نستخدم المشروع مباشرة لأننا بنظام SPM
+          xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
       - name: Build iOS App (Unsigned)
         script: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace \
+          # التعديل هنا: بناء المشروع (Project) بدل الـ Workspace
+          xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Debug \
             -sdk iphoneos \
