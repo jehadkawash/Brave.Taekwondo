@@ -1,0 +1,32 @@
+# خريطة بناء تطبيق الآيفون لأكاديمية الشجاع
+workflows:
+  ios-workflow:
+    name: Brave Taekwondo iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      node: latest
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: npm install
+      - name: Build Web Project (Vite)
+        script: npm run build
+      - name: Capacitor Sync iOS
+        script: npx cap sync ios
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      - name: Build iOS Development App (Unsigned)
+        script: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphoneos \
+            build \
+            CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - ios/App/build/outputs/**/*.app
