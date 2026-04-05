@@ -1,0 +1,64 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace "com.brave.taekwondo.app"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.brave.taekwondo.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+
+    // --- إضافة مكتبات Firebase الرسمية ---
+    // استيراد Firebase BoM لضمان توافق النسخ
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    
+    // مكتبة الرسائل (الاشعارات)
+    implementation 'com.google.firebase:firebase-messaging'
+    
+    // مكتبة التحليلات (مهمة لاستقرار التطبيق)
+    implementation 'com.google.firebase:firebase-analytics'
+}
+
+apply from: 'capacitor.build.gradle'
+
+// هذا الجزء يتأكد من ربط ملف google-services.json تلقائياً
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.exists()) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.warn("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

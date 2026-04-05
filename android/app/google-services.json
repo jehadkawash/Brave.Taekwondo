@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "862804404676",
+    "project_id": "brave-academy",
+    "storage_bucket": "brave-academy.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:862804404676:android:c96e8757747525ea1f5c91",
+        "android_client_info": {
+          "package_name": "com.brave.taekwondo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8AV8h8W1nch4wTWCMFA8LA_klmS8etjE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
