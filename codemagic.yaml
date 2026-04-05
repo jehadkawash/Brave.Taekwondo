@@ -1,4 +1,4 @@
-# خريطة بناء تطبيق الآيفون لأكاديمية الشجاع
+# خطة بناء الآيفون - أكاديمية الشجاع (نسخة SPM)
 workflows:
   ios-workflow:
     name: Brave Taekwondo iOS Build
@@ -7,7 +7,6 @@ workflows:
     environment:
       node: latest
       xcode: latest
-      cocoapods: default
     scripts:
       - name: Install npm dependencies
         script: npm install
@@ -15,11 +14,12 @@ workflows:
         script: npm run build
       - name: Capacitor Sync iOS
         script: npx cap sync ios
-      - name: Install CocoaPods
+      - name: Resolve Swift Package Dependencies
         script: |
           cd ios/App
-          pod install
-      - name: Build iOS Development App (Unsigned)
+          # الماك رح يدور على التبعيات في المسار اللي لقيناه
+          xcodebuild -resolvePackageDependencies -workspace App.xcworkspace -scheme App
+      - name: Build iOS App (Unsigned)
         script: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace \
