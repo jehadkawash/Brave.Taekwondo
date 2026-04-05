@@ -30,4 +30,7 @@ workflows:
             build \
             CODE_SIGNING_ALLOWED=NO
     artifacts:
-      - ios/App/build/outputs/**/*.app
+      # هذا السطر رح يروح للمكان اللي شفته في الـ Logs ويجيب الملف
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app
+      # وهذا السطر للاحتياط إذا تغير مكانه
+      - ios/App/*.app
