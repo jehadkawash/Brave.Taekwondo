@@ -13,7 +13,7 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
     const [newGroup, setNewGroup] = useState("");
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z- flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-100">
@@ -71,11 +71,27 @@ export default function AttendanceManager({ students, studentsCollection, groups
       return groups ? groups.map(g => g.name) : [];
   }, [groups]);
 
+  // --- دالة إرسال الإشعار ---
+  const sendAttendanceNotification = async (student) => {
+    if (!student.fcmToken) return; // إذا لم يكن هناك توكن، لا نفعل شيئاً
+
+    try {
+      // ملاحظة: للإرسال من داخل التطبيق مباشرة نحتاج إلى Server Key أو استخدام Cloud Functions
+      // بما أننا نريد "حل سريع"، سنقوم بطباعة العملية الآن، وسأخبرك بالخطوة القادمة للربط الفعلي
+      console.log(`Sending Notification to ${student.name} via Token: ${student.fcmToken}`);
+      
+      // هنا يتم مناداة API الخاص بـ Firebase Cloud Messaging
+      // سأقوم بتزويدك بكود الـ API المباشر بمجرد تفعيلك للـ Server Key في Firebase
+    } catch (error) {
+      console.error("Error sending notification:", error);
+    }
+  };
+
   const handleAddGroup = async (name) => {
       if (groupsList.includes(name)) return alert("هذه الفترة موجودة مسبقاً");
       await groupsCollection.add({
           name: name,
-          branch: selectedBranch || (students[0]?.branch || 'عام')
+          branch: selectedBranch || (students?.branch || 'عام')
       });
   };
 
@@ -128,8 +144,19 @@ export default function AttendanceManager({ students, studentsCollection, groups
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`; 
       const student = students.find(s => s.id === sid); 
       const newAtt = { ...(student.attendance || {}) }; 
-      if (newAtt[dateStr]) delete newAtt[dateStr]; else newAtt[dateStr] = true; 
-      await studentsCollection.update(sid, { attendance: newAtt }); 
+
+      // التحقق إذا كان الكابتن "يحضر" الطالب الآن (وليس يلغي حضوره)
+      const markingPresent = !newAtt[dateStr];
+
+      if (newAtt[dateStr]) delete newAtt[dateStr]; 
+      else newAtt[dateStr] = true; 
+
+      await studentsCollection.update(sid, { attendance: newAtt });
+
+      // إذا كان "حضور"، نرسل الإشعار
+      if (markingPresent) {
+        sendAttendanceNotification(student);
+      }
   };
 
   const handleDirectSort = async (oldIndex, newDisplayRank) => {
@@ -169,9 +196,9 @@ export default function AttendanceManager({ students, studentsCollection, groups
         let displayName = s.name || "";
         const nameParts = displayName.trim().split(/\s+/);
         if (nameParts.length > 1) {
-            displayName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+            displayName = `${nameParts} ${nameParts[nameParts.length - 1]}`;
         } else if (nameParts.length === 1) {
-            displayName = nameParts[0];
+            displayName = nameParts;
         }
         // ----------------------------------------------------
 
@@ -379,7 +406,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                         <div className="relative mt-1">
                                             <select 
                                                 className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded-md outline-none border border-blue-500/20 font-bold w-full appearance-none"
-                                                value={s.group || (groupsList.length > 0 ? groupsList[0] : "")}
+                                                value={s.group || (groupsList.length > 0 ? groupsList : "")}
                                                 onChange={(e) => changeStudentGroup(s.id, e.target.value)}
                                             >
                                                 {groupsList.map((name, idx) => <option key={idx} value={name} className="bg-slate-900">{name}</option>)}
@@ -441,7 +468,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                             <Edit3 size={10} className="text-slate-500"/>
                                             <select 
                                                 className="bg-transparent text-[10px] text-slate-500 outline-none cursor-pointer hover:text-blue-400 w-full"
-                                                value={s.group || (groupsList.length > 0 ? groupsList[0] : "")}
+                                                value={s.group || (groupsList.length > 0 ? groupsList : "")}
                                                 onChange={(e) => changeStudentGroup(s.id, e.target.value)}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
