@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react'; // أضفنا useEffect
 import { 
   Clock, LogOut, ChevronLeft, ChevronRight, Settings, Megaphone, 
   Calendar, CreditCard, User, Wallet, ArrowDownLeft, X 
@@ -9,6 +9,10 @@ import { updateDoc, doc } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// --- استيراد مكتبات Capacitor للإشعارات ---
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
 
 const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -24,6 +28,57 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const currentUserData = students.find(s => s.id === user.id) || user;
   const myStudents = students.filter(s => s.familyId === user.familyId);
   
+  // --- منطق إعداد الإشعارات ---
+  const setupNotifications = async () => {
+    // التأكد أن التطبيق يعمل على موبايل وليس ويب
+    if (Capacitor.getPlatform() === 'web') return;
+
+    // طلب الإذن
+    let permStatus = await PushNotifications.checkPermissions();
+
+    if (permStatus.receive === 'prompt') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
+
+    if (permStatus.receive !== 'granted') {
+      console.warn("User denied notifications");
+      return;
+    }
+
+    // تسجيل الجهاز في FCM
+    await PushNotifications.register();
+
+    // الاستماع للحصول على التوكن وحفظه
+    PushNotifications.addListener('registration', async (token) => {
+      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
+      try {
+        await updateDoc(studentRef, { 
+          fcmToken: token.value,
+          lastTokenSync: new Date().toISOString()
+        });
+        console.log("FCM Token Saved Successfully");
+      } catch (e) {
+        console.error("Error saving FCM token:", e);
+      }
+    });
+
+    // الاستماع للأخطاء
+    PushNotifications.addListener('registrationError', (error) => {
+      console.error('Error on registration: ' + JSON.stringify(error));
+    });
+  };
+
+  useEffect(() => {
+    setupNotifications();
+    // تنظيف المستمعات عند الخروج
+    return () => {
+      if (Capacitor.getPlatform() !== 'web') {
+        PushNotifications.removeAllListeners();
+      }
+    };
+  }, [currentUserData.id]);
+  // -------------------------
+
   const displayFamilyName = useMemo(() => {
     let name = currentUserData.familyName || 'عائلة';
     if (name.trim() === 'عائلة' || name.trim().toLowerCase() === 'family') {
@@ -35,8 +90,8 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                 lastNames[last] = (lastNames[last] || 0) + 1;
             }
         });
-        const entries = Object.entries(lastNames).sort((a,b) => b[1] - a[1]);
-        if (entries.length > 0) name = `عائلة ${entries[0][0]}`;
+        const entries = Object.entries(lastNames).sort((a,b) => b - a);
+        if (entries.length > 0) name = `عائلة ${entries}`;
     }
     return name;
   }, [currentUserData, myStudents]);
@@ -147,7 +202,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                                     <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">{n.desc}</p>
                                 </div>
                             </motion.div>
-                         ))}
+                          ))}
                     </div>
                 ) : (
                     <div className="bg-slate-900 rounded-3xl p-8 flex items-center justify-center text-slate-600 h-[180px] border border-slate-800 border-dashed">لا يوجد أخبار حالياً</div>
@@ -311,7 +366,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       {/* Settings Modal (Dark Theme) */}
       <AnimatePresence>
           {showSettings && (
-            <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+            <div className="fixed inset-0 bg-black/80 z- flex items-center justify-center p-4 backdrop-blur-md">
                 <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
                     className="w-full max-w-sm relative bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden"
