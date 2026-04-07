@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'; // أضفنا useEffect
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Clock, LogOut, ChevronLeft, ChevronRight, Settings, Megaphone, 
   Calendar, CreditCard, User, Wallet, ArrowDownLeft, X 
@@ -30,10 +30,25 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   
   // --- منطق إعداد الإشعارات ---
   const setupNotifications = async () => {
-    // التأكد أن التطبيق يعمل على موبايل وليس ويب
     if (Capacitor.getPlatform() === 'web') return;
 
-    // طلب الإذن
+    // 1. إنشاء قناة الإشعارات (مهم جداً لظهور النص في أندرويد)
+    try {
+      await PushNotifications.createChannel({
+        id: 'attendance_notifications',
+        name: 'تنبيهات الحضور',
+        description: 'إشعارات وصول الأبطال للأكاديمية',
+        importance: 5, // أقصى أهمية لضمان ظهور الرسالة منبثقة
+        visibility: 1,
+        sound: 'default',
+        vibration: true,
+      });
+      console.log("Notification Channel Created ✅");
+    } catch (e) {
+      console.error("Error creating channel:", e);
+    }
+
+    // 2. طلب الإذن
     let permStatus = await PushNotifications.checkPermissions();
 
     if (permStatus.receive === 'prompt') {
@@ -45,10 +60,10 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       return;
     }
 
-    // تسجيل الجهاز في FCM
+    // 3. تسجيل الجهاز في FCM
     await PushNotifications.register();
 
-    // الاستماع للحصول على التوكن وحفظه
+    // 4. الاستماع للحصول على التوكن وحفظه
     PushNotifications.addListener('registration', async (token) => {
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
       try {
@@ -70,7 +85,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
 
   useEffect(() => {
     setupNotifications();
-    // تنظيف المستمعات عند الخروج
     return () => {
       if (Capacitor.getPlatform() !== 'web') {
         PushNotifications.removeAllListeners();
@@ -139,7 +153,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-right text-slate-200 selection:bg-yellow-500/30 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-slate-950 font-sans text-right text-slate-200" dir="rtl">
       
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-40">
@@ -161,11 +175,11 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                     setCreds({ username: currentUserData.username, password: currentUserData.password });
                     setShowSettings(true);
                 }} 
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl px-3 py-2 text-xs md:text-sm font-bold flex items-center gap-2 transition-all"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl px-3 py-2 text-xs md:text-sm font-bold flex items-center gap-2"
             >
                 <Settings size={18}/> <span className="hidden md:inline">الإعدادات</span>
             </Button>
-            <Button onClick={handleLogout} className="bg-red-900/20 hover:bg-red-900/30 text-red-400 border border-red-500/20 rounded-xl px-3 py-2 text-xs md:text-sm font-bold flex items-center gap-2 transition-all">
+            <Button onClick={handleLogout} className="bg-red-900/20 hover:bg-red-900/30 text-red-400 border border-red-500/20 rounded-xl px-3 py-2 text-xs md:text-sm font-bold flex items-center gap-2">
                 <LogOut size={18}/> <span className="hidden md:inline">خروج</span>
             </Button>
           </div>
@@ -189,10 +203,9 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                             <motion.div 
                                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
                                key={n.id} 
-                               className="bg-slate-900 border border-slate-800 rounded-3xl p-5 hover:border-yellow-500/20 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[160px] shadow-lg"
+                               className="bg-slate-900 border border-slate-800 rounded-3xl p-5 hover:border-yellow-500/20 group relative overflow-hidden flex flex-col justify-between min-h-[160px] shadow-lg"
                             >
-                                <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-yellow-500/10 transition-colors"></div>
-                                
+                                <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                                 <div className="relative z-10">
                                     <div className="flex justify-between items-start mb-3">
                                         <span className="text-[10px] font-bold bg-yellow-500 text-slate-900 px-2 py-0.5 rounded-lg">{n.branch || 'عام'}</span>
@@ -218,14 +231,12 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                 
                 <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[2rem] p-6 relative overflow-hidden h-full min-h-[220px] shadow-xl">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-transparent"></div>
-                    <div className="absolute bottom-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl"></div>
-
                     {myPayments.length > 0 ? (
                         <div className="relative z-10 h-full flex flex-col">
-                            <p className="text-slate-500 text-xs font-bold mb-4">آخر 3 حركات مالية</p>
-                            <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                            <p className="text-slate-500 text-xs font-bold mb-4">آخر حركات مالية</p>
+                            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
                                 {myPayments.slice(0, 3).map(p => (
-                                    <div key={p.id} className="flex items-center gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-700 hover:border-emerald-500/30 transition-colors">
+                                    <div key={p.id} className="flex items-center gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-700">
                                         <div className="w-8 h-8 rounded-full bg-emerald-900/20 flex items-center justify-center text-emerald-500 shrink-0">
                                             <ArrowDownLeft size={16}/>
                                         </div>
@@ -237,11 +248,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                                     </div>
                                 ))}
                             </div>
-                            {myPayments.length > 3 && (
-                                <div className="mt-3 pt-3 border-t border-slate-800 text-center">
-                                    <span className="text-[10px] text-slate-500 cursor-pointer hover:text-slate-300 transition-colors">عرض كل السجل</span>
-                                </div>
-                            )}
                         </div>
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-slate-600">
@@ -267,9 +273,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                         key={s.id} 
                         className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl relative"
                     >
-                        {/* Student Card Header */}
-                        <div className="h-28 bg-slate-950 border-b border-slate-800 p-6 flex justify-between items-center relative overflow-hidden">
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5"></div>
+                        <div className="h-28 bg-slate-950 border-b border-slate-800 p-6 flex justify-between items-center relative">
                             <div className="relative z-10 flex items-center gap-4">
                                 <div className={`w-3 h-12 rounded-full ${s.balance > 0 ? 'bg-red-500 shadow-[0_0_15px_#ef4444]' : 'bg-emerald-500 shadow-[0_0_15px_#10b981]'}`}></div>
                                 <div>
@@ -283,9 +287,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                             </div>
                         </div>
 
-                        {/* Body */}
                         <div className="p-6 md:p-8">
-                            {/* Quick Stats */}
                             <div className="flex flex-wrap gap-4 mb-8">
                                 <div className="bg-slate-950 flex-1 min-w-[120px] rounded-2xl p-4 border border-slate-800">
                                     <p className="text-[10px] text-slate-500 font-bold mb-2">الاشتراك</p>
@@ -297,18 +299,16 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                                 <div className="bg-slate-950 flex-1 min-w-[120px] rounded-2xl p-4 border border-slate-800">
                                     <p className="text-[10px] text-slate-500 font-bold mb-2">الرصيد</p>
                                     <p className={`text-xl font-black ${s.balance > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{s.balance} JD</p>
-                                    <p className="text-[10px] text-slate-400 mt-1">{s.balance > 0 ? 'مستحق للدفع' : 'مدفوع'}</p>
                                 </div>
                             </div>
 
-                            {/* Attendance Calendar */}
                             <div className="bg-slate-950/50 rounded-3xl p-5 border border-slate-800">
                                 <div className="flex justify-between items-center mb-4">
                                     <h4 className="font-bold text-slate-300 text-sm flex items-center gap-2"><Calendar size={16} className="text-blue-500"/> الحضور</h4>
                                     <div className="flex items-center gap-2 bg-slate-900 px-2 py-1 rounded-full border border-slate-800">
-                                        <Button variant="ghost" onClick={()=>changeMonth(-1)} className="text-slate-500 hover:text-white p-0.5"><ChevronRight size={14}/></Button>
-                                        <span className="text-xs font-bold font-mono dir-ltr text-slate-300">{monthNames[month]} {year}</span>
-                                        <Button variant="ghost" onClick={()=>changeMonth(1)} className="text-slate-500 hover:text-white p-0.5"><ChevronLeft size={14}/></Button>
+                                        <Button variant="ghost" onClick={()=>changeMonth(-1)} className="text-slate-500 p-0.5"><ChevronRight size={14}/></Button>
+                                        <span className="text-xs font-bold font-mono text-slate-300">{monthNames[month]} {year}</span>
+                                        <Button variant="ghost" onClick={()=>changeMonth(1)} className="text-slate-500 p-0.5"><ChevronLeft size={14}/></Button>
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
@@ -317,8 +317,8 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                                         const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; 
                                         const isPresent = s.attendance && s.attendance[dateStr];
                                         return (
-                                            <div key={d} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all
-                                                ${isPresent ? 'bg-emerald-500 text-slate-900 shadow-lg shadow-emerald-500/20' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}>
+                                            <div key={d} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold
+                                                ${isPresent ? 'bg-emerald-500 text-slate-900 shadow-lg' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}>
                                                 {d}
                                             </div>
                                         )
@@ -338,17 +338,17 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                 <h2 className="text-2xl font-black text-slate-100">جدول الحصص</h2>
             </div>
             
-            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 relative overflow-hidden shadow-xl">
+            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-xl">
                 {schedule && schedule.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {schedule.map(cls => (
-                            <div key={cls.id} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 hover:border-yellow-500/30 transition-all group">
+                            <div key={cls.id} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 group">
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="text-[10px] font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">{cls.branch}</span>
-                                    <Clock size={16} className="text-slate-600 group-hover:text-yellow-500 transition-colors"/>
+                                    <Clock size={16} className="text-slate-600 group-hover:text-yellow-500"/>
                                 </div>
                                 <h4 className="text-lg font-black text-slate-200 mb-2">{cls.level}</h4>
-                                <div className="flex flex-col gap-1 text-xs text-slate-500 font-medium">
+                                <div className="flex flex-col gap-1 text-xs text-slate-500">
                                     <p>{cls.days}</p>
                                     <p className="text-yellow-500">{cls.time}</p>
                                 </div>
@@ -363,7 +363,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
 
       </div>
 
-      {/* Settings Modal (Dark Theme) */}
+      {/* Settings Modal */}
       <AnimatePresence>
           {showSettings && (
             <div className="fixed inset-0 bg-black/80 z- flex items-center justify-center p-4 backdrop-blur-md">
@@ -374,28 +374,28 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                     <div className="bg-slate-950 p-6 text-center border-b border-slate-800">
                         <h3 className="text-xl font-black text-slate-100">تحديث بيانات الدخول</h3>
                     </div>
-                    <button onClick={() => setShowSettings(false)} className="absolute top-4 left-4 text-slate-500 hover:text-red-500 transition-colors"><X size={24}/></button>
+                    <button onClick={() => setShowSettings(false)} className="absolute top-4 left-4 text-slate-500 hover:text-red-500"><X size={24}/></button>
                     
                     <form onSubmit={handleUpdateCredentials} className="p-8 space-y-6">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-2">اسم المستخدم الجديد</label>
+                            <label className="block text-xs font-bold text-slate-400 mb-2 text-right">اسم المستخدم الجديد</label>
                             <input 
-                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none transition-colors font-bold dir-ltr text-left"
+                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-right font-bold"
                                 value={creds.username}
                                 onChange={(e) => setCreds({...creds, username: e.target.value})}
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-2">كلمة المرور الجديدة</label>
+                            <label className="block text-xs font-bold text-slate-400 mb-2 text-right">كلمة المرور الجديدة</label>
                             <input 
-                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none transition-colors font-bold dir-ltr text-left"
+                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-right font-bold"
                                 value={creds.password}
                                 onChange={(e) => setCreds({...creds, password: e.target.value})}
                                 required
                             />
                         </div>
-                        <Button type="submit" disabled={isUpdating} className="w-full py-4 bg-yellow-500 text-slate-900 font-black hover:bg-yellow-400 rounded-xl shadow-lg shadow-yellow-500/20 border-none">
+                        <Button type="submit" disabled={isUpdating} className="w-full py-4 bg-yellow-500 text-slate-900 font-black hover:bg-yellow-400 rounded-xl">
                             {isUpdating ? 'جاري الحفظ...' : 'حفظ التغييرات'}
                         </Button>
                     </form>
