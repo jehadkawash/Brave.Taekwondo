@@ -12,6 +12,14 @@ import StudentPortal from './views/StudentPortal';
 import AdminDashboard from './views/AdminDashboard';
 import { BRANCHES } from './lib/constants';
 
+// دالة التشفير (نحتاجها هنا لمقارنة كلمة المرور المدخلة مع المشفرة في قاعدة البيانات)
+const hashPassword = async (password) => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 export default function App() {
   const [user, setUser] = useState(() => { 
       const saved = localStorage.getItem('braveUser'); 
@@ -50,13 +58,21 @@ export default function App() {
 
   const handleLogin = async (username, password) => {
     try {
-      // 1. نظام الطلاب (Legacy - سيتم تحديثه لاحقاً)
+      // 1. نظام الطلاب (مع دعم الباسورد المكشوف والمشفر)
+      const hashedPassword = await hashPassword(password);
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
-      const qStudent = query(studentsRef, where("username", "==", username), where("password", "==", password));
+      
+      const qStudent = query(
+          studentsRef, 
+          where("username", "==", username), 
+          where("password", "in", [password, hashedPassword]) 
+      );
+      
       const studentSnap = await getDocs(qStudent);
 
       if (!studentSnap.empty) {
-        const studentDoc = studentSnap.docs;
+        // ✅ تم إصلاح الخطأ هنا بإضافة
+        const studentDoc = studentSnap.docs; 
         const studentData = studentDoc.data();
         const userData = { 
             role: 'student', 
@@ -70,19 +86,22 @@ export default function App() {
         return;
       }
 
-      // 2. نظام الإدارة والكباتن (Firebase Auth الاحترافي)
-      let email = username;
-      if (username === 'admin1') email = 'admin@brave.com'; // اختصار للمدير
+      // 2. نظام الإدارة والكباتن (التعديل الذكي للأحرف)
+      let cleanUsername = username.trim().toLowerCase(); 
+      let email = cleanUsername;
       
-      if (email.includes('@')) {
-          await signInWithEmailAndPassword(auth, email, password);
-          return;
+      if (cleanUsername === 'admin1') email = 'admin@brave.com'; 
+      
+      if (!email.includes('@')) {
+          email = `${email}@brave.com`;
       }
       
-      alert('بيانات الدخول خاطئة!');
+      await signInWithEmailAndPassword(auth, email, password);
+      return;
+      
     } catch (error) {
       console.error("Login Error:", error);
-      alert("خطأ في الدخول: " + error.message);
+      alert('بيانات الدخول خاطئة أو كلمة المرور غير صحيحة!');
     }
   };
 
@@ -90,19 +109,18 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-            // جلب بيانات المستخدم من جدول users في الفايربيس بناءً على إيميله
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', firebaseUser.email);
+            const userEmail = firebaseUser.email.toLowerCase().trim();
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userEmail);
             const userSnap = await getDoc(userRef);
 
             if (userSnap.exists()) {
-                const userData = { ...userSnap.data(), email: firebaseUser.email, id: firebaseUser.uid };
+                const userData = { ...userSnap.data(), email: userEmail, id: firebaseUser.uid };
                 
                 setUser(userData);
                 setDashboardBranch(userData.branch || BRANCHES.SHAFA);
                 localStorage.setItem('braveUser', JSON.stringify(userData));
                 setView('admin_dashboard');
             } else {
-                // إذا لم يجد ملف تعريف، نعتبره مستخدم جديد بدون صلاحيات
                 alert("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.");
                 await signOut(auth);
             }
