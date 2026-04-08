@@ -1,22 +1,84 @@
 // src/views/dashboard/CaptainsManager.jsx
 import React, { useState } from 'react';
-import { Edit, Trash2, User, Lock, MapPin, DollarSign, Shield, Check } from 'lucide-react';
+import { Edit, Trash2, User, Lock, MapPin, DollarSign, Shield, Check, Loader2 } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { BRANCHES } from '../../lib/constants';
+
+// استيرادات فايربيس الجديدة
+import { initializeApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, appId, firebaseConfig } from '../../lib/firebase';
 
 export default function CaptainsManager({ captains, captainsCollection }) {
     const [form, setForm] = useState({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
     const [editingId, setEditingId] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false); // حالة التحميل
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if(editingId) { 
-            await captainsCollection.update(editingId, form); 
-            setEditingId(null); 
-        } else { 
-            await captainsCollection.add({ ...form, role: 'captain' }); 
+        setIsSubmitting(true);
+
+        try {
+            // تجهيز الإيميل (إذا أدخل اسم مستخدم عادي، نحوله لإيميل ليتوافق مع فايربيس)
+            const emailToUse = form.username.includes('@') ? form.username : `${form.username}@brave.com`;
+
+            if (editingId) { 
+                // 1. حالة التعديل
+                await captainsCollection.update(editingId, { ...form, username: emailToUse }); 
+                
+                // تحديث الفرع والصلاحية في جدول users الأساسي أيضاً
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', emailToUse);
+                await setDoc(userRef, {
+                    name: form.name,
+                    role: 'captain',
+                    branch: form.branch
+                }, { merge: true });
+
+                setEditingId(null); 
+                alert("تم تعديل بيانات الكابتن بنجاح!");
+            } else { 
+                // 2. حالة إضافة كابتن جديد (استخدام Secondary App لمنع خروج المدير)
+                const secondaryAppName = "SecondaryApp_" + Date.now(); // اسم فريد لتجنب التكرار
+                const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+                const secondaryAuth = getAuth(secondaryApp);
+
+                // إنشاء الحساب في Firebase Auth
+                await createUserWithEmailAndPassword(secondaryAuth, emailToUse, form.password);
+
+                // إضافة الصلاحيات في جدول users
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', emailToUse);
+                await setDoc(userRef, {
+                    name: form.name,
+                    role: 'captain',
+                    isSuper: false,
+                    branch: form.branch,
+                    createdAt: new Date().toISOString()
+                });
+
+                // إضافة الكابتن لجدول الكباتن عشان يظهر في الداشبورد
+                await captainsCollection.add({ ...form, username: emailToUse, role: 'captain' }); 
+
+                // تسجيل الخروج من النسخة المؤقتة
+                await signOut(secondaryAuth);
+                
+                alert("تم إضافة الكابتن وحسابه بنجاح!");
+            }
+            
+            // تصفير الحقول بعد الانتهاء
+            setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
+        } catch (error) {
+            console.error("Error saving captain:", error);
+            if (error.code === 'auth/email-already-in-use') {
+                alert("اسم المستخدم أو الإيميل هذا مستخدم مسبقاً لكابتن آخر!");
+            } else if (error.code === 'auth/weak-password') {
+                alert("كلمة المرور ضعيفة جداً (يجب أن تكون 6 أحرف أو أرقام على الأقل).");
+            } else {
+                alert("حدث خطأ أثناء حفظ البيانات: " + error.message);
+            }
+        } finally {
+            setIsSubmitting(false);
         }
-        setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', holidays: [], withdrawals: [] });
     };
 
     return (
@@ -72,15 +134,18 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                     {/* Username */}
                     <div>
                         <label className="text-xs font-bold text-slate-400 block mb-2 flex items-center gap-1">
-                            <Shield size={12}/> اسم المستخدم (Login)
+                            <Shield size={12}/> اسم المستخدم (للدخول)
                         </label>
                         <input 
                             className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none transition-colors placeholder-slate-600 font-mono text-left dir-ltr" 
-                            placeholder="username" 
+                            placeholder="مثال: ahmad أو ahmad@brave.com" 
                             value={form.username} 
                             onChange={e=>setForm({...form, username:e.target.value})} 
+                            disabled={!!editingId} // لا يمكن تغيير اسم المستخدم أثناء التعديل
                             required
                         />
+                        {/* تلميح صغير للإدارة */}
+                        {!editingId && <span className="text-[10px] text-slate-500 mt-1 block">سيتم إضافة @brave.com تلقائياً إذا لم تكتبها</span>}
                     </div>
 
                     {/* Password */}
@@ -90,17 +155,29 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                         </label>
                         <input 
                             className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:border-yellow-500 outline-none transition-colors placeholder-slate-600 font-mono text-left dir-ltr" 
-                            placeholder="password" 
+                            placeholder="••••••" 
                             value={form.password} 
                             onChange={e=>setForm({...form, password:e.target.value})} 
-                            required
+                            disabled={!!editingId} // تغيير الباسورد يتم من الفايربيس حالياً للأمان
+                            required={!editingId}
                         />
                     </div>
 
                     {/* Submit Button */}
                     <div>
-                        <Button type="submit" className="w-full bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 py-3 rounded-xl">
-                            {editingId ? <span className="flex items-center gap-2 justify-center"><Check size={18}/> حفظ التعديلات</span> : 'إضافة كابتن'}
+                        <Button 
+                            type="submit" 
+                            disabled={isSubmitting}
+                            className={`w-full font-bold shadow-lg py-3 rounded-xl transition-all
+                                ${isSubmitting ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400 shadow-yellow-500/20'}`}
+                        >
+                            {isSubmitting ? (
+                                <span className="flex items-center gap-2 justify-center"><Loader2 size={18} className="animate-spin"/> جاري الحفظ...</span>
+                            ) : editingId ? (
+                                <span className="flex items-center gap-2 justify-center"><Check size={18}/> حفظ التعديلات</span>
+                            ) : (
+                                'إضافة كابتن'
+                            )}
                         </Button>
                     </div>
                 </form>
@@ -120,13 +197,12 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {captains.map(cap => (
                             <div key={cap.id} className="bg-slate-900 rounded-2xl border border-slate-800 shadow-lg overflow-hidden group hover:border-slate-700 transition-all relative">
-                                {/* Accent Border */}
                                 <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-yellow-500 to-yellow-700"></div>
                                 
                                 <div className="p-5 pl-4">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-yellow-500 font-bold text-xl border border-slate-700 shadow-inner">
+                                            <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-yellow-500 font-bold text-xl border border-slate-700 shadow-inner uppercase">
                                                 {cap.name.charAt(0)}
                                             </div>
                                             <div>
@@ -146,7 +222,11 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                                                 <Edit size={16}/>
                                             </button>
                                             <button 
-                                                onClick={()=>captainsCollection.remove(cap.id)} 
+                                                onClick={async () => {
+                                                    if(window.confirm('هل أنت متأكد من حذف الكابتن؟ (سيتم حذفه من القائمة فقط)')) {
+                                                        await captainsCollection.remove(cap.id);
+                                                    }
+                                                }} 
                                                 className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-all"
                                                 title="حذف"
                                             >
@@ -160,15 +240,11 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                                             <span className="text-slate-500 flex items-center gap-1"><DollarSign size={14}/> الراتب:</span>
                                             <span className="font-mono font-bold text-emerald-400">{cap.salary} JD</span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                            <div>
-                                                <span className="text-slate-600 block mb-0.5">Username</span>
-                                                <span className="font-mono text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded block truncate">{cap.username}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-600 block mb-0.5">Password</span>
-                                                <span className="font-mono text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded block truncate">{cap.password}</span>
-                                            </div>
+                                        <div className="text-xs">
+                                            <span className="text-slate-600 block mb-0.5">تسجيل الدخول (Login ID)</span>
+                                            <span className="font-mono text-slate-300 bg-slate-900 px-2 py-1 rounded block truncate border border-slate-800">
+                                                {cap.username}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

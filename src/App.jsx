@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from "firebase/auth"; 
 import { getDoc, doc, collection, query, where, getDocs } from "firebase/firestore"; 
-import { auth, db } from './lib/firebase';
+import { auth, db, appId } from './lib/firebase';
 import { useCollection } from './hooks/useCollection';
 
 // Import Views
@@ -12,10 +12,7 @@ import StudentPortal from './views/StudentPortal';
 import AdminDashboard from './views/AdminDashboard';
 import { BRANCHES } from './lib/constants';
 
-const appId = 'brave-academy-live-data'; 
-
 export default function App() {
-  // 1. الحالة الأولية
   const [user, setUser] = useState(() => { 
       const saved = localStorage.getItem('braveUser'); 
       return saved ? JSON.parse(saved) : null; 
@@ -29,48 +26,37 @@ export default function App() {
       return 'home';
   });
 
-  const [dashboardBranch, setDashboardBranch] = useState(() => {
-      if (user && user.branch) return user.branch;
-      return BRANCHES.SHAFA;
-  });
-  
+  const [dashboardBranch, setDashboardBranch] = useState(BRANCHES.SHAFA);
   const [loadingAuth, setLoadingAuth] = useState(true);
   
-  // ✅ Collections Hooks (البيانات الخفيفة والمشتركة فقط)
   const studentsCollection = useCollection('students'); 
   const scheduleCollection = useCollection('schedule');
   const newsCollection = useCollection('news'); 
   
-  // --- دالة التنقل الذكي ---
   const navigateTo = (newView) => {
      setView(newView);
      window.history.pushState({ view: newView }, '', '');
   };
 
-  // --- الاستماع لزر الرجوع ---
   useEffect(() => {
     window.history.replaceState({ view: view }, '', '');
     const handleBackButton = (event) => {
-       if (event.state && event.state.view) {
-         setView(event.state.view);
-       } else {
-         setView('home');
-       }
+       if (event.state && event.state.view) setView(event.state.view);
+       else setView('home');
     };
     window.addEventListener('popstate', handleBackButton);
     return () => window.removeEventListener('popstate', handleBackButton);
-  }, []); 
+  }, [view]); 
 
-  // --- تسجيل الدخول ---
   const handleLogin = async (username, password) => {
     try {
-      // 1. البحث في الطلاب
+      // 1. نظام الطلاب (Legacy - سيتم تحديثه لاحقاً)
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
       const qStudent = query(studentsRef, where("username", "==", username), where("password", "==", password));
       const studentSnap = await getDocs(qStudent);
 
       if (!studentSnap.empty) {
-        const studentDoc = studentSnap.docs[0];
+        const studentDoc = studentSnap.docs;
         const studentData = studentDoc.data();
         const userData = { 
             role: 'student', 
@@ -78,90 +64,53 @@ export default function App() {
             name: studentData.familyName || studentData.name,
             id: studentDoc.id 
         };
-        
         setUser(userData); 
         localStorage.setItem('braveUser', JSON.stringify(userData)); 
         navigateTo('student_portal');
         return;
       }
 
-      // 2. البحث في الكباتن
-      const captainsRef = collection(db, 'artifacts', appId, 'public', 'data', 'captains');
-      const qCaptain = query(captainsRef, where("username", "==", username), where("password", "==", password));
-      const captainSnap = await getDocs(qCaptain);
-
-      if(!captainSnap.empty) {
-         const captainDoc = captainSnap.docs[0];
-         const capData = captainDoc.data();
-         const u = { role: 'captain', ...capData, id: captainDoc.id };
-         
-         setUser(u); 
-         localStorage.setItem('braveUser', JSON.stringify(u)); 
-         setDashboardBranch(capData.branch); 
-         navigateTo('admin_dashboard');
-         return;
-      }
-
-      // 3. البحث في الإدارة (Firebase Auth)
-      if (username.includes('@') || username === 'admin1') {
-          let email = username;
-          if (username === 'admin1') email = 'admin@brave.com';
+      // 2. نظام الإدارة والكباتن (Firebase Auth الاحترافي)
+      let email = username;
+      if (username === 'admin1') email = 'admin@brave.com'; // اختصار للمدير
+      
+      if (email.includes('@')) {
           await signInWithEmailAndPassword(auth, email, password);
           return;
       }
       
-      alert('بيانات الدخول خاطئة! تأكد من اسم المستخدم وكلمة المرور.');
-
+      alert('بيانات الدخول خاطئة!');
     } catch (error) {
       console.error("Login Error:", error);
-      alert("حدث خطأ أثناء تسجيل الدخول.");
+      alert("خطأ في الدخول: " + error.message);
     }
   };
 
-  // --- مراقبة حالة فايربيس وتحديد الصلاحيات ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const email = firebaseUser.email;
-        let userData = { email };
-
-        // توزيع الصلاحيات والفروع حسب الإيميل
-        if (email === 'admin@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: true, name: 'المدير العام', branch: BRANCHES.SHAFA };
-        } 
-        else if (email === 'shafa@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير شفا بدران', branch: BRANCHES.SHAFA };
-        } 
-        else if (email === 'abunseir@brave.com') {
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'مدير أبو نصير', branch: BRANCHES.ABU_NSEIR };
-        }
-        else if (email === 'jehad@yahoo.com') {
-          // ✅ تم التأكد من استخدام الثابت BRANCHES.ABU_NSEIR
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'جهاد كعوش', branch: BRANCHES.ABU_NSEIR };
-        }
-        else if (email === 'nseir@brave.com') {
-          // ✅ تم التأكد من استخدام الثابت BRANCHES.ABU_NSEIR
-          userData = { ...userData, role: 'admin', isSuper: false, name: 'كمال كعوش', branch: BRANCHES.ABU_NSEIR };
-        }
-
-        // جلب الاسم من البروفايل إذا وجد
         try {
-            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', 'admin_profiles', email);
-            const profileSnap = await getDoc(profileRef);
-            if (profileSnap.exists() && profileSnap.data().name) {
-                userData.name = profileSnap.data().name;
-            }
-        } catch (err) { console.log("Profile fetch warning"); }
+            // جلب بيانات المستخدم من جدول users في الفايربيس بناءً على إيميله
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', firebaseUser.email);
+            const userSnap = await getDoc(userRef);
 
-        setUser(userData);
-        setDashboardBranch(userData.branch);
-        localStorage.setItem('braveUser', JSON.stringify(userData));
-        setView('admin_dashboard');
-        
-      } else {
-        if (!localStorage.getItem('braveUser')) {
-            setUser(null);
+            if (userSnap.exists()) {
+                const userData = { ...userSnap.data(), email: firebaseUser.email, id: firebaseUser.uid };
+                
+                setUser(userData);
+                setDashboardBranch(userData.branch || BRANCHES.SHAFA);
+                localStorage.setItem('braveUser', JSON.stringify(userData));
+                setView('admin_dashboard');
+            } else {
+                // إذا لم يجد ملف تعريف، نعتبره مستخدم جديد بدون صلاحيات
+                alert("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.");
+                await signOut(auth);
+            }
+        } catch (err) {
+            console.error("Error fetching user profile:", err);
         }
+      } else {
+        if (!localStorage.getItem('braveUser')) setUser(null);
       }
       setLoadingAuth(false);
     });
@@ -176,24 +125,13 @@ export default function App() {
     navigateTo('home'); 
   };
 
-  if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من البيانات...</div>;
+  if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من الصلاحيات...</div>;
 
   return (
     <>
       {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} />}
-      
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
-      
-      {/* بوابة الطالب */}
-      {view === 'student_portal' && user && <StudentPortal 
-          user={user} 
-          students={studentsCollection.data} 
-          schedule={scheduleCollection.data} 
-          news={newsCollection.data}
-          handleLogout={handleLogout} 
-      />}
-      
-      {/* لوحة الإدارة */}
+      {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} news={newsCollection.data} handleLogout={handleLogout} />}
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
