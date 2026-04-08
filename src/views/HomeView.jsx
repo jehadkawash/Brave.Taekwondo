@@ -1,3 +1,4 @@
+// all working completly and good 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Menu, X, MapPin, Phone, Clock, Calendar, Activity, Trophy, Shield, Users, MessageCircle, Megaphone, ChevronRight, ChevronLeft, Navigation, Play, Star, CheckCircle, ArrowDown } from 'lucide-react';
 import { Button, Card } from '../components/UIComponents';
