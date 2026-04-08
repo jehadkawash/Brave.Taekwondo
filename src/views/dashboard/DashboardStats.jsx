@@ -5,7 +5,7 @@ import {
   Users, DollarSign, Activity, 
   AlertCircle, PieChart as PieIcon, BarChart3,
   Clock, UserPlus, Award, UserX, Phone, MessageCircle, 
-  X, List, Calendar, ChevronLeft, ChevronRight, Printer
+  X, List, Calendar, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -45,52 +45,34 @@ const safeDate = (dateStr) => {
     } catch { return null; }
 };
 
-// --- مودال سجل الحركات الكامل مع خاصية الطباعة لآخر 50 حركة ---
+// --- مودال سجل الحركات الكامل ---
 const LogsModal = ({ isOpen, onClose, logs }) => {
     if (!isOpen) return null;
-
-    const handlePrint = () => {
-        window.print();
-    };
-
-    // نأخذ أول 50 سجل فقط للطباعة
-    const logsToPrint = logs.slice(0, 50);
-
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm no-print" onClick={onClose}></div>
-            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col animate-fade-in print:h-auto print:static print:bg-white print:border-0 print:shadow-none">
-                
-                <div className="flex justify-between items-center p-6 border-b border-slate-800 print:border-black print:pb-2">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2 print:text-black">
-                        <List size={24} className="text-blue-500 no-print"/> سجل العمليات الكامل
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col animate-fade-in">
+                <div className="flex justify-between items-center p-6 border-b border-slate-800">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <List size={24} className="text-blue-500"/> سجل العمليات الكامل
                     </h3>
-                    <div className="flex items-center gap-2 no-print">
-                        <button 
-                            onClick={handlePrint}
-                            className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-bold transition-all"
-                        >
-                            <Printer size={16}/> طباعة (آخر 50)
-                        </button>
-                        <button onClick={onClose}><X size={24} className="text-slate-500 hover:text-red-500"/></button>
-                    </div>
+                    <button onClick={onClose}><X size={24} className="text-slate-500 hover:text-red-500"/></button>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2 print:overflow-visible print:p-0">
-                    {(window.location.pathname ? logs : logsToPrint).map((log, i) => {
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2">
+                    {logs.map((log, i) => {
                         const dateObj = safeDate(log.timestamp);
                         return (
-                            <div key={i} className={`bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center print:bg-white print:border-b print:border-slate-200 print:rounded-none print:px-0 ${i >= 50 ? 'print:hidden' : ''}`}>
+                            <div key={i} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
                                 <div>
-                                    <p className="text-slate-200 font-bold text-sm print:text-black">{log.action}</p>
-                                    <p className="text-slate-500 text-xs mt-1 print:text-slate-700">{log.details}</p>
+                                    <p className="text-slate-200 font-bold text-sm">{log.action}</p>
+                                    <p className="text-slate-500 text-xs mt-1">{log.details}</p>
                                 </div>
                                 <div className="text-left min-w-[80px]">
-                                    <span className="block text-[10px] text-blue-400 bg-blue-900/10 px-2 py-1 rounded mb-1 text-center print:text-blue-700 print:border print:border-blue-200">{log.performedBy || 'System'}</span>
-                                    <span className="text-[10px] text-slate-600 dir-ltr block text-center print:text-black">
+                                    <span className="block text-[10px] text-blue-400 bg-blue-900/10 px-2 py-1 rounded mb-1 text-center">{log.performedBy || 'System'}</span>
+                                    <span className="text-[10px] text-slate-600 dir-ltr block text-center">
                                         {dateObj ? dateObj.toLocaleDateString('en-GB') : '-'}
                                     </span>
-                                    <span className="text-[10px] text-slate-600 dir-ltr block text-center print:text-black">
+                                    <span className="text-[10px] text-slate-600 dir-ltr block text-center">
                                         {dateObj ? dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'}
                                     </span>
                                 </div>
@@ -98,16 +80,6 @@ const LogsModal = ({ isOpen, onClose, logs }) => {
                         );
                     })}
                 </div>
-
-                {/* نمط الطباعة مدمج داخل المكون */}
-                <style dangerouslySetInnerHTML={{ __html: `
-                    @media print {
-                        .no-print { display: none !important; }
-                        body { background: white !important; }
-                        .print-only { display: block !important; }
-                        * { -webkit-print-color-adjust: exact !important; printer-colors: exact !important; }
-                    }
-                `}} />
             </div>
         </div>,
         document.body
@@ -240,7 +212,7 @@ export const DashboardStats = ({
           
           // 3. نأخذ آخر تاريخ حضور
           const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); // تنازلي
-          const lastAttDate = dates; // أحدث تاريخ
+          const lastAttDate = dates[0]; // أحدث تاريخ
 
           // إذا كان آخر حضور أقدم من 5 أيام -> يعتبر غائب
           return lastAttDate < fiveDaysAgo;
@@ -308,7 +280,7 @@ export const DashboardStats = ({
                    {time.toLocaleDateString('ar-JO', { weekday: 'long' })}
                </p>
                <p className="text-sm font-bold text-yellow-500 dir-ltr">
-                   {time.toLocaleDateString('en-GB')}
+                   {time.toLocaleDateString('en-GB')} {/* يعرض 26/01/2026 */}
                </p>
            </div>
         </div>
@@ -386,17 +358,17 @@ export const DashboardStats = ({
                   ))}
                 </Pie>
                 <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff' }}
+                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff' }}
                 />
               </PieChart>
             </ResponsiveContainer>
             
             {/* Center Text */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="text-center">
-                  <span className="block text-3xl font-black text-white">{branchStudents.length}</span>
-                  <span className="text-[10px] text-slate-500 uppercase tracking-widest">طالب</span>
-                </div>
+               <div className="text-center">
+                 <span className="block text-3xl font-black text-white">{branchStudents.length}</span>
+                 <span className="text-[10px] text-slate-500 uppercase tracking-widest">طالب</span>
+               </div>
             </div>
           </div>
           
