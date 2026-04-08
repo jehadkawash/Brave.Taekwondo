@@ -10,6 +10,7 @@ import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS, IMAGES } from '../../lib/constants';
 import { writeBatch, doc } from "firebase/firestore"; 
 import { db, appId } from '../../lib/firebase';
+import { hashPassword } from '../App'; 
 
 // --- Helper Functions ---
 const generateCredentials = () => {
