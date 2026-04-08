@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
   X, Search, Filter, SortAsc, SortDesc, Send, Sparkles, 
-  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer 
+  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer, RefreshCw 
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS, IMAGES } from '../../lib/constants';
@@ -60,7 +60,7 @@ const isNewStudent = (joinDate) => {
 const ModalOverlay = ({ children, onClose }) => {
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog">
+    <div className="fixed inset-0 z- overflow-y-auto" role="dialog">
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         <div className="relative transform overflow-hidden rounded-2xl text-right shadow-2xl shadow-black/50 transition-all sm:my-8 sm:w-full sm:max-w-2xl bg-slate-900 border border-slate-700" onClick={e => e.stopPropagation()}>
@@ -97,7 +97,6 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
 
     const handleSend = async () => {
         if (!message.trim()) return alert("الرجاء كتابة الرسالة");
-        
         if (target === 'custom' && selectedStudentIds.length === 0) return alert("الرجاء اختيار طالب واحد على الأقل");
 
         setLoading(true);
@@ -125,7 +124,7 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
                             </label>
                             
                             <label className="flex items-center gap-2 cursor-pointer bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
-                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups[0]); }} className="accent-blue-500"/>
+                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups); }} className="accent-blue-500"/>
                                 <span className="text-slate-200">فترة / مجموعة محددة</span>
                             </label>
 
@@ -219,12 +218,7 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
         if (activeTab === 'private') {
             let list = student.internalNotes || [];
             if (student.note && student.note.trim() !== '') {
-                list = [...list, {
-                    id: 'legacy_note',
-                    text: student.note,
-                    date: 'سجل قديم',
-                    isLegacy: true 
-                }];
+                list = [...list, { id: 'legacy_note', text: student.note, date: 'سجل قديم', isLegacy: true }];
             }
             return list;
         } else {
@@ -305,12 +299,12 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
 
 // --- 3. Quick Renewal Modal ---
 const SubscriptionModal = ({ student, onClose, onSave }) => {
-    const [date, setDate] = useState(student.subEnd || new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(student.subEnd || new Date().toISOString().split('T'));
 
     const addMonths = (months) => {
         const d = new Date(date);
         d.setMonth(d.getMonth() + months);
-        setDate(d.toISOString().split('T')[0]);
+        setDate(d.toISOString().split('T'));
     };
 
     return (
@@ -363,7 +357,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const defaultForm = { 
       name: '', phone: '', belt: 'أبيض', group: '', 
-      joinDate: new Date().toISOString().split('T')[0], 
+      joinDate: new Date().toISOString().split('T'), 
       dob: '', address: '', balance: 0, subEnd: '', username: '', password: '' 
   };
   
@@ -384,7 +378,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
               }
               
               const nameParts = s.name.trim().split(/\s+/);
-              const firstName = nameParts[0];
+              const firstName = nameParts;
               const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
               if (familiesMap[s.familyId].members.length < 3) {
@@ -405,15 +399,12 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           if (isGenericName) {
               const entries = Object.entries(data.lastNames);
               if (entries.length > 0) {
-                  const bestLastName = entries.sort((a,b) => b[1] - a[1])[0][0];
+                  const bestLastName = entries.sort((a,b) => b - a);
                   finalName = `عائلة ${bestLastName}`;
               }
           }
 
-          return {
-              id,
-              displayName: `${finalName} (يشمل: ${data.members.join('، ')}...)`
-          };
+          return { id, displayName: `${finalName} (يشمل: ${data.members.join('، ')}...)` };
       });
   }, [students]);
 
@@ -447,7 +438,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       return result;
   }, [students, search, statusFilter, sortOption]);
 
-  // --- دالة طباعة كشف الطلاب (Smart Print) ---
   const handlePrintStudents = () => {
     const printWin = window.open('', 'PRINT', 'height=800,width=1100');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -455,13 +445,12 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
     let rowsHtml = '';
     processedStudents.forEach((s, i) => {
-        // اختصار الاسم الأول والأخير لتوفير المساحة
         let displayName = s.name || "";
         const nameParts = displayName.trim().split(/\s+/);
         if (nameParts.length > 1) {
-            displayName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+            displayName = `${nameParts} ${nameParts[nameParts.length - 1]}`;
         } else if (nameParts.length === 1) {
-            displayName = nameParts[0];
+            displayName = nameParts;
         }
 
         const status = calculateStatus(s.subEnd);
@@ -577,7 +566,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         finalFamilyId = parseInt(linkFamily); 
         const existingFamily = uniqueFamilies.find(f => f.id === linkFamily.toString());
         if (existingFamily) {
-             finalFamilyName = existingFamily.displayName.split(' (')[0];
+             finalFamilyName = existingFamily.displayName.split(' (');
         } else {
              finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
         }
@@ -588,10 +577,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         const joinDateObj = new Date(newS.joinDate || new Date()); 
         const subEndDateObj = new Date(joinDateObj); 
         subEndDateObj.setMonth(subEndDateObj.getMonth() + 1); 
-        subEnd = subEndDateObj.toISOString().split('T')[0];
+        subEnd = subEndDateObj.toISOString().split('T');
     }
     
-    const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
+    const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups : "الكل");
 
     const student = { 
         ...newS, 
@@ -606,7 +595,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         customOrder: Date.now(), 
         group: finalGroup,
         username: finalUser, 
-        password: finalPass 
+        password: finalPass,
+        isPasswordHashed: false // الباسورد المبدئي مكشوف للإدارة
     };
     
     const success = await studentsCollection.add(student); 
@@ -631,7 +621,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           subEnd: student.subEnd, 
           balance: student.balance,
           username: student.username,
-          password: student.password
+          password: student.password // سنقوم بإخفائه بصرياً في الـ Input فقط إذا كان مشفراً
       }); 
       setLinkFamily(student.familyId); 
       setShowModal(true); 
@@ -659,7 +649,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const archiveStudent = async (student) => { 
       if(confirm(`هل أنت متأكد من أرشفة الطالب ${student.name}؟`)) { 
-          await archiveCollection.add({ ...student, archivedAt: new Date().toISOString().split('T')[0], originalId: student.id }); 
+          await archiveCollection.add({ ...student, archivedAt: new Date().toISOString().split('T'), originalId: student.id }); 
           await studentsCollection.remove(student.id); 
           if(logActivity) logActivity("أرشفة", `أرشفة الطالب ${student.name}`);
       } 
@@ -689,17 +679,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const handleBroadcast = async (target, groupName, text, customIds = []) => {
       let targets = [];
-      
-      if (target === 'all') {
-          targets = students;
-      } else if (target === 'group') {
-          targets = students.filter(s => s.group === groupName);
-      } else if (target === 'custom') {
-          targets = students.filter(s => customIds.includes(s.id));
-      }
+      if (target === 'all') targets = students;
+      else if (target === 'group') targets = students.filter(s => s.group === groupName);
+      else if (target === 'custom') targets = students.filter(s => customIds.includes(s.id));
 
       if (targets.length === 0) return alert("لا يوجد طلاب مستهدفين");
-
       if (!confirm(`سيتم إرسال الإعلان لـ ${targets.length} طالب. هل أنت متأكد؟`)) return;
 
       const newNote = {
@@ -732,11 +716,9 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const handleRenewSave = async (studentId, newDate) => {
       await studentsCollection.update(studentId, { subEnd: newDate });
-      
       if(logActivity && renewingStudent) {
           logActivity("تجديد اشتراك", `تجديد اشتراك للطالب ${renewingStudent.name} (تاريخ جديد: ${formatDate(newDate)})`);
       }
-      
       setRenewingStudent(null);
   };
 
@@ -747,42 +729,43 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     window.open(`https://wa.me/962${cleanPhone}`, '_blank');
   };
 
+  // ✅ دالة إعادة تعيين الباسورد
+  const resetStudentPassword = async (student) => {
+    if(confirm(`هل أنت متأكد من توليد كلمة مرور جديدة للطالب ${student.name}؟\nسيتم مسح كلمة مروره المشفرة القديمة.`)) {
+        const newPass = Math.floor(100000 + Math.random() * 900000).toString(); // رقم سري من 6 خانات
+        await studentsCollection.update(student.id, {
+            password: newPass,
+            isPasswordHashed: false // إعادة الباسورد ليكون مكشوفاً
+        });
+        if(logActivity) logActivity("إعادة تعيين كلمة مرور", `تم توليد كلمة مرور جديدة للطالب ${student.name}`);
+        alert(`تم تعيين كلمة مرور جديدة للطالب: ${newPass}`);
+    }
+  };
+
+  // ✅ حماية زر الواتساب من إرسال الباسوردات المشفرة
   const sendCredentialsWhatsApp = (student) => {
     if (!student.phone) return;
+
+    if (student.isPasswordHashed || (student.password && student.password.length > 30)) {
+        alert("لا يمكن إرسال كلمة المرور لأنها مشفرة وسرية. الطالب يعرف كلمة مروره، وإذا نسيها يمكنك استخدام زر (Reset) لتوليد واحدة جديدة.");
+        return;
+    }
+
     let cleanPhone = student.phone.replace(/\D/g, ''); 
     if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
     
     const message = `مرحباً ${student.name} 🔥\n\nأهلاً بك في أكاديمية الشجاع للتايكواندو !\nإليك بيانات الدخول الخاصة بك بالموقع :\n\n👤 اسم المستخدم: ${student.username}\n🔑 كلمة المرور: ${student.password}\n\nموقعنا الالكتروني :\nhttps://bravetkd.bar/\n\nنتمنى لك التوفيق يا بطل! 🥋\n\n📍 فروعنا :\n✅ الفرع الأول: شفابدران – شارع رفعت شموط\n📞 0795629606\n\n✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري\n📞 0790368603`;
-    
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
     
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       
-      <BroadcastModal 
-         isOpen={showBroadcast}
-         onClose={() => setShowBroadcast(false)}
-         groups={availableGroups}
-         allStudents={students} 
-         onSend={handleBroadcast}
-      />
+      <BroadcastModal isOpen={showBroadcast} onClose={() => setShowBroadcast(false)} groups={availableGroups} allStudents={students} onSend={handleBroadcast} />
 
-      {studentForNotes && (
-          <NotesManagerModal 
-              student={studentForNotes}
-              onClose={() => setStudentForNotes(null)}
-              onSave={handleNoteAction}
-          />
-      )}
+      {studentForNotes && <NotesManagerModal student={studentForNotes} onClose={() => setStudentForNotes(null)} onSave={handleNoteAction} />}
 
-      {renewingStudent && (
-          <SubscriptionModal 
-              student={renewingStudent}
-              onClose={() => setRenewingStudent(null)}
-              onSave={handleRenewSave}
-          />
-      )}
+      {renewingStudent && <SubscriptionModal student={renewingStudent} onClose={() => setRenewingStudent(null)} onSave={handleRenewSave} />}
 
       {createdCreds && (
         <ModalOverlay onClose={() => setCreatedCreds(null)}>
@@ -826,7 +809,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           </div>
 
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
-             {/* زر الطباعة الذكي الجديد */}
              <Button onClick={handlePrintStudents} className="bg-blue-600 text-white border border-blue-500/30 hover:bg-blue-500 whitespace-nowrap flex items-center gap-2 shadow-lg shadow-blue-600/20">
                  <Printer size={18}/> <span className="hidden sm:inline">طباعة الكشف</span>
              </Button>
@@ -836,11 +818,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
              </Button>
 
              <div className="relative min-w-[120px]">
-                 <select 
-                    className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                 >
+                 <select className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                     <option value="all">كل الحالات</option>
                     <option value="active">🟢 فعال</option>
                     <option value="near_end">🟡 قارب الانتهاء</option>
@@ -850,11 +828,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
              </div>
 
              <div className="relative min-w-[140px]">
-                 <select 
-                    className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold"
-                    value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value)}
-                 >
+                 <select className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold" value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
                     <option value="joinDateDesc">📅 الأحدث</option>
                     <option value="joinDateAsc">📅 الأقدم</option>
                     <option value="beltDesc">🥋 أعلى حزام</option>
@@ -891,37 +865,29 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                 <tbody className="divide-y divide-slate-800 bg-slate-900">
                     {processedStudents.map(s => {
                         const isNew = isNewStudent(s.joinDate);
-                        
                         const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
                         const hasPublicNotes = s.notes && s.notes.length > 0;
+                        const isPasswordHashed = s.isPasswordHashed || (s.password && s.password.length > 30);
 
                         return (
                             <tr key={s.id} className="hover:bg-slate-800/50 transition-colors group">
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
                                         {hasPrivateNotes && (
-                                            <button 
-                                                onClick={() => setStudentForNotes(s)} 
-                                                className="text-red-500 hover:scale-110 transition-transform" 
-                                                title="يوجد ملاحظات خاصة!"
-                                            >
+                                            <button onClick={() => setStudentForNotes(s)} className="text-red-500 hover:scale-110 transition-transform" title="يوجد ملاحظات خاصة!">
                                                 <FileWarning size={20} fill="currentColor" className="text-red-900/50"/>
                                             </button>
                                         )}
                                         <div className="font-bold text-slate-200 text-base cursor-pointer hover:text-yellow-500 transition-colors" onClick={() => setStudentForNotes(s)}>
                                             {s.name}
                                         </div>
-                                        {isNew && (
-                                            <span className="px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 text-[10px] font-bold border border-red-500/30 animate-pulse">NEW</span>
-                                        )}
+                                        {isNew && <span className="px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 text-[10px] font-bold border border-red-500/30 animate-pulse">NEW</span>}
                                     </div>
                                     <div className="text-xs text-slate-500 mt-1">{formatDate(s.joinDate)}</div>
                                 </td>
                                 
                                 <td className="p-4">
-                                    <span className="px-2 py-1 bg-blue-900/20 text-blue-400 rounded text-xs font-bold border border-blue-500/20">
-                                        {s.group || 'غير محدد'}
-                                    </span>
+                                    <span className="px-2 py-1 bg-blue-900/20 text-blue-400 rounded text-xs font-bold border border-blue-500/20">{s.group || 'غير محدد'}</span>
                                 </td>
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
@@ -933,18 +899,31 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                         </button>
                                     </div>
                                 </td>
+                                
+                                {/* ✅ هنا التعديل على عرض الباسورد (Desktop) */}
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
                                         <div className="bg-slate-950 p-1.5 rounded-lg text-xs font-mono border border-slate-800">
                                             <div className="text-blue-400">U: {s.username}</div>
-                                            <div className="text-red-400 font-bold">P: {s.password}</div>
+                                            <div className="text-red-400 font-bold flex items-center gap-2">
+                                                <span>P:</span>
+                                                {isPasswordHashed ? (
+                                                    <>
+                                                        <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
+                                                        <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1" title="توليد كلمة مرور جديدة للطالب">
+                                                            <RefreshCw size={10}/> Reset
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    s.password
+                                                )}
+                                            </div>
                                         </div>
                                         <button onClick={() => sendCredentialsWhatsApp(s)} className="text-slate-600 hover:text-[#25D366] transition-colors"><Send size={16}/></button>
                                     </div>
                                 </td>
-                                <td className="p-4">
-                                    <span className="px-3 py-1 bg-slate-800 rounded-lg font-bold text-xs border border-slate-700 text-slate-300">{s.belt}</span>
-                                </td>
+
+                                <td className="p-4"><span className="px-3 py-1 bg-slate-800 rounded-lg font-bold text-xs border border-slate-700 text-slate-300">{s.belt}</span></td>
                                 <td className="p-4">
                                     {s.balance > 0 ? 
                                         <span className="text-red-400 font-bold bg-red-900/20 px-2 py-1 rounded text-xs border border-red-500/20">عليه {s.balance}</span> : 
@@ -954,14 +933,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                 <td className="p-4">
                                     <div className="flex gap-1">
-                                        <button onClick={() => setRenewingStudent(s)} className="bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition" title="تجديد الاشتراك">
-                                            <CalendarClock size={16}/>
-                                        </button>
-
-                                        <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition border ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-900/20 text-yellow-500 border-yellow-500/20' : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-yellow-500 hover:border-yellow-500/50'}`} title="الملاحظات">
-                                            <Lock size={16}/>
-                                        </button>
-                                        
+                                        <button onClick={() => setRenewingStudent(s)} className="bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition" title="تجديد الاشتراك"><CalendarClock size={16}/></button>
+                                        <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition border ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-900/20 text-yellow-500 border-yellow-500/20' : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-yellow-500 hover:border-yellow-500/50'}`} title="الملاحظات"><Lock size={16}/></button>
                                         <button onClick={() => promoteBelt(s)} className="bg-blue-900/20 text-blue-400 border border-blue-500/20 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
                                         <button onClick={() => openEditModal(s)} className="bg-slate-800 text-slate-400 border border-slate-700 p-2 rounded-lg hover:bg-slate-700 hover:text-white transition" title="تعديل"><Edit size={16}/></button>
                                         <button onClick={() => archiveStudent(s)} className="bg-red-900/20 text-red-400 border border-red-500/20 p-2 rounded-lg hover:bg-red-600 hover:text-white transition" title="أرشفة"><Archive size={16}/></button>
@@ -981,16 +954,14 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
              const isNew = isNewStudent(s.joinDate);
              const status = calculateStatus(s.subEnd);
              const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
+             const isPasswordHashed = s.isPasswordHashed || (s.password && s.password.length > 30);
 
              return (
                  <div key={s.id} className={`bg-slate-900 p-4 rounded-xl shadow-lg border ${hasPrivateNotes ? 'border-red-900/50 ring-1 ring-red-900/30' : 'border-slate-800'} flex flex-col gap-3 relative`}>
                      {hasPrivateNotes && (
-                         <div className="absolute top-4 left-14 animate-pulse">
-                             <FileWarning size={20} className="text-red-500 fill-red-900"/>
-                         </div>
+                         <div className="absolute top-4 left-14 animate-pulse"><FileWarning size={20} className="text-red-500 fill-red-900"/></div>
                      )}
 
-                     {/* Header: Name and Status */}
                      <div className="flex justify-between items-start">
                          <div>
                              <div className="flex items-center gap-2">
@@ -998,14 +969,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                 {isNew && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 rounded-full border border-red-500/40 animate-pulse">NEW</span>}
                              </div>
                              <p className="text-xs text-slate-500 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
-                             <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
-                                 {s.group || 'غير محدد'}
-                             </span>
+                             <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">{s.group || 'غير محدد'}</span>
                          </div>
                          <StatusBadge status={status} />
                      </div>
 
-                     {/* Details Grid */}
                      <div className="grid grid-cols-2 gap-3 text-sm">
                          <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
                              <span className="text-slate-500 text-xs block">الحزام</span>
@@ -1017,32 +985,37 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                          </div>
                      </div>
 
-                     {/* Credentials Box */}
+                     {/* ✅ هنا التعديل على عرض الباسورد (Mobile) */}
                      <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800 border-dashed">
                          <div className="text-xs font-mono text-slate-400">
                              <div className="mb-1"><span className="font-bold text-blue-500">U:</span> {s.username}</div>
-                             <div><span className="font-bold text-red-500">P:</span> {s.password}</div>
+                             <div className="flex items-center gap-2">
+                                 <span className="font-bold text-red-500">P:</span> 
+                                 {isPasswordHashed ? (
+                                    <>
+                                        <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
+                                        <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1">
+                                            <RefreshCw size={10}/> Reset
+                                        </button>
+                                    </>
+                                 ) : (
+                                    s.password
+                                 )}
+                             </div>
                          </div>
                          <button onClick={() => sendCredentialsWhatsApp(s)} className="p-2 bg-green-900/20 text-green-500 border border-green-500/20 rounded-lg hover:bg-green-600 hover:text-white">
                              <Send size={16} />
                          </button>
                      </div>
 
-                     {/* Footer: Actions */}
                      <div className="flex items-center justify-between pt-3 border-t border-slate-800 mt-1">
                          <div className="flex gap-2">
                              <a href={`tel:${s.phone}`} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 border border-slate-700"><Phone size={16}/></a>
                              <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-900/20 rounded-full text-[#25D366] border border-green-500/20"><MessageCircle size={16}/></button>
                          </div>
                          <div className="flex gap-2">
-                             <button onClick={() => setRenewingStudent(s)} className="p-2 bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 rounded-lg">
-                                 <CalendarClock size={16}/>
-                             </button>
-
-                             <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg border ${hasPrivateNotes ? 'bg-red-900/20 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
-                                 <Lock size={16}/>
-                             </button>
-
+                             <button onClick={() => setRenewingStudent(s)} className="p-2 bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 rounded-lg"><CalendarClock size={16}/></button>
+                             <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg border ${hasPrivateNotes ? 'bg-red-900/20 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'}`}><Lock size={16}/></button>
                              <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-900/20 text-blue-500 border border-blue-500/20 rounded-lg"><ArrowUp size={16}/></button>
                              <button onClick={() => openEditModal(s)} className="p-2 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg"><Edit size={16}/></button>
                              <button onClick={() => archiveStudent(s)} className="p-2 bg-red-900/20 text-red-500 border border-red-500/20 rounded-lg"><Archive size={16}/></button>
@@ -1057,107 +1030,110 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       </div>
 
       {/* --- Add/Edit Modal --- */}
-      {showModal && (
-        <ModalOverlay onClose={closeModal}>
-            <div className="p-6">
-                <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
-                    <h3 className="text-xl font-bold text-white">{editingStudent ? "تعديل بيانات الطالب" : "إضافة 'طالب' جديد"}</h3>
-                    <button onClick={closeModal} className="text-slate-500 hover:text-red-500 transition-colors"><X size={24}/></button>
-                </div>
-                
-                <form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4 text-right">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2 bg-gradient-to-r from-yellow-900/20 to-slate-900 p-4 rounded-xl border border-yellow-500/20 mb-2">
-                            <p className="text-xs font-bold text-yellow-500 mb-3 flex items-center gap-1">
-                                <Sparkles size={12}/> بيانات تسجيل الدخول (اتركها فارغة للتوليد التلقائي)
-                            </p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Username</label>
-                                    <input className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 font-mono text-left dir-ltr focus:border-yellow-500 outline-none placeholder-slate-600" value={newS.username} onChange={e=>setNewS({...newS, username:e.target.value})} placeholder="Auto-generated" />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Password</label>
-                                    <input className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 font-mono text-left dir-ltr focus:border-yellow-500 outline-none placeholder-slate-600" value={newS.password} onChange={e=>setNewS({...newS, password:e.target.value})} placeholder="Auto-generated" />
-                                </div>
-                            </div>
-                        </div>
+      {showModal && (() => {
+         // ✅ حماية حقل الباسورد من التعديل اليدوي إذا كان مشفراً
+         const isEditingHashed = editingStudent && (editingStudent.isPasswordHashed || (editingStudent.password && editingStudent.password.length > 30));
 
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-400 mb-1">الاسم الرباعي</label>
-                            <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
-                        </div>
-
-                        <div className="md:col-span-2">
-                             <label className="block text-xs font-bold text-blue-400 mb-1">الفترة / المجموعة</label>
-                             <select 
-                                 className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-blue-500 p-2.5 rounded-xl outline-none"
-                                 value={newS.group}
-                                 onChange={e=>setNewS({...newS, group:e.target.value})}
-                             >
-                                 <option value="">بدون تحديد</option>
-                                 {availableGroups.map((g, idx) => (
-                                     <option key={idx} value={g}>{g}</option>
-                                 ))}
-                             </select>
-                        </div>
-
-                        {!editingStudent && (
-                            <div className="md:col-span-2 bg-blue-900/10 p-3 rounded-xl border border-blue-500/20">
-                                <label className="block text-xs font-bold text-blue-400 mb-1">العائلة (للخصومات)</label>
-                                <select className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 focus:ring-1 focus:ring-blue-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
-                                    <option value="new">تسجيل كعائلة جديدة</option>
-                                    {uniqueFamilies.map((f) => (
-                                        <option key={f.id} value={f.id}>
-                                            انضمام لـ {f.displayName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1">رقم الهاتف</label>
-                            <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} placeholder="079xxxxxxx" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1">الحزام الحالي</label>
-                            <select className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>
-                                {BELTS.map(b=><option key={b} value={b}>{b}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-red-400 mb-1">الرصيد الافتتاحي (دينار)</label>
-                            <input type="number" className="w-full bg-red-900/10 border border-red-500/30 text-red-200 focus:border-red-500 p-2.5 rounded-xl outline-none placeholder-red-900/50" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} placeholder="0" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1">تاريخ الميلاد</label>
-                            <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1">تاريخ الالتحاق</label>
-                            <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-emerald-400 mb-1">نهاية الاشتراك</label>
-                            <input type="date" className="w-full bg-emerald-900/10 border border-emerald-500/30 text-emerald-200 focus:border-emerald-500 p-2.5 rounded-xl outline-none" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-bold text-slate-400 mb-1">العنوان</label>
-                            <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} placeholder="المدينة - المنطقة - الشارع" />
-                        </div>
+         return (
+            <ModalOverlay onClose={closeModal}>
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                        <h3 className="text-xl font-bold text-white">{editingStudent ? "تعديل بيانات الطالب" : "إضافة 'طالب' جديد"}</h3>
+                        <button onClick={closeModal} className="text-slate-500 hover:text-red-500 transition-colors"><X size={24}/></button>
                     </div>
                     
-                    <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-slate-700">
-                        <Button type="button" variant="ghost" onClick={closeModal} className="text-slate-400 hover:bg-slate-800 hover:text-white">إلغاء</Button>
-                        <Button type="submit" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 px-8 border-none">
-                            {editingStudent ? 'حفظ التعديلات' : 'إضافة الطالب'}
-                        </Button>
-                    </div>
-                </form>
-            </div>
-        </ModalOverlay>
-      )}
+                    <form onSubmit={editingStudent ? handleSaveEdit : addStudent} className="space-y-4 text-right">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2 bg-gradient-to-r from-yellow-900/20 to-slate-900 p-4 rounded-xl border border-yellow-500/20 mb-2">
+                                <p className="text-xs font-bold text-yellow-500 mb-3 flex items-center gap-1">
+                                    <Sparkles size={12}/> بيانات تسجيل الدخول (اتركها فارغة للتوليد التلقائي)
+                                </p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Username</label>
+                                        <input className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 font-mono text-left dir-ltr focus:border-yellow-500 outline-none placeholder-slate-600" value={newS.username} onChange={e=>setNewS({...newS, username:e.target.value})} placeholder="Auto-generated" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Password</label>
+                                        <input 
+                                            className={`w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 font-mono text-left dir-ltr focus:border-yellow-500 outline-none placeholder-slate-600 ${isEditingHashed ? 'opacity-50 cursor-not-allowed text-red-400' : ''}`} 
+                                            value={isEditingHashed ? '********' : newS.password} 
+                                            onChange={e => !isEditingHashed && setNewS({...newS, password:e.target.value})} 
+                                            disabled={isEditingHashed}
+                                            placeholder={isEditingHashed ? "مشفرة (استخدم Reset)" : "Auto-generated"} 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-400 mb-1">الاسم الرباعي</label>
+                                <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none transition-all" value={newS.name} onChange={e=>setNewS({...newS, name:e.target.value})} placeholder="مثال: أحمد محمد علي" />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                 <label className="block text-xs font-bold text-blue-400 mb-1">الفترة / المجموعة</label>
+                                 <select className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-blue-500 p-2.5 rounded-xl outline-none" value={newS.group} onChange={e=>setNewS({...newS, group:e.target.value})}>
+                                     <option value="">بدون تحديد</option>
+                                     {availableGroups.map((g, idx) => <option key={idx} value={g}>{g}</option>)}
+                                 </select>
+                            </div>
+
+                            {!editingStudent && (
+                                <div className="md:col-span-2 bg-blue-900/10 p-3 rounded-xl border border-blue-500/20">
+                                    <label className="block text-xs font-bold text-blue-400 mb-1">العائلة (للخصومات)</label>
+                                    <select className="w-full border border-slate-700 p-2 rounded-lg bg-slate-950 text-slate-200 focus:ring-1 focus:ring-blue-500 outline-none" value={linkFamily} onChange={e => setLinkFamily(e.target.value)}>
+                                        <option value="new">تسجيل كعائلة جديدة</option>
+                                        {uniqueFamilies.map((f) => (
+                                            <option key={f.id} value={f.id}>انضمام لـ {f.displayName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">رقم الهاتف</label>
+                                <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} placeholder="079xxxxxxx" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">الحزام الحالي</label>
+                                <select className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>
+                                    {BELTS.map(b=><option key={b} value={b}>{b}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-red-400 mb-1">الرصيد الافتتاحي (دينار)</label>
+                                <input type="number" className="w-full bg-red-900/10 border border-red-500/30 text-red-200 focus:border-red-500 p-2.5 rounded-xl outline-none placeholder-red-900/50" value={newS.balance} onChange={e=>setNewS({...newS, balance:e.target.value})} placeholder="0" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">تاريخ الميلاد</label>
+                                <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.dob} onChange={e=>setNewS({...newS, dob:e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1">تاريخ الالتحاق</label>
+                                <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.joinDate} onChange={e=>setNewS({...newS, joinDate:e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-emerald-400 mb-1">نهاية الاشتراك</label>
+                                <input type="date" className="w-full bg-emerald-900/10 border border-emerald-500/30 text-emerald-200 focus:border-emerald-500 p-2.5 rounded-xl outline-none" value={newS.subEnd} onChange={e=>setNewS({...newS, subEnd:e.target.value})} />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-400 mb-1">العنوان</label>
+                                <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.address} onChange={e=>setNewS({...newS, address:e.target.value})} placeholder="المدينة - المنطقة - الشارع" />
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-slate-700">
+                            <Button type="button" variant="ghost" onClick={closeModal} className="text-slate-400 hover:bg-slate-800 hover:text-white">إلغاء</Button>
+                            <Button type="submit" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 px-8 border-none">
+                                {editingStudent ? 'حفظ التعديلات' : 'إضافة الطالب'}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            </ModalOverlay>
+         );
+      })()}
     </div>
   );
 };

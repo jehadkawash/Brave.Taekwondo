@@ -1,3 +1,4 @@
+// src/views/StudentPortal.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Clock, LogOut, ChevronLeft, ChevronRight, Settings, Megaphone, 
@@ -13,6 +14,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- استيراد مكتبات Capacitor للإشعارات ---
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
+
+// ✅ استيراد دالة التشفير من ملف App.jsx
+import { hashPassword } from '../App'; 
 
 const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -32,38 +36,28 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const setupNotifications = async () => {
     if (Capacitor.getPlatform() === 'web') return;
 
-    // 1. إنشاء قناة الإشعارات (مهم جداً لظهور النص في أندرويد)
     try {
       await PushNotifications.createChannel({
         id: 'attendance_notifications',
         name: 'تنبيهات الحضور',
         description: 'إشعارات وصول الأبطال للأكاديمية',
-        importance: 5, // أقصى أهمية لضمان ظهور الرسالة منبثقة
+        importance: 5, 
         visibility: 1,
         sound: 'default',
         vibration: true,
       });
-      console.log("Notification Channel Created ✅");
     } catch (e) {
       console.error("Error creating channel:", e);
     }
 
-    // 2. طلب الإذن
     let permStatus = await PushNotifications.checkPermissions();
-
     if (permStatus.receive === 'prompt') {
       permStatus = await PushNotifications.requestPermissions();
     }
+    if (permStatus.receive !== 'granted') return;
 
-    if (permStatus.receive !== 'granted') {
-      console.warn("User denied notifications");
-      return;
-    }
-
-    // 3. تسجيل الجهاز في FCM
     await PushNotifications.register();
 
-    // 4. الاستماع للحصول على التوكن وحفظه
     PushNotifications.addListener('registration', async (token) => {
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
       try {
@@ -71,15 +65,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
           fcmToken: token.value,
           lastTokenSync: new Date().toISOString()
         });
-        console.log("FCM Token Saved Successfully");
-      } catch (e) {
-        console.error("Error saving FCM token:", e);
-      }
-    });
-
-    // الاستماع للأخطاء
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('Error on registration: ' + JSON.stringify(error));
+      } catch (e) {}
     });
   };
 
@@ -91,7 +77,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       }
     };
   }, [currentUserData.id]);
-  // -------------------------
 
   const displayFamilyName = useMemo(() => {
     let name = currentUserData.familyName || 'عائلة';
@@ -137,25 +122,45 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [creds, setCreds] = useState({ username: '', password: '' });
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // --- دالة تحديث بيانات الدخول (تم إضافة التشفير هنا) ---
   const handleUpdateCredentials = async (e) => {
     e.preventDefault();
     if (!creds.username || !creds.password) return alert("الرجاء تعبئة جميع الحقول");
+    
+    // التحقق من قوة الباسورد
+    if (creds.password.length < 6) return alert("يجب أن تكون كلمة المرور 6 أحرف أو أكثر");
+
     setIsUpdating(true);
     try {
+      // ✅ 1. تشفير الباسورد الجديد
+      const hashedNewPassword = await hashPassword(creds.password);
+
+      // ✅ 2. حفظ الباسورد المشفر في قاعدة البيانات، وإزالة الباسورد المكشوف القديم إن وجد
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
-      await updateDoc(studentRef, { username: creds.username, password: creds.password });
-      const updatedUserLocal = { ...user, username: creds.username, password: creds.password };
+      
+      await updateDoc(studentRef, { 
+          username: creds.username.trim(), 
+          password: hashedNewPassword, // نخزن المشفر
+          isPasswordHashed: true // علامة للإدارة إن الباسورد صار مشفر ومحمي
+      });
+      
+      // ✅ 3. تحديث الجلسة المحلية (عشان يضل عامل تسجيل دخول)
+      const updatedUserLocal = { ...user, username: creds.username.trim(), password: hashedNewPassword };
       localStorage.setItem('braveUser', JSON.stringify(updatedUserLocal));
-      alert("تم تحديث بيانات الدخول بنجاح!");
+      
+      alert("تم تحديث وحماية بيانات الدخول بنجاح!");
       setShowSettings(false);
-    } catch (error) { console.error(error); alert("حدث خطأ أثناء التحديث"); } 
-    finally { setIsUpdating(false); }
+    } catch (error) { 
+        console.error(error); 
+        alert("حدث خطأ أثناء التحديث"); 
+    } finally { 
+        setIsUpdating(false); 
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-right text-slate-200" dir="rtl">
       
-      {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-40">
         <div className="container mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -172,7 +177,12 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
           <div className="flex gap-2">
             <Button 
                 onClick={() => {
-                    setCreds({ username: currentUserData.username, password: currentUserData.password });
+                    // إذا الباسورد مشفر ما بنظهره بالمربع، بنخليه فاضي يكتب واحد جديد
+                    const isHashed = currentUserData.isPasswordHashed || (currentUserData.password && currentUserData.password.length > 30);
+                    setCreds({ 
+                        username: currentUserData.username, 
+                        password: isHashed ? '' : currentUserData.password 
+                    });
                     setShowSettings(true);
                 }} 
                 className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl px-3 py-2 text-xs md:text-sm font-bold flex items-center gap-2"
@@ -188,10 +198,8 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       
       <div className="container mx-auto p-4 md:p-8 max-w-7xl space-y-10">
         
-        {/* --- Top Dashboard Section --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             
-            {/* 1. News Slider */}
             <div className="lg:col-span-2 space-y-4">
                  <div className="flex items-center gap-2 mb-2">
                     <Megaphone size={20} className="text-yellow-500"/>
@@ -222,7 +230,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                 )}
             </div>
 
-            {/* 2. Wallet */}
             <div className="lg:col-span-1">
                 <div className="flex items-center gap-2 mb-4">
                     <Wallet size={20} className="text-emerald-500"/>
@@ -259,7 +266,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
             </div>
         </div>
 
-        {/* --- Students Section --- */}
         <div className="space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
                 <div className="p-2 bg-blue-900/20 rounded-lg text-blue-500"><User size={24}/></div>
@@ -331,7 +337,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
             </div>
         </div>
 
-        {/* --- Schedule Section --- */}
         <div className="space-y-6 pb-10">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500"><Clock size={24}/></div>
@@ -366,37 +371,43 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       {/* Settings Modal */}
       <AnimatePresence>
           {showSettings && (
-            <div className="fixed inset-0 bg-black/80 z- flex items-center justify-center p-4 backdrop-blur-md">
+            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
                 <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
                     className="w-full max-w-sm relative bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden"
                 >
                     <div className="bg-slate-950 p-6 text-center border-b border-slate-800">
-                        <h3 className="text-xl font-black text-slate-100">تحديث بيانات الدخول</h3>
+                        <h3 className="text-xl font-black text-slate-100">بيانات الدخول</h3>
                     </div>
                     <button onClick={() => setShowSettings(false)} className="absolute top-4 left-4 text-slate-500 hover:text-red-500"><X size={24}/></button>
                     
                     <form onSubmit={handleUpdateCredentials} className="p-8 space-y-6">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-2 text-right">اسم المستخدم الجديد</label>
+                            <label className="block text-xs font-bold text-slate-400 mb-2 text-right">اسم المستخدم</label>
                             <input 
-                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-right font-bold"
+                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-right font-bold dir-ltr"
                                 value={creds.username}
-                                onChange={(e) => setCreds({...creds, username: e.target.value})}
+                                onChange={(e) => setCreds({...creds, username: e.target.value.toLowerCase()})}
                                 required
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-400 mb-2 text-right">كلمة المرور الجديدة</label>
                             <input 
-                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-right font-bold"
+                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-left font-mono dir-ltr placeholder-slate-600"
                                 value={creds.password}
+                                placeholder={currentUserData.isPasswordHashed ? "كلمة المرور الحالية مشفرة ومحمية" : "أدخل كلمة المرور الجديدة"}
                                 onChange={(e) => setCreds({...creds, password: e.target.value})}
                                 required
                             />
+                            {currentUserData.isPasswordHashed && (
+                                <p className="text-[10px] text-emerald-500 mt-2 font-bold text-right">
+                                    ✓ حسابك محمي والتشفير مفعل.
+                                </p>
+                            )}
                         </div>
-                        <Button type="submit" disabled={isUpdating} className="w-full py-4 bg-yellow-500 text-slate-900 font-black hover:bg-yellow-400 rounded-xl">
-                            {isUpdating ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                        <Button type="submit" disabled={isUpdating} className="w-full py-4 bg-yellow-500 text-slate-900 font-black hover:bg-yellow-400 rounded-xl shadow-lg shadow-yellow-500/20">
+                            {isUpdating ? 'جاري الحفظ...' : 'تحديث وحماية البيانات'}
                         </Button>
                     </form>
                 </motion.div>
