@@ -64,7 +64,7 @@ const NavDropdown = ({ title, icon: Icon, items, activeTab, onSelect }) => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef]);
 
-    if (!items || items.length === 0) return null; // لا تظهر القائمة إذا لم يكن هناك عناصر مسموحة
+    if (!items || items.length === 0) return null;
 
     const isActive = items.some(item => item.id === activeTab);
 
@@ -114,22 +114,31 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
   const [activeTab, setActiveTab] = useState(user.isSuper || (user.permissions && user.permissions.includes('dashboard')) ? 'dashboard' : 'attendance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // نظام التحقق من الصلاحيات الذكي
   const hasPerm = (permId) => {
-      if (user.isSuper) return true; // السوبر أدمن معاه كل الصلاحيات
+      if (user.isSuper) return true; 
       return user.permissions && user.permissions.includes(permId);
   };
 
-  const paymentsCollection = useCollection('payments');
-  const expensesCollection = useCollection('expenses');
-  const archiveCollection = useCollection('archive');
-  const registrationsCollection = useCollection('registrations');
-  const captainsCollection = useCollection('captains');
+  // ✅ --- نظام تحميل البيانات الذكي (Lazy Loading) ---
+  const isDashboard = activeTab === 'dashboard';
+  const isReports = activeTab === 'reports';
+
+  // 1. الجداول الخفيفة والمهمة (نحملها دائماً)
   const groupsCollection = useCollection('groups');
-  const newsCollection = useCollection('news');
-  const financeReasonsCollection = useCollection('finance_reasons');
-  const activityLogsCollection = useCollection('activity_logs');
-  const adminNotesCollection = useCollection('admin_notes');
+  const captainsCollection = useCollection('captains');
+
+  // 2. الجداول الثقيلة (لا يتم تحميلها إلا إذا فتحنا صفحتها أو كنا في الرئيسية/التقارير للحسابات)
+  const paymentsCollection = useCollection('payments', [], isDashboard || activeTab === 'finance' || isReports);
+  const expensesCollection = useCollection('expenses', [], isDashboard || activeTab === 'finance' || isReports);
+  const registrationsCollection = useCollection('registrations', [], isDashboard || activeTab === 'registrations' || isReports);
+  const activityLogsCollection = useCollection('activity_logs', [], isDashboard || isReports);
+  
+  // 3. جداول معزولة تماماً (مستحيل تسحب بيانات إذا إنت مش فاتح شاشتها!)
+  const archiveCollection = useCollection('archive', [], activeTab === 'archive'); 
+  const newsCollection = useCollection('news', [], isDashboard || activeTab === 'news');
+  const financeReasonsCollection = useCollection('finance_reasons', [], activeTab === 'finance');
+  const adminNotesCollection = useCollection('admin_notes', [], activeTab === 'notes' || isReports);
+  // ----------------------------------------------------
 
   const students = studentsCollection?.data || [];
   const payments = paymentsCollection?.data || [];
@@ -194,7 +203,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
       hasPerm('tests') && {id:'tests', icon:Award, label:'فحص'},
       hasPerm('finance') && {id:'finance', icon:DollarSign, label:'وصولات'},
       hasPerm('archive') && {id:'archive', icon:Archive, label:'الأرشيف'},
-  ].filter(Boolean); // فلترة العناصر المخفية
+  ].filter(Boolean);
 
   const adminGroups = [
       hasPerm('registrations') && {id:'registrations', icon:Inbox, label:'طلبات التسجيل', badge: branchRegistrations.length},

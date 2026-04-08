@@ -1,18 +1,23 @@
 // src/hooks/useCollection.js
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 
-// ضفنا _queryConstraints عشان نقدر نفلتر البيانات
-export const useCollection = (collectionName, _queryConstraints = []) => {
+// ✅ أضفنا isActive عشان نتحكم متى يشتغل الـ Hook (الـ Lazy Loading)
+export const useCollection = (collectionName, _queryConstraints = [], isActive = true) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // الحل السحري: نستخدم JSON.stringify عشان نتأكد هل الشروط تغيرت فعلاً ولا لأ
-  // هيك بنمنع التكرار (Loop) وبنحافظ على التحديث الفوري
   const queryConstraintsDep = JSON.stringify(_queryConstraints);
 
   useEffect(() => {
+    // 🛑 التعديل السحري: إذا التاب مش شغال (isActive = false)، وقف التحميل ولا تتصل بقاعدة البيانات أبداً!
+    if (!isActive) {
+        setLoading(false);
+        return;
+    }
+
+    setLoading(true);
     let ref = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
     let q;
 
@@ -22,7 +27,6 @@ export const useCollection = (collectionName, _queryConstraints = []) => {
        q = query(ref);
     }
 
-    // onSnapshot: هي المسؤولة عن التحديث الفوري (Real-time)
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setData(items);
@@ -33,9 +37,7 @@ export const useCollection = (collectionName, _queryConstraints = []) => {
     });
 
     return () => unsubscribe();
-    
-    // هون السر: الـ useEffect رح يشتغل بس لما يتغير اسم الكولكشن أو تتغير الشروط فعلياً
-  }, [collectionName, queryConstraintsDep]);
+  }, [collectionName, queryConstraintsDep, isActive]);
 
   const add = async (item) => {
     try {
