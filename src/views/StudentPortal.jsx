@@ -16,7 +16,13 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 
 // ✅ استيراد دالة التشفير من ملف App.jsx
-import { hashPassword } from '../App'; 
+// دالة التشفير الخاصة ببوابة الطالب
+const hashPassword = async (password) => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
 
 const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
