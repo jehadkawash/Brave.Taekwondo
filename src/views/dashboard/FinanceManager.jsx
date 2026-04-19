@@ -167,7 +167,7 @@ export default function FinanceManager({
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // --- تقرير الطباعة الفخم ---
+  // --- تقرير الطباعة الرسمي والمنسق (توفير الحبر وملموم) ---
   const handlePrintReport = (startDate, endDate) => {
     const reportData = branchPayments.filter(p => {
         const pDate = new Date(p.date); 
@@ -182,33 +182,24 @@ export default function FinanceManager({
 
     const printWin = window.open('', 'REPORT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
-    const reportId = Math.floor(10000 + Math.random() * 90000); // رقم عشوائي للتقرير
+    const reportId = Math.floor(10000 + Math.random() * 90000);
 
     let rowsHtml = '';
     reportData.forEach((p, i) => {
+        // ✅ عرض الاسم كما هو تماماً بدون أي تقطيع لتجنب الفواصل والتكرار
         let displayName = p.name || "";
-        if (!displayName.includes(' و ')) {
-            const nameParts = displayName.trim().split(/\s+/);
-            if (nameParts.length > 1) {
-                displayName = `${nameParts} ${nameParts[nameParts.length - 1]}`;
-            } else {
-                displayName = nameParts;
-            }
-        }
         
-        const extraDetails = p.details ? ` <span style="color:#666; font-size:10px;">(${p.details})</span>` : '';
-        const methodBadge = p.method === 'cliq' 
-            ? `<span style="background-color: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold;">CliQ</span>` 
-            : `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Cash</span>`;
+        const extraDetails = p.details ? ` <span style="color:#555; font-size:10px;">(${p.details})</span>` : '';
+        const methodText = p.method === 'cliq' ? 'كليك' : 'كاش';
 
         rowsHtml += `
             <tr>
                 <td style="text-align:center;">${i + 1}</td>
-                <td style="text-align:center; font-family:monospace; color:#444;">${p.date}</td>
+                <td style="text-align:center; font-family:monospace;">${p.date}</td>
                 <td style="text-align:right; font-weight:bold;">${displayName}</td>
                 <td style="text-align:right;">${p.reason}${extraDetails}</td>
-                <td style="text-align:center;">${methodBadge}</td>
-                <td style="text-align:center; font-weight:900; font-size:14px; color:#000;">${p.amount}</td>
+                <td style="text-align:center; font-weight:bold;">${methodText}</td>
+                <td style="text-align:center; font-weight:900; font-size:13px;">${p.amount}</td>
             </tr>
         `;
     });
@@ -222,62 +213,59 @@ export default function FinanceManager({
           <style>
              @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
              body { font-family: 'Cairo', sans-serif; padding: 0; margin: 0; background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-             .container { padding: 40px; max-width: 800px; margin: 0 auto; }
+             .container { padding: 20px; max-width: 900px; margin: 0 auto; }
              
-             /* Header */
-             .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px double #333; padding-bottom: 20px; margin-bottom: 30px; }
-             .logo-area { display: flex; gap: 15px; align-items: center; }
-             .logo { height: 70px; object-fit: contain; }
-             .academy-title h1 { margin: 0; font-size: 24px; font-weight: 900; color: #111; }
-             .academy-title p { margin: 5px 0 0; font-size: 13px; color: #555; font-weight: bold; }
-             .report-meta { text-align: left; }
-             .report-meta h2 { margin: 0 0 10px; font-size: 18px; font-weight: 900; text-transform: uppercase; background: #f3f4f6; padding: 5px 15px; border-radius: 4px; display: inline-block; }
-             .meta-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #444; }
-             .meta-label { font-weight: bold; margin-left: 10px; }
+             /* Header (Compact & Side-by-side) */
+             .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px; }
+             .header-right { display: flex; align-items: center; gap: 10px; }
+             .logo { height: 50px; object-fit: contain; }
+             .academy-info { display: flex; flex-direction: column; }
+             .academy-info h1 { margin: 0; font-size: 16px; font-weight: 900; color: #000; }
+             .academy-info p { margin: 0; font-size: 11px; color: #333; font-weight: bold; }
              
-             /* Stats Grid */
-             .stats-grid { display: flex; gap: 15px; margin-bottom: 30px; }
-             .stat-card { flex: 1; border: 1px solid #ccc; background: #fafafa; border-radius: 8px; padding: 15px; text-align: center; box-shadow: 2px 2px 0px #eee; }
-             .stat-card.main { border-color: #000; background: #fff; box-shadow: 3px 3px 0px #ddd; }
-             .stat-title { font-size: 13px; font-weight: bold; color: #666; margin-bottom: 5px; }
-             .stat-card.main .stat-title { color: #000; font-size: 14px; }
-             .stat-value { font-size: 24px; font-weight: 900; color: #000; direction: ltr; }
-             .stat-currency { font-size: 12px; font-weight: normal; color: #666; }
+             .header-left { text-align: left; font-size: 11px; color: #333; line-height: 1.4; }
+             .header-left strong { color: #000; }
+             
+             /* Stats Grid (Ink Saving) */
+             .stats-grid { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
+             .stat-card { border: 1px solid #ccc; border-radius: 4px; padding: 8px 15px; text-align: center; min-width: 120px; }
+             .stat-card.main { border: 2px solid #000; }
+             .stat-title { font-size: 11px; font-weight: bold; color: #000; margin-bottom: 3px; }
+             .stat-value { font-size: 16px; font-weight: 900; color: #000; direction: ltr; }
+             .stat-currency { font-size: 10px; font-weight: normal; color: #000; }
 
-             /* Table */
-             table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 40px; }
-             th { background-color: #111; color: #fff; padding: 12px 8px; font-weight: bold; border: 1px solid #000; text-align: center; }
-             td { border: 1px solid #ccc; padding: 10px 8px; border-bottom: 1px solid #ddd; }
-             tr:nth-child(even) { background-color: #f9fafb; }
+             /* Table (Lightweight borders, no dark backgrounds) */
+             table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+             th { background-color: #f3f4f6; color: #000; padding: 6px; font-weight: bold; border: 1px solid #ccc; text-align: center; }
+             td { border: 1px solid #ccc; padding: 6px; }
+             tr:nth-child(even) { background-color: #fafafa; }
              
              /* Signatures */
-             .signatures { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 20px; }
-             .sig-box { width: 200px; text-align: center; }
-             .sig-line { border-bottom: 1px solid #000; margin-bottom: 8px; height: 40px; }
-             .sig-title { font-size: 13px; font-weight: bold; color: #333; }
+             .signatures { display: flex; justify-content: space-between; margin-top: 30px; padding: 0 20px; }
+             .sig-box { width: 150px; text-align: center; }
+             .sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 30px; }
+             .sig-title { font-size: 11px; font-weight: bold; color: #000; }
              
              /* Footer */
-             .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 15px; }
+             .footer { margin-top: 20px; text-align: center; font-size: 9px; color: #555; border-top: 1px solid #eee; padding-top: 10px; }
 
-             @page { size: A4 portrait; margin: 0; }
+             @page { size: A4 portrait; margin: 5mm; }
           </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="logo-area">
+                    <div class="header-right">
                         <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-                        <div class="academy-title">
+                        <div class="academy-info">
                             <h1>أكاديمية الشجاع للتايكواندو</h1>
-                            <p>الفرع: ${selectedBranch}</p>
+                            <p>الفرع: ${selectedBranch} | تقرير المقبوضات المالية</p>
                         </div>
                     </div>
-                    <div class="report-meta">
-                        <h2>تقرير المقبوضات</h2>
-                        <div class="meta-row"><span class="meta-label">رقم التقرير:</span> <span>#${reportId}</span></div>
-                        <div class="meta-row"><span class="meta-label">تاريخ الإصدار:</span> <span>${new Date().toLocaleDateString('en-GB')}</span></div>
-                        <div class="meta-row"><span class="meta-label">الفترة من:</span> <span style="font-family:monospace;">${startDate}</span></div>
-                        <div class="meta-row"><span class="meta-label">الفترة إلى:</span> <span style="font-family:monospace;">${endDate}</span></div>
+                    <div class="header-left">
+                        <div><strong>رقم التقرير:</strong> #${reportId}</div>
+                        <div><strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
+                        <div><strong>الفترة:</strong> من ${startDate} إلى ${endDate}</div>
                     </div>
                 </div>
 
@@ -309,7 +297,7 @@ export default function FinanceManager({
                     </thead>
                     <tbody>
                         ${rowsHtml}
-                        ${reportData.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:30px; font-weight:bold; color:#666;">لا توجد حركات مالية مسجلة في هذه الفترة</td></tr>' : ''}
+                        ${reportData.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:20px; font-weight:bold; color:#666;">لا توجد حركات مالية مسجلة في هذه الفترة</td></tr>' : ''}
                     </tbody>
                 </table>
 
