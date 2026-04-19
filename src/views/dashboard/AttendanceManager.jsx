@@ -73,15 +73,11 @@ export default function AttendanceManager({ students, studentsCollection, groups
 
   // --- دالة إرسال الإشعار ---
   const sendAttendanceNotification = async (student) => {
-    if (!student.fcmToken) return; // إذا لم يكن هناك توكن، لا نفعل شيئاً
+    if (!student.fcmToken) return;
 
     try {
-      // ملاحظة: للإرسال من داخل التطبيق مباشرة نحتاج إلى Server Key أو استخدام Cloud Functions
-      // بما أننا نريد "حل سريع"، سنقوم بطباعة العملية الآن، وسأخبرك بالخطوة القادمة للربط الفعلي
       console.log(`Sending Notification to ${student.name} via Token: ${student.fcmToken}`);
-      
-      // هنا يتم مناداة API الخاص بـ Firebase Cloud Messaging
-      // سأقوم بتزويدك بكود الـ API المباشر بمجرد تفعيلك للـ Server Key في Firebase
+      // سيتم ربط الـ API لاحقاً
     } catch (error) {
       console.error("Error sending notification:", error);
     }
@@ -145,7 +141,6 @@ export default function AttendanceManager({ students, studentsCollection, groups
       const student = students.find(s => s.id === sid); 
       const newAtt = { ...(student.attendance || {}) }; 
 
-      // التحقق إذا كان الكابتن "يحضر" الطالب الآن (وليس يلغي حضوره)
       const markingPresent = !newAtt[dateStr];
 
       if (newAtt[dateStr]) delete newAtt[dateStr]; 
@@ -153,7 +148,6 @@ export default function AttendanceManager({ students, studentsCollection, groups
 
       await studentsCollection.update(sid, { attendance: newAtt });
 
-      // إذا كان "حضور"، نرسل الإشعار
       if (markingPresent) {
         sendAttendanceNotification(student);
       }
@@ -178,7 +172,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
       await studentsCollection.update(studentId, { group: newGroup });
   };
 
-  // --- Print Report Function (Compact & First/Last Name) ---
+  // --- Print Report Function (Optimized for Landscape & Compactness) ---
   const printReport = () => {
     const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -186,13 +180,13 @@ export default function AttendanceManager({ students, studentsCollection, groups
     // Generate Headers (Days)
     let daysHeaders = '';
     for(let i=1; i<=daysInMonth; i++) {
-        daysHeaders += `<th style="font-size:10px; width:16px; border:1px solid #000; background:#f9f9f9; padding:2px 0;">${i}</th>`;
+        daysHeaders += `<th style="font-size:10px; width:20px; border:1px solid #000; background:#f9f9f9; padding:2px 0;">${i}</th>`;
     }
 
     // Generate Rows (Students)
     let rowsHtml = '';
     processedStudents.forEach((s, idx) => {
-        // --- Name formatting (First and Last name only) ---
+        // --- ✅ تم تصليح استخراج الاسم الأول والأخير ---
         let displayName = s.name || "";
         const nameParts = displayName.trim().split(/\s+/);
         if (nameParts.length > 1) {
@@ -218,13 +212,13 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 bg = '#dcfce7'; 
             }
             
-            cells += `<td style="border:1px solid #000; background:${bg}; text-align:center; font-size:11px; color:#166534; font-weight:bold; padding:1px 0;">${content}</td>`;
+            cells += `<td style="border:1px solid #000; background:${bg}; text-align:center; font-size:12px; color:#166534; font-weight:bold; padding:0;">${content}</td>`;
         }
         
         rowsHtml += `
-            <tr>
+            <tr style="page-break-inside: avoid;">
                 <td style="border:1px solid #000; padding:2px; font-weight:bold; text-align:center; font-size:10px;">${idx + 1}</td>
-                <td style="border:1px solid #000; padding:2px 5px; text-align:right; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${displayName}</td>
+                <td style="border:1px solid #000; padding:2px 4px; text-align:right; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">${displayName}</td>
                 <td style="border:1px solid #000; padding:2px; text-align:center; font-size:10px;">${s.group || '-'}</td>
                 ${cells}
             </tr>
@@ -239,10 +233,13 @@ export default function AttendanceManager({ students, studentsCollection, groups
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
             body { font-family: 'Cairo', sans-serif; padding: 0; margin: 0; }
-            .print-container { padding: 10px 15px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            h1 { text-align: center; color: #000; margin: 0 0 2px 0; font-size: 18px; }
-            .header-info { text-align: center; margin-bottom: 10px; font-weight:bold; color:#333; font-size: 12px; }
+            .print-container { padding: 5px 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 5px; page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            h1 { text-align: center; color: #000; margin: 0 0 2px 0; font-size: 16px; }
+            .header-info { text-align: center; margin-bottom: 5px; font-weight:bold; color:#333; font-size: 11px; }
+            
+            /* ✅ إجبار الطباعة لتكون بالعرض وتصغير الهوامش */
             @page { size: A4 landscape; margin: 5mm; } 
             
             @media print {
@@ -256,9 +253,9 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom: 5px;">
                     <div>
                         <h1>أكاديمية الشجاع للتايكواندو</h1>
-                        <div style="font-size:11px; font-weight:bold;">فرع: ${selectedBranch}</div>
+                        <div style="font-size:10px; font-weight:bold;">فرع: ${selectedBranch}</div>
                     </div>
-                    <img src="${logoUrl}" style="height:40px;" onerror="this.style.display='none'"/>
+                    <img src="${logoUrl}" style="height:35px;" onerror="this.style.display='none'"/>
                 </div>
 
                 <div class="header-info">
@@ -268,9 +265,9 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 <table>
                     <thead>
                         <tr>
-                            <th style="border:1px solid #000; background:#f3f4f6; width:20px; font-size:11px; padding:3px;">#</th>
-                            <th style="border:1px solid #000; background:#f3f4f6; width:150px; font-size:11px; padding:3px;">اسم الطالب</th>
-                            <th style="border:1px solid #000; background:#f3f4f6; width:50px; font-size:11px; padding:3px;">الفترة</th>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:15px; font-size:10px; padding:2px;">#</th>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:120px; font-size:10px; padding:2px;">اسم الطالب</th>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:40px; font-size:10px; padding:2px;">الفترة</th>
                             ${daysHeaders}
                         </tr>
                     </thead>
@@ -279,7 +276,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     </tbody>
                 </table>
                 
-                <div style="margin-top:10px; font-size:9px; text-align:left; color:#555;">
+                <div style="margin-top:5px; font-size:9px; text-align:left; color:#555;">
                     تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')} | تم الإنشاء بواسطة نظام إدارة الأكاديمية
                 </div>
             </div>
