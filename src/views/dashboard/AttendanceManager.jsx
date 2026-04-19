@@ -210,8 +210,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
         rowsHtml += `
             <tr style="page-break-inside: avoid;">
                 <td style="border:1px solid #000; padding:2px; font-weight:bold; text-align:center; font-size:10px;">${idx + 1}</td>
-                <td style="border:1px solid #000; padding:2px 4px; text-align:right; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">${displayName}</td>
-                <td style="border:1px solid #000; padding:2px; text-align:center; font-size:10px;">${s.group || '-'}</td>
+                <td style="border:1px solid #000; padding:2px 4px; text-align:right; font-size:12px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;">${displayName}</td>
                 ${cells}
             </tr>
         `;
@@ -258,8 +257,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     <thead>
                         <tr>
                             <th style="border:1px solid #000; background:#f3f4f6; width:15px; font-size:10px; padding:2px;">#</th>
-                            <th style="border:1px solid #000; background:#f3f4f6; width:120px; font-size:10px; padding:2px;">اسم الطالب</th>
-                            <th style="border:1px solid #000; background:#f3f4f6; width:40px; font-size:10px; padding:2px;">الفترة</th>
+                            <th style="border:1px solid #000; background:#f3f4f6; width:160px; font-size:11px; padding:2px;">اسم الطالب</th>
                             ${daysHeaders}
                         </tr>
                     </thead>
