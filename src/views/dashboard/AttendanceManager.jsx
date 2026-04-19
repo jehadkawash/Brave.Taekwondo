@@ -8,6 +8,19 @@ import { Button, Card } from '../../components/UIComponents';
 import { createPortal } from 'react-dom';
 import { IMAGES } from '../../lib/constants';
 
+// --- دالة ذكية لاختصار الاسم (الاسم الأول والأخير فقط بدون فواصل) ---
+const formatShortName = (fullName) => {
+    if (!fullName) return "";
+    // تقسيم الاسم بناءً على المسافات
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length > 1) {
+        // إرجاع العنصر الأول (الاسم) والعنصر الأخير (العائلة)
+        return `${parts} ${parts[parts.length - 1]}`;
+    }
+    // إذا كان الاسم كلمة واحدة
+    return parts || "";
+};
+
 // --- Groups Management Modal ---
 const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
     const [newGroup, setNewGroup] = useState("");
@@ -172,29 +185,20 @@ export default function AttendanceManager({ students, studentsCollection, groups
       await studentsCollection.update(studentId, { group: newGroup });
   };
 
-  // --- Print Report Function (Optimized for Landscape & Compactness) ---
+  // --- Print Report Function ---
   const printReport = () => {
     const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
     const logoUrl = window.location.origin + IMAGES.LOGO;
     
-    // Generate Headers (Days)
     let daysHeaders = '';
     for(let i=1; i<=daysInMonth; i++) {
         daysHeaders += `<th style="font-size:10px; width:20px; border:1px solid #000; background:#f9f9f9; padding:2px 0;">${i}</th>`;
     }
 
-    // Generate Rows (Students)
     let rowsHtml = '';
     processedStudents.forEach((s, idx) => {
-        // --- ✅ تم تصليح استخراج الاسم الأول والأخير ---
-        let displayName = s.name || "";
-        const nameParts = displayName.trim().split(/\s+/);
-        if (nameParts.length > 1) {
-            displayName = `${nameParts} ${nameParts[nameParts.length - 1]}`;
-        } else if (nameParts.length === 1) {
-            displayName = nameParts;
-        }
-        // ----------------------------------------------------
+        // استخدام دالة التنسيق للحصول على الاسم الأول والأخير فقط
+        let displayName = formatShortName(s.name);
 
         let cells = '';
         for(let i=1; i<=daysInMonth; i++) {
@@ -206,7 +210,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
             let bg = '';
             
             if (isFriday) {
-                bg = '#e5e7eb'; // Gray for Friday
+                bg = '#e5e7eb'; 
             } else if (isPresent) {
                 content = '✓';
                 bg = '#dcfce7'; 
@@ -238,10 +242,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
             tr { page-break-inside: avoid; page-break-after: auto; }
             h1 { text-align: center; color: #000; margin: 0 0 2px 0; font-size: 16px; }
             .header-info { text-align: center; margin-bottom: 5px; font-weight:bold; color:#333; font-size: 11px; }
-            
-            /* ✅ إجبار الطباعة لتكون بالعرض وتصغير الهوامش */
             @page { size: A4 landscape; margin: 5mm; } 
-            
             @media print {
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               td, th { border: 1px solid #000 !important; }
@@ -257,11 +258,9 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     </div>
                     <img src="${logoUrl}" style="height:35px;" onerror="this.style.display='none'"/>
                 </div>
-
                 <div class="header-info">
                     سجل الحضور والغياب | شهر: ${monthNames[month]} ${year} | المجموعة: ${selectedGroup}
                 </div>
-
                 <table>
                     <thead>
                         <tr>
@@ -275,7 +274,6 @@ export default function AttendanceManager({ students, studentsCollection, groups
                         ${rowsHtml}
                     </tbody>
                 </table>
-                
                 <div style="margin-top:5px; font-size:9px; text-align:left; color:#555;">
                     تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')} | تم الإنشاء بواسطة نظام إدارة الأكاديمية
                 </div>
@@ -361,7 +359,6 @@ export default function AttendanceManager({ students, studentsCollection, groups
                     {isReordering ? "حفظ الترتيب" : "ترتيب"}
                 </Button>
                 
-                {/* زر الطباعة */}
                 <Button 
                     onClick={printReport}
                     className="bg-slate-800 text-slate-300 gap-2 hover:bg-slate-700 hover:text-white border border-slate-700"
@@ -399,7 +396,8 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                         {(currentPage - 1) * itemsPerPage + index + 1}
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-slate-200">{s.name}</h4>
+                                        {/* استخدام الدالة لاختصار الاسم في الموبايل */}
+                                        <h4 className="font-bold text-slate-200">{formatShortName(s.name)}</h4>
                                         <div className="relative mt-1">
                                             <select 
                                                 className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded-md outline-none border border-blue-500/20 font-bold w-full appearance-none"
@@ -430,7 +428,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
             <table className="w-full text-xs border-collapse">
                 <thead className="bg-slate-950 text-slate-300 sticky top-0 z-20 shadow-md">
                     <tr>
-                        <th className="p-4 sticky right-0 bg-slate-950 z-30 text-right min-w-[280px] font-bold text-base shadow-[5px_0_10px_-5px_rgba(0,0,0,0.5)] border-l border-slate-800">
+                        <th className="p-4 sticky right-0 bg-slate-950 z-30 text-right min-w-[200px] max-w-[280px] font-bold text-base shadow-[5px_0_10px_-5px_rgba(0,0,0,0.5)] border-l border-slate-800">
                             الطلاب {selectedGroup !== "الكل" && <span className="text-yellow-500 text-sm">({selectedGroup})</span>}
                         </th>
                         {!isReordering && [...Array(daysInMonth)].map((_, i) => {
@@ -459,8 +457,9 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                         {globalIndex}
                                     </span>
                                     
-                                    <div className="flex flex-col flex-1">
-                                        <span className="truncate">{s.name}</span>
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                        {/* استخدام الدالة لاختصار الاسم في اللابتوب */}
+                                        <span className="truncate">{formatShortName(s.name)}</span>
                                         <div className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Edit3 size={10} className="text-slate-500"/>
                                             <select 
