@@ -119,7 +119,6 @@ export default function AttendanceManager({ students, studentsCollection, groups
       setSelectedDayForMobile(newDay);
   };
 
-  // --- معالجة الطلاب واختصار الأسماء ---
   const processedStudents = useMemo(() => {
       let result = Array.isArray(students) ? [...students] : [];
       if (selectedGroup !== "الكل") {
@@ -129,18 +128,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
       if (searchTerm) {
           result = result.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
       }
-      
-      // إضافة خاصية shortName لكل طالب ليتم استخدامها في العرض والطباعة
-      return result.map(s => {
-          let shortName = s.name || "";
-          const parts = shortName.trim().split(/\s+/);
-          if (parts.length > 1) {
-              shortName = `${parts} ${parts[parts.length - 1]}`;
-          } else if (parts.length === 1) {
-              shortName = parts;
-          }
-          return { ...s, shortName };
-      });
+      return result;
   }, [students, searchTerm, selectedGroup]);
 
   const totalPages = Math.ceil(processedStudents.length / itemsPerPage);
@@ -184,7 +172,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
       await studentsCollection.update(studentId, { group: newGroup });
   };
 
-  // --- Print Report Function (Optimized for Landscape & Compactness) ---
+  // --- Print Report Function (Exact Name Match + Compact Design) ---
   const printReport = () => {
     const printWindow = window.open('', 'PRINT', 'height=800,width=1200');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -198,6 +186,8 @@ export default function AttendanceManager({ students, studentsCollection, groups
     // Generate Rows (Students)
     let rowsHtml = '';
     processedStudents.forEach((s, idx) => {
+        let displayName = s.name || ""; // أخذ الاسم الأصلي كما هو تماماً بدون تقطيع
+        
         let cells = '';
         for(let i=1; i<=daysInMonth; i++) {
             const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
@@ -220,7 +210,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
         rowsHtml += `
             <tr style="page-break-inside: avoid;">
                 <td style="border:1px solid #000; padding:2px; font-weight:bold; text-align:center; font-size:10px;">${idx + 1}</td>
-                <td style="border:1px solid #000; padding:2px 4px; text-align:right; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">${s.shortName}</td>
+                <td style="border:1px solid #000; padding:2px 4px; text-align:right; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px;">${displayName}</td>
                 <td style="border:1px solid #000; padding:2px; text-align:center; font-size:10px;">${s.group || '-'}</td>
                 ${cells}
             </tr>
@@ -400,7 +390,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                         {(currentPage - 1) * itemsPerPage + index + 1}
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-slate-200">{s.shortName}</h4>
+                                        <h4 className="font-bold text-slate-200">{s.name}</h4>
                                         <div className="relative mt-1">
                                             <select 
                                                 className="text-[10px] bg-blue-900/20 text-blue-400 px-2 py-0.5 rounded-md outline-none border border-blue-500/20 font-bold w-full appearance-none"
@@ -461,7 +451,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                                     </span>
                                     
                                     <div className="flex flex-col flex-1 min-w-0">
-                                        <span className="truncate">{s.shortName}</span>
+                                        <span className="truncate">{s.name}</span>
                                         <div className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Edit3 size={10} className="text-slate-500"/>
                                             <select 
