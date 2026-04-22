@@ -234,7 +234,6 @@ export const DashboardStats = ({
   // --- نظام التبديل التلقائي للإحصائيات (Auto-play) ---
   const views = ['daily', 'monthly', 'yearly'];
   const viewLabels = { daily: 'اليومي', monthly: 'الشهري', yearly: 'السنوي' };
-  // ✅ تم التعديل هنا ليبدأ العداد من 0 (اليومي)
   const [statViewIndex, setStatViewIndex] = useState(0); 
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -357,9 +356,13 @@ export const DashboardStats = ({
       fiveDaysAgo.setDate(today.getDate() - 5);
       fiveDaysAgo.setHours(23, 59, 59, 999);
 
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+
       return branchStudents.filter(s => {
           const joinDate = safeDate(s.joinDate);
-          if (joinDate && joinDate > fiveDaysAgo) return false;
+          if (joinDate && joinDate > sevenDaysAgo) return false;
           if (!s.attendance || Object.keys(s.attendance).length === 0) return true;
           const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); 
           const lastAttDate = dates;
@@ -368,18 +371,18 @@ export const DashboardStats = ({
   }, [branchStudents]);
 
   const upcomingTests = useMemo(() => {
-      if (!beltTests) return [];
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(23, 59, 59, 999);
 
-      return beltTests
-        .filter(t => {
-            const testDate = safeDate(t.date);
-            return testDate && testDate >= today && t.branch === selectedBranch;
+      return branchStudents
+        .filter(s => {
+            const testDate = safeDate(s.nextTestDate);
+            return testDate && testDate <= tomorrow;
         })
-        .sort((a,b) => new Date(a.date) - new Date(b.date))
+        .sort((a,b) => new Date(a.nextTestDate) - new Date(b.nextTestDate))
         .slice(0, 5);
-  }, [beltTests, selectedBranch]);
+  }, [branchStudents]);
 
   const recentLogs = useMemo(() => {
       return (activityLogs || []).slice(0, 5);
@@ -582,7 +585,10 @@ export const DashboardStats = ({
                   <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-emerald-900/10 border border-emerald-500/10">
                       <div>
                           <p className="text-emerald-100 text-xs font-bold">{s.name}</p>
-                          <p className="text-[10px] text-emerald-500/70">{s.joinDate}</p>
+                          {/* ✅ التعديل هنا لقص الوقت وعرض التاريخ الصافي فقط */}
+                          <p className="text-[10px] text-emerald-500/70 font-mono">
+                              {s.joinDate ? s.joinDate.substring(0, 10) : 'غير متوفر'}
+                          </p>
                       </div>
                       <span className="text-[10px] bg-emerald-500 text-slate-900 font-bold px-1.5 py-0.5 rounded">NEW</span>
                   </div>
@@ -594,12 +600,12 @@ export const DashboardStats = ({
               {upcomingTests.length > 0 ? upcomingTests.map(t => (
                   <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-blue-900/10 border border-blue-500/10">
                       <div>
-                          <p className="text-blue-100 text-xs font-bold">{t.title}</p>
-                          <p className="text-[10px] text-blue-500/70 dir-ltr text-right">{t.date}</p>
+                          <p className="text-blue-100 text-xs font-bold">{t.name}</p>
+                          <p className="text-[10px] text-blue-500/70 dir-ltr text-right">{t.nextTestDate}</p>
                       </div>
                       <div className="text-center bg-slate-900 px-2 py-1 rounded border border-slate-700">
-                          <span className="block text-[8px] text-slate-500">سعر</span>
-                          <span className="text-xs text-yellow-500 font-bold">{t.price} JD</span>
+                          <span className="block text-[8px] text-slate-500">الحزام القادم</span>
+                          <span className="text-xs text-yellow-500 font-bold">{t.belt}</span>
                       </div>
                   </div>
               )) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد فحوصات قادمة</p>}
