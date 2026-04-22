@@ -404,7 +404,7 @@ export const DashboardStats = ({
       }).sort((a,b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0));
   }, [branchStudents]);
 
-  // ✅ حساب أعداد المنتهية وقريباً لنصفين البطاقة
+  // حساب أعداد المنتهية وقريباً لنصفين البطاقة
   const expiredStudentsCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'expired').length;
   const soonToExpireCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
 
@@ -579,7 +579,9 @@ export const DashboardStats = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                 <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                {/* ✅ تم إضافة zIndex هنا لمنع المؤشر من تغطية النوافذ */}
                 <Tooltip 
+                  wrapperStyle={{ zIndex: 50 }}
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '10px' }}
                   itemStyle={{ color: '#eab308' }}
                   labelStyle={{ color: '#94a3b8' }}
@@ -612,7 +614,9 @@ export const DashboardStats = ({
                     <Cell key={`cell-${index}`} fill={beltColors[index]} stroke="rgba(0,0,0,0)" />
                   ))}
                 </Pie>
+                {/* ✅ تم إضافة zIndex هنا أيضاً */}
                 <Tooltip 
+                   wrapperStyle={{ zIndex: 50 }}
                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff' }}
                 />
               </PieChart>
