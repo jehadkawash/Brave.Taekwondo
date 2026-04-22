@@ -228,7 +228,7 @@ const AdminDashboard = ({ user, selectedBranch, studentsCollection, scheduleColl
                     <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 rounded-xl object-contain bg-white shadow-lg shadow-yellow-500/20" onError={(e) => {e.target.style.display='none';}} />
                   </div>
                   <div>
-                      <h1 className="font-bold text-lg hidden md:block bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">أكاديمية الشجاع</h1>
+                      <h1 className="font-bold text-lg hidden md:block bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">أكاديمية الشجاع للتايكواندو </h1>
                       <div className="text-xs text-yellow-500 font-bold flex items-center gap-1">
                           {user.name} <span className="text-slate-600">|</span> <span className="text-slate-400">{selectedBranch}</span>
                       </div>
