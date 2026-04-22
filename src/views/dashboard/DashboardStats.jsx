@@ -39,7 +39,7 @@ const BELT_COLORS_MAP = {
 const safeDate = (dateStr) => {
     try {
         if (!dateStr) return null;
-        const d = new Date(dateStr);
+        const d = new Date(dateStr.toDate ? dateStr.toDate() : dateStr);
         if (isNaN(d.getTime())) return null;
         return d;
     } catch { return null; }
@@ -48,7 +48,8 @@ const safeDate = (dateStr) => {
 const calculateStatus = (dateString) => {
     if (!dateString) return 'expired';
     const today = new Date();
-    const end = new Date(dateString);
+    const end = safeDate(dateString);
+    if (!end) return 'expired';
     today.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
     const diffTime = end - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -98,11 +99,10 @@ const LogsModal = ({ isOpen, onClose, logs }) => {
     );
 };
 
-// --- مودال الاشتراكات التي تنتهي قريباً (معدل ومقسوم لنصفين) ---
+// --- مودال الاشتراكات التي تنتهي قريباً ---
 const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
     if (!isOpen) return null;
 
-    // فصل الطلاب حسب حالة الاشتراك
     const expiredStudents = students.filter(s => calculateStatus(s.subEnd) === 'expired');
     const nearEndStudents = students.filter(s => calculateStatus(s.subEnd) === 'near_end');
 
@@ -126,19 +126,21 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
                             <h4 className="font-bold text-red-500 text-lg">اشتراكات منتهية <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full ml-2">{expiredStudents.length}</span></h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {expiredStudents.map(s => (
+                            {expiredStudents.map(s => {
+                                const endD = safeDate(s.subEnd);
+                                return (
                                 <div key={s.id} className="bg-slate-950 p-4 rounded-xl border border-red-500/30 flex justify-between items-center shadow-sm hover:border-red-500 transition-colors">
                                     <div className="min-w-0 pr-3">
                                         <p className="text-slate-200 font-bold text-sm truncate">{s.name}</p>
                                         <p className="text-red-400 text-xs mt-1 font-mono flex items-center gap-1">
-                                            <Calendar size={12}/> انتهى في: {s.subEnd || 'غير محدد'}
+                                            <Calendar size={12}/> انتهى في: {endD ? endD.toLocaleDateString('en-GB') : 'غير محدد'}
                                         </p>
                                     </div>
                                     <button onClick={(e) => { e.stopPropagation(); openWhatsApp(s.phone); }} className="bg-[#25D366] hover:bg-[#20bd5a] text-white p-2 rounded-lg text-xs font-bold flex gap-1 items-center shadow-lg shadow-green-900/20 shrink-0">
                                         <MessageCircle size={16}/>
                                     </button>
                                 </div>
-                            ))}
+                            )})}
                             {expiredStudents.length === 0 && <p className="text-slate-500 text-sm col-span-2 text-center py-4">الكل مجدد! لا يوجد اشتراكات منتهية.</p>}
                         </div>
                     </div>
@@ -150,19 +152,21 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
                             <h4 className="font-bold text-orange-500 text-lg">تنتهي قريباً (خلال 7 أيام) <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full ml-2">{nearEndStudents.length}</span></h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {nearEndStudents.map(s => (
+                            {nearEndStudents.map(s => {
+                                const endD = safeDate(s.subEnd);
+                                return (
                                 <div key={s.id} className="bg-slate-950 p-4 rounded-xl border border-orange-500/30 flex justify-between items-center shadow-sm hover:border-orange-500 transition-colors">
                                     <div className="min-w-0 pr-3">
                                         <p className="text-slate-200 font-bold text-sm truncate">{s.name}</p>
                                         <p className="text-orange-400 text-xs mt-1 font-mono flex items-center gap-1">
-                                            <Calendar size={12}/> ينتهي في: {s.subEnd || 'غير محدد'}
+                                            <Calendar size={12}/> ينتهي في: {endD ? endD.toLocaleDateString('en-GB') : 'غير محدد'}
                                         </p>
                                     </div>
                                     <button onClick={(e) => { e.stopPropagation(); openWhatsApp(s.phone); }} className="bg-[#25D366] hover:bg-[#20bd5a] text-white p-2 rounded-lg text-xs font-bold flex gap-1 items-center shadow-lg shadow-green-900/20 shrink-0">
                                         <MessageCircle size={16}/>
                                     </button>
                                 </div>
-                            ))}
+                            )})}
                             {nearEndStudents.length === 0 && <p className="text-slate-500 text-sm col-span-2 text-center py-4">لا يوجد اشتراكات تنتهي قريباً.</p>}
                         </div>
                     </div>
@@ -241,7 +245,7 @@ export const DashboardStats = ({
       if (!isAutoPlaying) return;
       const timer = setInterval(() => {
           setStatViewIndex(prev => (prev + 1) % 3);
-      }, 10000); // تغيير كل 10 ثواني
+      }, 10000); 
       return () => clearInterval(timer);
   }, [isAutoPlaying]);
 
@@ -383,6 +387,7 @@ export const DashboardStats = ({
         .sort((a,b) => new Date(a.nextTestDate) - new Date(b.nextTestDate))
         .slice(0, 5);
   }, [branchStudents]);
+
 
   const recentLogs = useMemo(() => {
       return (activityLogs || []).slice(0, 5);
@@ -581,34 +586,40 @@ export const DashboardStats = ({
 
           {/* 2. طلاب جدد (أسبوع) */}
           <ListCard title="طلاب جدد (أسبوع)" icon={UserPlus} colorClass="text-emerald-500">
-              {newStudents.length > 0 ? newStudents.map(s => (
+              {newStudents.length > 0 ? newStudents.map(s => {
+                  const joinD = safeDate(s.joinDate);
+                  return (
                   <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-emerald-900/10 border border-emerald-500/10">
                       <div>
                           <p className="text-emerald-100 text-xs font-bold">{s.name}</p>
-                          {/* ✅ التعديل هنا لقص الوقت وعرض التاريخ الصافي فقط */}
+                          {/* ✅ التعديل هنا لإظهار التاريخ الصافي والآمن فقط */}
                           <p className="text-[10px] text-emerald-500/70 font-mono">
-                              {s.joinDate ? s.joinDate.substring(0, 10) : 'غير متوفر'}
+                              {joinD ? joinD.toLocaleDateString('en-GB') : 'غير متوفر'}
                           </p>
                       </div>
                       <span className="text-[10px] bg-emerald-500 text-slate-900 font-bold px-1.5 py-0.5 rounded">NEW</span>
                   </div>
-              )) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد طلاب جدد هذا الأسبوع</p>}
+              )}) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد طلاب جدد هذا الأسبوع</p>}
           </ListCard>
 
           {/* 3. أقرب الفحوصات (مستقبلاً) */}
           <ListCard title="أقرب الفحوصات" icon={Award} colorClass="text-blue-500">
-              {upcomingTests.length > 0 ? upcomingTests.map(t => (
+              {upcomingTests.length > 0 ? upcomingTests.map(t => {
+                  const testD = safeDate(t.nextTestDate);
+                  return (
                   <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-blue-900/10 border border-blue-500/10">
                       <div>
                           <p className="text-blue-100 text-xs font-bold">{t.name}</p>
-                          <p className="text-[10px] text-blue-500/70 dir-ltr text-right">{t.nextTestDate}</p>
+                          <p className="text-[10px] text-blue-500/70 dir-ltr text-right">
+                              {testD ? testD.toLocaleDateString('en-GB') : 'غير متوفر'}
+                          </p>
                       </div>
                       <div className="text-center bg-slate-900 px-2 py-1 rounded border border-slate-700">
                           <span className="block text-[8px] text-slate-500">الحزام القادم</span>
                           <span className="text-xs text-yellow-500 font-bold">{t.belt}</span>
                       </div>
                   </div>
-              )) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد فحوصات قادمة</p>}
+              )}) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد فحوصات قادمة</p>}
           </ListCard>
 
           {/* 4. الغياب (> 5 أيام) - أزرار تواصل فعلية */}
