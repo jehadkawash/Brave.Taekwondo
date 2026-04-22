@@ -177,8 +177,49 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
     );
 };
 
-// --- مكون البطاقة الإحصائية المعدل ---
-const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onClick, isClickable }) => (
+// --- مودال الفحوصات القادمة (أقرب 20 يوم) ---
+const UpcomingTestsModal = ({ isOpen, onClose, students }) => {
+    if (!isOpen) return null;
+    return createPortal(
+        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-3xl h-[85vh] flex flex-col animate-fade-in">
+                <div className="flex justify-between items-center p-6 border-b border-slate-800">
+                    <h3 className="text-xl font-bold text-blue-500 flex items-center gap-2">
+                        <Award size={24}/> كشف الفحوصات القادمة (أقرب 20 يوم)
+                    </h3>
+                    <button onClick={onClose}><X size={24} className="text-slate-500 hover:text-red-500"/></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {students.map(s => {
+                            const testD = safeDate(s.nextTestDate);
+                            return (
+                                <div key={s.id} className="bg-slate-950 p-4 rounded-xl border border-blue-500/20 flex justify-between items-center shadow-sm hover:border-blue-500 transition-colors">
+                                    <div className="min-w-0 pr-3">
+                                        <p className="text-slate-200 font-bold text-sm truncate">{s.name}</p>
+                                        <p className="text-blue-400 text-xs mt-1 font-mono flex items-center gap-1">
+                                            <Calendar size={12}/> موعد الفحص: {testD ? testD.toLocaleDateString('en-GB') : '-'}
+                                        </p>
+                                    </div>
+                                    <div className="text-center bg-slate-900 px-3 py-1.5 rounded border border-slate-700 shrink-0">
+                                        <span className="block text-[10px] text-slate-500">الحزام الحالي</span>
+                                        <span className="text-xs text-yellow-500 font-bold">{s.belt || 'أبيض'}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {students.length === 0 && <p className="text-center text-slate-500 py-8">لا يوجد فحوصات قادمة خلال هذه الفترة.</p>}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+// --- مكون البطاقة الإحصائية المعدل (يدعم splitValues) ---
+const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onClick, isClickable, splitValues }) => (
   <div 
     onClick={onClick}
     className={`bg-slate-900 border border-slate-800 p-5 md:p-6 rounded-3xl shadow-lg relative overflow-hidden group transition-all ${isClickable ? 'cursor-pointer hover:border-yellow-500 hover:shadow-yellow-500/20' : 'hover:border-slate-700'}`}
@@ -191,16 +232,33 @@ const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onCl
             <p className="text-slate-400 text-sm font-bold">{title}</p>
             {headerAction && <div className="ml-2 z-20 relative">{headerAction}</div>}
           </div>
-          <h3 className="text-2xl md:text-3xl font-black text-white">{value}</h3>
+          
+          {/* إذا كان هناك قسمة للقيم نعرضها هنا */}
+          {splitValues ? (
+              <div className="flex items-center gap-4 mt-2">
+                  <div className="flex flex-col">
+                      <span className={`text-2xl md:text-3xl font-black ${splitValues.left.color}`}>{splitValues.left.value}</span>
+                      <span className="text-[10px] text-slate-500 font-bold mt-1">{splitValues.left.label}</span>
+                  </div>
+                  <div className="h-10 w-px bg-slate-700"></div>
+                  <div className="flex flex-col">
+                      <span className={`text-2xl md:text-3xl font-black ${splitValues.right.color}`}>{splitValues.right.value}</span>
+                      <span className="text-[10px] text-slate-500 font-bold mt-1">{splitValues.right.label}</span>
+                  </div>
+              </div>
+          ) : (
+              <h3 className="text-2xl md:text-3xl font-black text-white">{value}</h3>
+          )}
+          
         </div>
         <div className={`p-3 rounded-2xl ${color} bg-opacity-20 text-white shadow-inner ml-2`}>
           <Icon size={24} />
         </div>
       </div>
-      {subText && <p className="text-xs text-slate-500 font-bold">{subText}</p>}
+      {subText && !splitValues && <p className="text-xs text-slate-500 font-bold">{subText}</p>}
       {isClickable && (
           <div className="mt-3 text-xs text-yellow-500 flex items-center gap-1 font-bold opacity-80 group-hover:opacity-100 transition-opacity">
-              <span>عرض القائمة وتفاصيل الاشتراكات</span>
+              <span>عرض القائمة والتفاصيل</span>
               <ChevronLeft size={12}/>
           </div>
       )}
@@ -234,6 +292,7 @@ export const DashboardStats = ({
   const [time, setTime] = useState(new Date());
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showNearEndModal, setShowNearEndModal] = useState(false);
+  const [showTestsModal, setShowTestsModal] = useState(false); 
 
   // --- نظام التبديل التلقائي للإحصائيات (Auto-play) ---
   const views = ['daily', 'monthly', 'yearly'];
@@ -345,6 +404,10 @@ export const DashboardStats = ({
       }).sort((a,b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0));
   }, [branchStudents]);
 
+  // ✅ حساب أعداد المنتهية وقريباً لنصفين البطاقة
+  const expiredStudentsCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'expired').length;
+  const soonToExpireCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
+
   const newStudents = useMemo(() => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -374,7 +437,7 @@ export const DashboardStats = ({
       }).slice(0, 10); 
   }, [branchStudents]);
 
-  const upcomingTests = useMemo(() => {
+  const upcomingTestsFast = useMemo(() => {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(23, 59, 59, 999);
@@ -386,6 +449,19 @@ export const DashboardStats = ({
         })
         .sort((a,b) => new Date(a.nextTestDate) - new Date(b.nextTestDate))
         .slice(0, 5);
+  }, [branchStudents]);
+
+  const allUpcomingTests = useMemo(() => {
+      const in20Days = new Date();
+      in20Days.setDate(in20Days.getDate() + 20);
+      in20Days.setHours(23, 59, 59, 999);
+
+      return branchStudents
+        .filter(s => {
+            const testDate = safeDate(s.nextTestDate);
+            return testDate && testDate <= in20Days;
+        })
+        .sort((a,b) => new Date(a.nextTestDate) - new Date(b.nextTestDate));
   }, [branchStudents]);
 
 
@@ -410,6 +486,7 @@ export const DashboardStats = ({
       
       <LogsModal isOpen={showLogsModal} onClose={() => setShowLogsModal(false)} logs={activityLogs || []} />
       <NearEndModal isOpen={showNearEndModal} onClose={() => setShowNearEndModal(false)} students={nearEndStudentsList} openWhatsApp={openWhatsApp} />
+      <UpcomingTestsModal isOpen={showTestsModal} onClose={() => setShowTestsModal(false)} students={allUpcomingTests} />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
@@ -460,12 +537,15 @@ export const DashboardStats = ({
         />
         
         <StatCard 
-            title="اشتراكات والتجديد" 
-            value={nearEndStudentsList.length} 
+            title="الاشتراكات والتجديد" 
             icon={AlertCircle} 
-            color="bg-orange-500" 
+            color="bg-slate-700" 
             isClickable={true}
             onClick={() => setShowNearEndModal(true)}
+            splitValues={{
+                left: { value: expiredStudentsCount, label: 'منتهية', color: 'text-red-500' },
+                right: { value: soonToExpireCount, label: 'تنتهي قريباً', color: 'text-orange-500' }
+            }}
         />
       </div>
 
@@ -592,7 +672,6 @@ export const DashboardStats = ({
                   <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-emerald-900/10 border border-emerald-500/10">
                       <div>
                           <p className="text-emerald-100 text-xs font-bold">{s.name}</p>
-                          {/* ✅ التعديل هنا لإظهار التاريخ الصافي والآمن فقط */}
                           <p className="text-[10px] text-emerald-500/70 font-mono">
                               {joinD ? joinD.toLocaleDateString('en-GB') : 'غير متوفر'}
                           </p>
@@ -603,8 +682,15 @@ export const DashboardStats = ({
           </ListCard>
 
           {/* 3. أقرب الفحوصات (مستقبلاً) */}
-          <ListCard title="أقرب الفحوصات" icon={Award} colorClass="text-blue-500">
-              {upcomingTests.length > 0 ? upcomingTests.map(t => {
+          <ListCard 
+             title="أقرب الفحوصات" 
+             icon={Award} 
+             colorClass="text-blue-500"
+             extraHeader={
+                <button onClick={() => setShowTestsModal(true)} className="text-[10px] text-blue-400 hover:text-white underline">عرض الكل</button>
+             }
+          >
+              {upcomingTestsFast.length > 0 ? upcomingTestsFast.map(t => {
                   const testD = safeDate(t.nextTestDate);
                   return (
                   <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-blue-900/10 border border-blue-500/10">
@@ -616,7 +702,7 @@ export const DashboardStats = ({
                       </div>
                       <div className="text-center bg-slate-900 px-2 py-1 rounded border border-slate-700">
                           <span className="block text-[8px] text-slate-500">الحزام القادم</span>
-                          <span className="text-xs text-yellow-500 font-bold">{t.belt}</span>
+                          <span className="text-xs text-yellow-500 font-bold">{t.belt || 'أبيض'}</span>
                       </div>
                   </div>
               )}) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد فحوصات قادمة</p>}
