@@ -35,7 +35,7 @@ const BELT_COLORS_MAP = {
     'أسود': '#171717', 'بوم': '#ea580c'
 };
 
-// --- دالة تنسيق التاريخ الآمنة ---
+// --- دوال مساعدة ---
 const safeDate = (dateStr) => {
     try {
         if (!dateStr) return null;
@@ -43,6 +43,18 @@ const safeDate = (dateStr) => {
         if (isNaN(d.getTime())) return null;
         return d;
     } catch { return null; }
+};
+
+const calculateStatus = (dateString) => {
+    if (!dateString) return 'expired';
+    const today = new Date();
+    const end = new Date(dateString);
+    today.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
+    const diffTime = end - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 'expired';
+    if (diffDays <= 7) return 'near_end';
+    return 'active';
 };
 
 // --- مودال سجل الحركات الكامل ---
@@ -86,21 +98,71 @@ const LogsModal = ({ isOpen, onClose, logs }) => {
     );
 };
 
-// --- مكون البطاقة الإحصائية ---
-const StatCard = ({ title, value, icon: Icon, color, subText }) => (
-  <div className="bg-slate-900 border border-slate-800 p-5 md:p-6 rounded-3xl shadow-lg relative overflow-hidden group hover:border-slate-700 transition-all">
+// --- مودال الاشتراكات التي تنتهي قريباً ---
+const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
+    if (!isOpen) return null;
+    return createPortal(
+        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-lg h-[70vh] flex flex-col animate-fade-in">
+                <div className="flex justify-between items-center p-6 border-b border-slate-800">
+                    <h3 className="text-xl font-bold text-orange-500 flex items-center gap-2">
+                        <AlertCircle size={24}/> اشتراكات تحتاج تجديد
+                    </h3>
+                    <button onClick={onClose}><X size={24} className="text-slate-500 hover:text-red-500"/></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
+                    {students.map(s => {
+                        const isExpired = calculateStatus(s.subEnd) === 'expired';
+                        return (
+                            <div key={s.id} className={`bg-slate-950 p-4 rounded-xl border flex justify-between items-center ${isExpired ? 'border-red-500/20' : 'border-orange-500/20'}`}>
+                                <div>
+                                    <p className="text-slate-200 font-bold text-sm">{s.name}</p>
+                                    <p className={`${isExpired ? 'text-red-400' : 'text-orange-400'} text-xs mt-1 font-mono flex items-center gap-1`}>
+                                        <Calendar size={10}/> نهاية الاشتراك: {s.subEnd || 'غير محدد'}
+                                        {isExpired && <span className="bg-red-900/30 text-red-500 px-1 rounded ml-1 font-bold text-[9px]">منتهي</span>}
+                                    </p>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); openWhatsApp(s.phone); }} className="bg-[#25D366] hover:bg-[#20bd5a] text-white p-2 rounded-lg text-xs font-bold flex gap-1 items-center shadow-lg shadow-green-900/20">
+                                    <MessageCircle size={14}/> تذكير
+                                </button>
+                            </div>
+                        );
+                    })}
+                    {students.length === 0 && <p className="text-center text-slate-500 py-8">لا يوجد اشتراكات تنتهي قريباً</p>}
+                </div>
+            </div>
+        </div>, document.body
+    );
+};
+
+// --- مكون البطاقة الإحصائية المعدل ---
+const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onClick, isClickable }) => (
+  <div 
+    onClick={onClick}
+    className={`bg-slate-900 border border-slate-800 p-5 md:p-6 rounded-3xl shadow-lg relative overflow-hidden group transition-all ${isClickable ? 'cursor-pointer hover:border-yellow-500 hover:shadow-yellow-500/20' : 'hover:border-slate-700'}`}
+  >
     <div className={`absolute top-0 right-0 w-24 h-24 ${color} opacity-10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110`}></div>
     <div className="relative z-10">
       <div className="flex justify-between items-start mb-4">
-        <div>
-          <p className="text-slate-400 text-sm font-bold mb-1">{title}</p>
+        <div className="flex-1">
+          <div className="flex justify-between items-center mb-1">
+            <p className="text-slate-400 text-sm font-bold">{title}</p>
+            {headerAction && <div className="ml-2 z-20 relative">{headerAction}</div>}
+          </div>
           <h3 className="text-2xl md:text-3xl font-black text-white">{value}</h3>
         </div>
-        <div className={`p-3 rounded-2xl ${color} bg-opacity-20 text-white shadow-inner`}>
+        <div className={`p-3 rounded-2xl ${color} bg-opacity-20 text-white shadow-inner ml-2`}>
           <Icon size={24} />
         </div>
       </div>
       {subText && <p className="text-xs text-slate-500 font-bold">{subText}</p>}
+      {isClickable && (
+          <div className="mt-3 text-xs text-yellow-500 flex items-center gap-1 font-bold opacity-80 group-hover:opacity-100 transition-opacity">
+              <span>عرض القائمة</span>
+              <ChevronLeft size={12}/>
+          </div>
+      )}
     </div>
   </div>
 );
@@ -130,6 +192,21 @@ export const DashboardStats = ({
   const [financialYear, setFinancialYear] = useState(new Date().getFullYear());
   const [time, setTime] = useState(new Date());
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showNearEndModal, setShowNearEndModal] = useState(false);
+
+  // --- نظام التبديل التلقائي للإحصائيات (Auto-play) ---
+  const views = ['daily', 'monthly', 'yearly'];
+  const viewLabels = { daily: 'اليومي', monthly: 'الشهري', yearly: 'السنوي' };
+  const [statViewIndex, setStatViewIndex] = useState(1); // 0=daily, 1=monthly, 2=yearly
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+  useEffect(() => {
+      if (!isAutoPlaying) return;
+      const timer = setInterval(() => {
+          setStatViewIndex(prev => (prev + 1) % 3);
+      }, 10000); // تغيير كل 10 ثواني
+      return () => clearInterval(timer);
+  }, [isAutoPlaying]);
 
   // تحديث الوقت كل ثانية
   useEffect(() => {
@@ -140,6 +217,46 @@ export const DashboardStats = ({
   // Fetch Tests Data
   const { data: beltTests } = useCollection('belt_tests');
 
+  // --- الحسابات الديناميكية للمالية والحضور ---
+  const { displayedIncome, incomeSubText, displayedAttendance, attendanceSubText } = useMemo(() => {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const yearStr = `${d.getFullYear()}`;
+
+      // حسابات الدخل
+      const dailyInc = branchPayments.filter(p => p.date === todayStr).reduce((a, c) => a + Number(c.amount), 0);
+      const monthlyInc = branchPayments.filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(monthStr)).reduce((a, c) => a + Number(c.amount), 0);
+      const yearlyInc = branchPayments.filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(yearStr)).reduce((a, c) => a + Number(c.amount), 0);
+
+      // حسابات الحضور
+      const dailyAtt = branchStudents.reduce((acc, s) => acc + (s.attendance?.[todayStr] ? 1 : 0), 0);
+      const monthlyAtt = branchStudents.reduce((acc, s) => acc + Object.keys(s.attendance || {}).filter(k => k.startsWith(monthStr)).length, 0);
+      const yearlyAtt = branchStudents.reduce((acc, s) => acc + Object.keys(s.attendance || {}).filter(k => k.startsWith(yearStr)).length, 0);
+
+      return {
+          displayedIncome: statViewIndex === 0 ? dailyInc : statViewIndex === 1 ? monthlyInc : yearlyInc,
+          incomeSubText: statViewIndex === 0 ? "الدخل اليومي" : statViewIndex === 1 ? "الدخل الشهري" : "الدخل السنوي",
+          displayedAttendance: statViewIndex === 0 ? dailyAtt : statViewIndex === 1 ? monthlyAtt : yearlyAtt,
+          attendanceSubText: statViewIndex === 0 ? "حصص اليوم" : statViewIndex === 1 ? "حصص الشهر" : "حصص السنة"
+      };
+  }, [branchPayments, branchStudents, statViewIndex]);
+
+  // مكون أزرار التبديل
+  const ViewToggle = () => (
+      <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800" onClick={(e) => e.stopPropagation()}>
+          {views.map((v, i) => (
+              <button 
+                  key={v}
+                  onClick={() => { setStatViewIndex(i); setIsAutoPlaying(false); }}
+                  className={`text-[9px] px-2 py-0.5 rounded font-bold transition-all ${statViewIndex === i ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                  {viewLabels[v]}
+              </button>
+          ))}
+      </div>
+  );
+
   // --- 1. توزيع الأحزمة (مرتب حسب الطلب) ---
   const { beltData, beltColors } = useMemo(() => {
     const belts = {};
@@ -148,21 +265,17 @@ export const DashboardStats = ({
         belts[beltName] = (belts[beltName] || 0) + 1;
     });
     
-    // تحويل البيانات لمصفوفة
     let data = Object.keys(belts).map(key => ({ name: key, value: belts[key] }));
     
-    // الترتيب حسب المصفوفة الثابتة
     data.sort((a, b) => {
         let indexA = BELT_ORDER.indexOf(a.name);
         let indexB = BELT_ORDER.indexOf(b.name);
-        // إذا الحزام مش موجود بالقائمة، حطه بالآخر
         if (indexA === -1) indexA = 999;
         if (indexB === -1) indexB = 999;
         return indexA - indexB;
     });
 
     const colors = data.map(d => BELT_COLORS_MAP[d.name] || '#94a3b8');
-    
     return { beltData: data, beltColors: colors };
   }, [branchStudents]);
 
@@ -174,7 +287,6 @@ export const DashboardStats = ({
         const monthKey = `${financialYear}-${String(monthIndex).padStart(2, '0')}`;
         
         const income = branchPayments
-            // ✅ تم إضافة حماية التأكد من أن date نصي (String) قبل تطبيق startsWith
             .filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(monthKey))
             .reduce((acc, curr) => acc + Number(curr.amount), 0);
             
@@ -183,8 +295,15 @@ export const DashboardStats = ({
     return data;
   }, [branchPayments, financialYear]);
 
-  // --- 3. القوائم الذكية (المنطق المصحح) ---
+  // --- 3. القوائم الذكية ---
   
+  const nearEndStudentsList = useMemo(() => {
+      return branchStudents.filter(s => {
+          const stat = calculateStatus(s.subEnd);
+          return stat === 'near_end' || stat === 'expired';
+      }).sort((a,b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0));
+  }, [branchStudents]);
+
   const newStudents = useMemo(() => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -194,45 +313,30 @@ export const DashboardStats = ({
       }).slice(0, 5);
   }, [branchStudents]);
 
-  // ✅ تصحيح منطق الغياب
   const absentStudents = useMemo(() => {
       const today = new Date();
       const fiveDaysAgo = new Date();
       fiveDaysAgo.setDate(today.getDate() - 5);
-      
-      // توحيد الوقت للمقارنة العادلة
       fiveDaysAgo.setHours(23, 59, 59, 999);
 
       return branchStudents.filter(s => {
-          // 1. إذا كان الطالب جديداً (انضم خلال آخر 5 أيام) لا نعتبره غائباً
           const joinDate = safeDate(s.joinDate);
           if (joinDate && joinDate > fiveDaysAgo) return false;
-
-          // 2. إذا لم يكن لديه سجل حضور نهائياً، وانضم من فترة طويلة -> يعتبر غائب
           if (!s.attendance || Object.keys(s.attendance).length === 0) return true;
-          
-          // 3. نأخذ آخر تاريخ حضور
-          const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); // تنازلي
-          const lastAttDate = dates; // أحدث تاريخ
-
-          // إذا كان آخر حضور أقدم من 5 أيام -> يعتبر غائب
+          const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); 
+          const lastAttDate = dates;
           return lastAttDate < fiveDaysAgo;
       }).slice(0, 10); 
   }, [branchStudents]);
 
-  // ✅ تصحيح منطق الفحوصات (مقارنة تواريخ صحيحة)
   const upcomingTests = useMemo(() => {
       if (!beltTests) return [];
-      
-      // تاريخ اليوم مصفر الوقت (00:00:00)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       return beltTests
         .filter(t => {
             const testDate = safeDate(t.date);
-            // إذا التاريخ غير صالح أو قديم، نستبعده
-            // إذا كان التاريخ أكبر من أو يساوي اليوم
             return testDate && testDate >= today && t.branch === selectedBranch;
         })
         .sort((a,b) => new Date(a.date) - new Date(b.date))
@@ -258,8 +362,8 @@ export const DashboardStats = ({
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans pb-20 md:pb-0">
       
-      {/* Modal for All Logs */}
       <LogsModal isOpen={showLogsModal} onClose={() => setShowLogsModal(false)} logs={activityLogs || []} />
+      <NearEndModal isOpen={showNearEndModal} onClose={() => setShowNearEndModal(false)} students={nearEndStudentsList} openWhatsApp={openWhatsApp} />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
@@ -281,7 +385,7 @@ export const DashboardStats = ({
                    {time.toLocaleDateString('ar-JO', { weekday: 'long' })}
                </p>
                <p className="text-sm font-bold text-yellow-500 dir-ltr">
-                   {time.toLocaleDateString('en-GB')} {/* يعرض 26/01/2026 */}
+                   {time.toLocaleDateString('en-GB')}
                </p>
            </div>
         </div>
@@ -290,9 +394,33 @@ export const DashboardStats = ({
       {/* --- Top Stats Grid --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="الطلاب النشطين" value={activeStudentsCount} icon={Users} color="bg-emerald-500" subText={`${branchStudents.length} طالب مسجل كلياً`}/>
-        <StatCard title="حضور الشهر الحالي" value={totalAttendance} icon={Clock} color="bg-blue-500" subText="مجموع الحصص المحضورة"/>
-        <StatCard title="صافي الدخل" value={`${netProfit} JD`} icon={DollarSign} color="bg-yellow-500" subText="الإيرادات - المصاريف"/>
-        <StatCard title="اشتراكات تنتهي قريباً" value={nearEndCount} icon={AlertCircle} color="bg-orange-500" subText="خلال 7 أيام"/>
+        
+        <StatCard 
+            title="إحصائيات الحضور" 
+            value={displayedAttendance} 
+            icon={Clock} 
+            color="bg-blue-500" 
+            subText={attendanceSubText}
+            headerAction={<ViewToggle />}
+        />
+        
+        <StatCard 
+            title="الإيرادات" 
+            value={`${displayedIncome} JD`} 
+            icon={DollarSign} 
+            color="bg-yellow-500" 
+            subText={incomeSubText}
+            headerAction={<ViewToggle />}
+        />
+        
+        <StatCard 
+            title="اشتراكات تنتهي قريباً" 
+            value={nearEndStudentsList.length} 
+            icon={AlertCircle} 
+            color="bg-orange-500" 
+            isClickable={true}
+            onClick={() => setShowNearEndModal(true)}
+        />
       </div>
 
       {/* --- Charts Section --- */}
@@ -302,7 +430,7 @@ export const DashboardStats = ({
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg">
           <div className="flex flex-wrap items-center justify-between mb-6 gap-2">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <BarChart3 className="text-yellow-500"/> الأداء المالي
+              <BarChart3 className="text-yellow-500"/> الأداء المالي (الإيرادات)
             </h3>
             
             {/* Year Selector */}
@@ -337,7 +465,7 @@ export const DashboardStats = ({
           </div>
         </div>
 
-        {/* 2. توزيع الأحزمة (مرتبة بالألوان الصحيحة) */}
+        {/* 2. توزيع الأحزمة */}
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg flex flex-col">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
             <PieIcon className="text-blue-500"/> توزيع الطلاب (الأحزمة)
