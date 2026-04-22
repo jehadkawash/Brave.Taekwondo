@@ -49,7 +49,7 @@ const safeDate = (dateStr) => {
 const LogsModal = ({ isOpen, onClose, logs }) => {
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z- flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center p-6 border-b border-slate-800">
@@ -174,7 +174,8 @@ export const DashboardStats = ({
         const monthKey = `${financialYear}-${String(monthIndex).padStart(2, '0')}`;
         
         const income = branchPayments
-            .filter(p => p.date && p.date.startsWith(monthKey))
+            // ✅ تم إضافة حماية التأكد من أن date نصي (String) قبل تطبيق startsWith
+            .filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(monthKey))
             .reduce((acc, curr) => acc + Number(curr.amount), 0);
             
         data.push({ name: `${monthIndex}`, دخل: income });
@@ -212,7 +213,7 @@ export const DashboardStats = ({
           
           // 3. نأخذ آخر تاريخ حضور
           const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); // تنازلي
-          const lastAttDate = dates[0]; // أحدث تاريخ
+          const lastAttDate = dates; // أحدث تاريخ
 
           // إذا كان آخر حضور أقدم من 5 أيام -> يعتبر غائب
           return lastAttDate < fiveDaysAgo;
