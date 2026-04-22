@@ -98,38 +98,75 @@ const LogsModal = ({ isOpen, onClose, logs }) => {
     );
 };
 
-// --- مودال الاشتراكات التي تنتهي قريباً ---
+// --- مودال الاشتراكات التي تنتهي قريباً (معدل ومقسوم لنصفين) ---
 const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
     if (!isOpen) return null;
+
+    // فصل الطلاب حسب حالة الاشتراك
+    const expiredStudents = students.filter(s => calculateStatus(s.subEnd) === 'expired');
+    const nearEndStudents = students.filter(s => calculateStatus(s.subEnd) === 'near_end');
+
     return createPortal(
         <div className="fixed inset-0 z- flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-lg h-[70vh] flex flex-col animate-fade-in">
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-3xl h-[85vh] flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center p-6 border-b border-slate-800">
-                    <h3 className="text-xl font-bold text-orange-500 flex items-center gap-2">
-                        <AlertCircle size={24}/> اشتراكات تحتاج تجديد
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <AlertCircle size={24} className="text-yellow-500"/> حالة الاشتراكات والتجديد
                     </h3>
                     <button onClick={onClose}><X size={24} className="text-slate-500 hover:text-red-500"/></button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
-                    {students.map(s => {
-                        const isExpired = calculateStatus(s.subEnd) === 'expired';
-                        return (
-                            <div key={s.id} className={`bg-slate-950 p-4 rounded-xl border flex justify-between items-center ${isExpired ? 'border-red-500/20' : 'border-orange-500/20'}`}>
-                                <div>
-                                    <p className="text-slate-200 font-bold text-sm">{s.name}</p>
-                                    <p className={`${isExpired ? 'text-red-400' : 'text-orange-400'} text-xs mt-1 font-mono flex items-center gap-1`}>
-                                        <Calendar size={10}/> نهاية الاشتراك: {s.subEnd || 'غير محدد'}
-                                        {isExpired && <span className="bg-red-900/30 text-red-500 px-1 rounded ml-1 font-bold text-[9px]">منتهي</span>}
-                                    </p>
+                
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-8">
+                    
+                    {/* القسم الأول: الاشتراكات المنتهية */}
+                    <div>
+                        <div className="flex items-center gap-3 mb-4 pb-2 border-b border-red-500/20">
+                            <div className="bg-red-500/20 p-2 rounded-xl"><X size={20} className="text-red-500"/></div>
+                            <h4 className="font-bold text-red-500 text-lg">اشتراكات منتهية <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full ml-2">{expiredStudents.length}</span></h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {expiredStudents.map(s => (
+                                <div key={s.id} className="bg-slate-950 p-4 rounded-xl border border-red-500/30 flex justify-between items-center shadow-sm hover:border-red-500 transition-colors">
+                                    <div className="min-w-0 pr-3">
+                                        <p className="text-slate-200 font-bold text-sm truncate">{s.name}</p>
+                                        <p className="text-red-400 text-xs mt-1 font-mono flex items-center gap-1">
+                                            <Calendar size={12}/> انتهى في: {s.subEnd || 'غير محدد'}
+                                        </p>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); openWhatsApp(s.phone); }} className="bg-[#25D366] hover:bg-[#20bd5a] text-white p-2 rounded-lg text-xs font-bold flex gap-1 items-center shadow-lg shadow-green-900/20 shrink-0">
+                                        <MessageCircle size={16}/>
+                                    </button>
                                 </div>
-                                <button onClick={(e) => { e.stopPropagation(); openWhatsApp(s.phone); }} className="bg-[#25D366] hover:bg-[#20bd5a] text-white p-2 rounded-lg text-xs font-bold flex gap-1 items-center shadow-lg shadow-green-900/20">
-                                    <MessageCircle size={14}/> تذكير
-                                </button>
-                            </div>
-                        );
-                    })}
-                    {students.length === 0 && <p className="text-center text-slate-500 py-8">لا يوجد اشتراكات تنتهي قريباً</p>}
+                            ))}
+                            {expiredStudents.length === 0 && <p className="text-slate-500 text-sm col-span-2 text-center py-4">الكل مجدد! لا يوجد اشتراكات منتهية.</p>}
+                        </div>
+                    </div>
+
+                    {/* القسم الثاني: تنتهي قريباً */}
+                    <div>
+                        <div className="flex items-center gap-3 mb-4 pb-2 border-b border-orange-500/20">
+                            <div className="bg-orange-500/20 p-2 rounded-xl"><Clock size={20} className="text-orange-500"/></div>
+                            <h4 className="font-bold text-orange-500 text-lg">تنتهي قريباً (خلال 7 أيام) <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full ml-2">{nearEndStudents.length}</span></h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {nearEndStudents.map(s => (
+                                <div key={s.id} className="bg-slate-950 p-4 rounded-xl border border-orange-500/30 flex justify-between items-center shadow-sm hover:border-orange-500 transition-colors">
+                                    <div className="min-w-0 pr-3">
+                                        <p className="text-slate-200 font-bold text-sm truncate">{s.name}</p>
+                                        <p className="text-orange-400 text-xs mt-1 font-mono flex items-center gap-1">
+                                            <Calendar size={12}/> ينتهي في: {s.subEnd || 'غير محدد'}
+                                        </p>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); openWhatsApp(s.phone); }} className="bg-[#25D366] hover:bg-[#20bd5a] text-white p-2 rounded-lg text-xs font-bold flex gap-1 items-center shadow-lg shadow-green-900/20 shrink-0">
+                                        <MessageCircle size={16}/>
+                                    </button>
+                                </div>
+                            ))}
+                            {nearEndStudents.length === 0 && <p className="text-slate-500 text-sm col-span-2 text-center py-4">لا يوجد اشتراكات تنتهي قريباً.</p>}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>, document.body
@@ -159,7 +196,7 @@ const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onCl
       {subText && <p className="text-xs text-slate-500 font-bold">{subText}</p>}
       {isClickable && (
           <div className="mt-3 text-xs text-yellow-500 flex items-center gap-1 font-bold opacity-80 group-hover:opacity-100 transition-opacity">
-              <span>عرض القائمة</span>
+              <span>عرض القائمة وتفاصيل الاشتراكات</span>
               <ChevronLeft size={12}/>
           </div>
       )}
@@ -197,7 +234,8 @@ export const DashboardStats = ({
   // --- نظام التبديل التلقائي للإحصائيات (Auto-play) ---
   const views = ['daily', 'monthly', 'yearly'];
   const viewLabels = { daily: 'اليومي', monthly: 'الشهري', yearly: 'السنوي' };
-  const [statViewIndex, setStatViewIndex] = useState(1); // 0=daily, 1=monthly, 2=yearly
+  // ✅ تم التعديل هنا ليبدأ العداد من 0 (اليومي)
+  const [statViewIndex, setStatViewIndex] = useState(0); 
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
   useEffect(() => {
@@ -414,7 +452,7 @@ export const DashboardStats = ({
         />
         
         <StatCard 
-            title="اشتراكات تنتهي قريباً" 
+            title="اشتراكات والتجديد" 
             value={nearEndStudentsList.length} 
             icon={AlertCircle} 
             color="bg-orange-500" 
