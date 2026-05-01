@@ -60,7 +60,7 @@ const isNewStudent = (joinDate) => {
 const ModalOverlay = ({ children, onClose }) => {
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div className="fixed inset-0 z- overflow-y-auto" role="dialog">
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog">
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
         <div className="relative transform overflow-hidden rounded-2xl text-right shadow-2xl shadow-black/50 transition-all sm:my-8 sm:w-full sm:max-w-2xl bg-slate-900 border border-slate-700" onClick={e => e.stopPropagation()}>
@@ -124,7 +124,7 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
                             </label>
                             
                             <label className="flex items-center gap-2 cursor-pointer bg-slate-800 p-3 rounded-xl border border-slate-700 hover:border-blue-500/50 transition-colors">
-                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups); }} className="accent-blue-500"/>
+                                <input type="radio" name="target" value="group" checked={target === 'group'} onChange={() => { setTarget('group'); if(groups.length > 0) setSelectedGroup(groups[0]); }} className="accent-blue-500"/>
                                 <span className="text-slate-200">فترة / مجموعة محددة</span>
                             </label>
 
@@ -299,12 +299,12 @@ const NotesManagerModal = ({ student, onClose, onSave }) => {
 
 // --- 3. Quick Renewal Modal ---
 const SubscriptionModal = ({ student, onClose, onSave }) => {
-    const [date, setDate] = useState(student.subEnd || new Date().toISOString().split('T'));
+    const [date, setDate] = useState(student.subEnd || new Date().toISOString().split('T')[0]);
 
     const addMonths = (months) => {
         const d = new Date(date);
         d.setMonth(d.getMonth() + months);
-        setDate(d.toISOString().split('T'));
+        setDate(d.toISOString().split('T')[0]);
     };
 
     return (
@@ -357,7 +357,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const defaultForm = { 
       name: '', phone: '', belt: 'أبيض', group: '', 
-      joinDate: new Date().toISOString().split('T'), 
+      joinDate: new Date().toISOString().split('T')[0], 
       dob: '', address: '', balance: 0, subEnd: '', username: '', password: '' 
   };
   
@@ -378,7 +378,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
               }
               
               const nameParts = s.name.trim().split(/\s+/);
-              const firstName = nameParts;
+              const firstName = nameParts[0];
               const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
               if (familiesMap[s.familyId].members.length < 3) {
@@ -399,7 +399,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           if (isGenericName) {
               const entries = Object.entries(data.lastNames);
               if (entries.length > 0) {
-                  const bestLastName = entries.sort((a,b) => b - a);
+                  const bestLastName = entries.sort((a,b) => b[1] - a[1])[0][0];
                   finalName = `عائلة ${bestLastName}`;
               }
           }
@@ -438,6 +438,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       return result;
   }, [students, search, statusFilter, sortOption]);
 
+  // ✅ تعديل دالة الطباعة هنا لإصلاح مشكلة عرض الاسم وتكرار العائلة
   const handlePrintStudents = () => {
     const printWin = window.open('', 'PRINT', 'height=800,width=1100');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -445,13 +446,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
     let rowsHtml = '';
     processedStudents.forEach((s, i) => {
-        let displayName = s.name || "";
-        const nameParts = displayName.trim().split(/\s+/);
-        if (nameParts.length > 1) {
-            displayName = `${nameParts} ${nameParts[nameParts.length - 1]}`;
-        } else if (nameParts.length === 1) {
-            displayName = nameParts;
-        }
+        // تم الإصلاح: عرض الاسم كما هو مخزن دون مصفوفات أو تكرار
+        let displayName = s.name ? s.name.trim() : "-";
 
         const status = calculateStatus(s.subEnd);
         let statusText = 'فعال';
@@ -566,7 +562,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         finalFamilyId = parseInt(linkFamily); 
         const existingFamily = uniqueFamilies.find(f => f.id === linkFamily.toString());
         if (existingFamily) {
-             finalFamilyName = existingFamily.displayName.split(' (');
+             finalFamilyName = existingFamily.displayName.split(' (')[0];
         } else {
              finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
         }
@@ -577,10 +573,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         const joinDateObj = new Date(newS.joinDate || new Date()); 
         const subEndDateObj = new Date(joinDateObj); 
         subEndDateObj.setMonth(subEndDateObj.getMonth() + 1); 
-        subEnd = subEndDateObj.toISOString().split('T');
+        subEnd = subEndDateObj.toISOString().split('T')[0];
     }
     
-    const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups : "الكل");
+    const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
 
     const student = { 
         ...newS, 
@@ -596,7 +592,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
         group: finalGroup,
         username: finalUser, 
         password: finalPass,
-        isPasswordHashed: false // الباسورد المبدئي مكشوف للإدارة
+        isPasswordHashed: false 
     };
     
     const success = await studentsCollection.add(student); 
@@ -621,7 +617,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           subEnd: student.subEnd, 
           balance: student.balance,
           username: student.username,
-          password: student.password // سنقوم بإخفائه بصرياً في الـ Input فقط إذا كان مشفراً
+          password: student.password 
       }); 
       setLinkFamily(student.familyId); 
       setShowModal(true); 
@@ -649,7 +645,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
   const archiveStudent = async (student) => { 
       if(confirm(`هل أنت متأكد من أرشفة الطالب ${student.name}؟`)) { 
-          await archiveCollection.add({ ...student, archivedAt: new Date().toISOString().split('T'), originalId: student.id }); 
+          await archiveCollection.add({ ...student, archivedAt: new Date().toISOString().split('T')[0], originalId: student.id }); 
           await studentsCollection.remove(student.id); 
           if(logActivity) logActivity("أرشفة", `أرشفة الطالب ${student.name}`);
       } 
@@ -729,20 +725,18 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     window.open(`https://wa.me/962${cleanPhone}`, '_blank');
   };
 
-  // ✅ دالة إعادة تعيين الباسورد
   const resetStudentPassword = async (student) => {
     if(confirm(`هل أنت متأكد من توليد كلمة مرور جديدة للطالب ${student.name}؟\nسيتم مسح كلمة مروره المشفرة القديمة.`)) {
-        const newPass = Math.floor(100000 + Math.random() * 900000).toString(); // رقم سري من 6 خانات
+        const newPass = Math.floor(100000 + Math.random() * 900000).toString(); 
         await studentsCollection.update(student.id, {
             password: newPass,
-            isPasswordHashed: false // إعادة الباسورد ليكون مكشوفاً
+            isPasswordHashed: false 
         });
         if(logActivity) logActivity("إعادة تعيين كلمة مرور", `تم توليد كلمة مرور جديدة للطالب ${student.name}`);
         alert(`تم تعيين كلمة مرور جديدة للطالب: ${newPass}`);
     }
   };
 
-  // ✅ حماية زر الواتساب من إرسال الباسوردات المشفرة
   const sendCredentialsWhatsApp = (student) => {
     if (!student.phone) return;
 
@@ -900,7 +894,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                     </div>
                                 </td>
                                 
-                                {/* ✅ هنا التعديل على عرض الباسورد (Desktop) */}
                                 <td className="p-4">
                                     <div className="flex items-center gap-2">
                                         <div className="bg-slate-950 p-1.5 rounded-lg text-xs font-mono border border-slate-800">
@@ -985,7 +978,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                          </div>
                      </div>
 
-                     {/* ✅ هنا التعديل على عرض الباسورد (Mobile) */}
                      <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800 border-dashed">
                          <div className="text-xs font-mono text-slate-400">
                              <div className="mb-1"><span className="font-bold text-blue-500">U:</span> {s.username}</div>
@@ -1031,7 +1023,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
       {/* --- Add/Edit Modal --- */}
       {showModal && (() => {
-         // ✅ حماية حقل الباسورد من التعديل اليدوي إذا كان مشفراً
          const isEditingHashed = editingStudent && (editingStudent.isPasswordHashed || (editingStudent.password && editingStudent.password.length > 30));
 
          return (
