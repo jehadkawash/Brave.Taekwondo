@@ -1,447 +1,309 @@
 // src/views/dashboard/ReportsManager.jsx
-import React, { useState } from 'react';
-import { FileText, Printer, TrendingUp, TrendingDown, Users, AlertCircle, Calendar, DollarSign } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+    FileText, Printer, TrendingUp, TrendingDown, Users, 
+    AlertCircle, Calendar, DollarSign, ChevronRight, 
+    PieChart, Activity, ClipboardList 
+} from 'lucide-react';
 import { Card } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 
 export default function ReportsManager({ 
-    students, payments, expenses, activityLogs, 
-    registrations, adminNotes, selectedBranch 
+    students, payments, expenses, adminNotes, selectedBranch 
 }) {
-    // الفترة الافتراضية: من أول الشهر الحالي إلى اليوم
-    const date = new Date();
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-    const currentDay = new Date().toISOString().split('T')[0];
+    const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [activeTab, setActiveTab] = useState('overview');
 
-    const [startDate, setStartDate] = useState(firstDay);
-    const [endDate, setEndDate] = useState(currentDay);
-
-    // --- HELPER: Date Formatter (dd/mm/yyyy) ---
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        const d = new Date(dateString);
-        if (isNaN(d.getTime())) return dateString; 
-        
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        
-        return `${day}/${month}/${year}`;
+    // --- Helpers ---
+    const formatDate = (dateStr) => {
+        if (!dateStr || dateStr === '-') return '-';
+        return new Date(dateStr).toLocaleDateString('ar-JO', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
-    // --- دالة التحقق من التاريخ (للمالية والحضور فقط) ---
     const isInRange = (dateStr) => {
         if (!dateStr) return false;
-        const d = new Date(dateStr); d.setHours(0,0,0,0);
-        const start = new Date(startDate); start.setHours(0,0,0,0);
-        const end = new Date(endDate); end.setHours(0,0,0,0);
-        return d >= start && d <= end;
+        const d = new Date(dateStr).setHours(0,0,0,0);
+        return d >= new Date(startDate).setHours(0,0,0,0) && d <= new Date(endDate).setHours(0,0,0,0);
     };
 
-    // --- دالة تحديد حالة الاشتراك (Updated for Dark Mode UI) ---
-    const getSubStatus = (dateString) => {
-        if (!dateString) return { label: 'منتهي', className: 'bg-red-900/20 text-red-400 border border-red-500/20' };
-        const today = new Date();
-        const end = new Date(dateString);
-        today.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
-        const diffTime = end - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays < 0) return { label: 'منتهي', className: 'bg-red-900/20 text-red-400 border border-red-500/20' };
-        if (diffDays <= 7) return { label: 'قارب الانتهاء', className: 'bg-yellow-900/20 text-yellow-400 border border-yellow-500/20' };
-        return { label: 'فعال', className: 'bg-emerald-900/20 text-emerald-400 border border-emerald-500/20' };
-    };
+    // --- Data Processing ---
+    const financialData = useMemo(() => {
+        const income = payments.filter(p => p.branch === selectedBranch && isInRange(p.date));
+        const outgo = expenses.filter(e => e.branch === selectedBranch && isInRange(e.date));
+        const totalIn = income.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const totalOut = outgo.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        return { income, outgo, totalIn, totalOut, net: totalIn - totalOut };
+    }, [payments, expenses, startDate, endDate, selectedBranch]);
 
-    // --- 1. البيانات المالية (مرتبطة بالتاريخ) ---
-    const filteredIncome = payments.filter(p => p.branch === selectedBranch && isInRange(p.date));
-    const filteredExpenses = expenses.filter(e => e.branch === selectedBranch && isInRange(e.date));
-    
-    const totalIncome = filteredIncome.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-    const totalExpense = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-    const netProfit = totalIncome - totalExpense;
+    const studentReport = useMemo(() => {
+        return students.filter(s => s.branch === selectedBranch).map(s => {
+            let attCount = s.attendance ? Object.keys(s.attendance).filter(d => isInRange(d)).length : 0;
+            const sPayments = payments.filter(p => p.studentId === s.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+            
+            return {
+                ...s,
+                attCount,
+                lastPay: sPayments[0]?.date || '-',
+                allNotes: [
+                    s.note && `[سجل]: ${s.note}`,
+                    ...(s.notes || []).map(n => n.text),
+                    ...(s.internalNotes || []).map(n => `[خاص]: ${n.text}`)
+                ].filter(Boolean).join(' | ')
+            };
+        });
+    }, [students, payments, startDate, endDate, selectedBranch]);
 
-    // --- 2. ملاحظات الإدارة (الكل - بدون فلتر تاريخ) ---
-    const finalAdminNotes = adminNotes || [];
-
-    // --- 3. بيانات الطلاب (الملاحظات كاملة بدون فلتر) ---
-    const studentReportData = students.filter(s => s.branch === selectedBranch).map(s => {
-        // أ. عدد أيام الحضور (مرتبط بالتاريخ المختار)
-        let attendanceCount = 0;
-        if (s.attendance) {
-            Object.keys(s.attendance).forEach(dateKey => {
-                if (isInRange(dateKey)) attendanceCount++;
-            });
-        }
-
-        // ب. آخر وصل مالي
-        const studentPayments = payments
-            .filter(p => p.studentId === s.id || p.name === s.name)
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
-        const lastPaymentDate = studentPayments.length > 0 ? studentPayments[0].date : '-';
-
-        // ج. تجميع الملاحظات
-        let allNotes = [];
-        if (s.note) allNotes.push(`[قديم: ${s.note}]`);
-        if (s.notes && s.notes.length > 0) s.notes.forEach(n => allNotes.push(n.text));
-        if (s.internalNotes && s.internalNotes.length > 0) s.internalNotes.forEach(n => allNotes.push(`(خاص: ${n.text})`));
-        
-        const notesString = allNotes.join(' | ');
-
-        return {
-            ...s,
-            attendanceCount,
-            lastPaymentDate,
-            notesString: notesString || '-',
-            statusInfo: getSubStatus(s.subEnd)
-        };
-    });
-
-    // --- دالة الطباعة ---
-    const handlePrintFullReport = () => {
-        const printWin = window.open('', 'PRINT', 'height=800,width=1000');
+    // --- Luxurious Print Logic ---
+    const handlePrint = () => {
+        const printWin = window.open('', 'PRINT');
         const logoUrl = window.location.origin + IMAGES.LOGO;
 
-        const htmlContent = `
-            <!DOCTYPE html>
-            <html lang="ar" dir="rtl">
-            <head>
-                <meta charset="UTF-8">
-                <title>التقرير الشامل - ${selectedBranch}</title>
-                <style>
-                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-                    body { font-family: 'Cairo', sans-serif; padding: 15px; color: #1f2937; font-size: 10px; }
-                    .header { text-align: center; border-bottom: 2px solid #fbbf24; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-                    .header-content { text-align: center; flex: 1; }
-                    .logo { height: 60px; object-fit: contain; }
-                    h1 { margin: 0; color: #000; font-size: 18px; }
-                    h2 { font-size: 14px; background: #f3f4f6; padding: 6px 10px; margin-top: 20px; border-right: 4px solid #000; font-weight: 700; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-                    th, td { border: 1px solid #ccc; padding: 5px; text-align: right; vertical-align: middle; }
-                    th { background-color: #f9fafb; font-weight: 700; white-space: nowrap; font-size: 10px; }
-                    td { font-size: 10px; }
-                    .financial-grid { display: flex; gap: 15px; }
-                    .box { flex: 1; border: 1px solid #ddd; padding: 8px; text-align: center; border-radius: 5px; }
-                    .amount { font-size: 14px; font-weight: bold; display: block; margin-bottom: 2px; }
-                    @media print {
-                        @page { size: A4 landscape; margin: 10mm; }
-                        body { -webkit-print-color-adjust: exact; }
-                        button { display: none; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div style="font-size:10px; text-align:right;">
-                        التاريخ: ${formatDate(new Date())}<br>
-                        الفرع: <strong>${selectedBranch}</strong>
+        printWin.document.write(`
+            <html>
+                <head>
+                    <title>تقرير أكاديمية الشجاع</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                        body { font-family: 'Cairo', sans-serif; direction: rtl; padding: 40px; color: #333; }
+                        .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e293b; padding-bottom: 20px; }
+                        .logo-container img { height: 80px; }
+                        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 30px 0; }
+                        .stat-card { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center; }
+                        .stat-card.main { background: #1e293b; color: white; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+                        th { background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; text-align: right; }
+                        td { border: 1px solid #cbd5e1; padding: 8px; }
+                        .footer { margin-top: 50px; display: flex; justify-content: space-between; font-size: 12px; border-top: 1px solid #eee; pt: 20px; }
+                        .sig-box { text-align: center; width: 150px; border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="report-header">
+                        <div>
+                            <h1 style="margin:0">التقرير الإداري السنوي</h1>
+                            <p>الفترة: من ${formatDate(startDate)} إلى ${formatDate(endDate)}</p>
+                            <p>الفرع: ${selectedBranch}</p>
+                        </div>
+                        <div class="logo-container"><img src="${logoUrl}"></div>
                     </div>
-                    <div class="header-content">
-                        <h1>التقرير الإداري والمالي الشامل</h1>
-                        <p style="margin:2px 0 0 0; color:#666;">الفترة: من ${formatDate(startDate)} إلى ${formatDate(endDate)}</p>
-                    </div>
-                    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-                </div>
 
-                <h2>أولاً: الوضع المالي (خلال الفترة المحددة)</h2>
-                <div class="financial-grid">
-                    <div class="box" style="background:#f0fdf4; border-color:#86efac;">
-                        <span class="amount" style="color:#166534;">${totalIncome} JD</span>
-                        <span>مجموع الإيرادات</span>
+                    <div class="stats-grid">
+                        <div class="stat-card">إجمالي الواردات<br><strong>${financialData.totalIn} JD</strong></div>
+                        <div class="stat-card">إجمالي المصاريف<br><strong>${financialData.totalOut} JD</strong></div>
+                        <div class="stat-card main">صافي الأرباح<br><strong style="font-size:20px">${financialData.net} JD</strong></div>
                     </div>
-                    <div class="box" style="background:#fef2f2; border-color:#fca5a5;">
-                        <span class="amount" style="color:#991b1b;">${totalExpense} JD</span>
-                        <span>مجموع المصاريف</span>
-                    </div>
-                    <div class="box" style="background:#eff6ff; border-color:#93c5fd;">
-                        <span class="amount" style="color:#1e40af;">${netProfit} JD</span>
-                        <span>صافي الربح</span>
-                    </div>
-                </div>
 
-                <div class="financial-grid" style="margin-top:10px;">
-                    <div style="flex:1;">
-                        <h3 style="margin:5px 0; font-size:11px; color:green;">تفاصيل الوصولات (الواردات)</h3>
-                        <table>
-                            <thead><tr><th>التاريخ</th><th>الطالب</th><th>المبلغ</th><th>البيان</th></tr></thead>
-                            <tbody>
-                                ${filteredIncome.map(p => `<tr><td>${formatDate(p.date)}</td><td>${p.name}</td><td>${p.amount}</td><td>${p.reason || '-'}</td></tr>`).join('')}
-                                ${filteredIncome.length === 0 ? '<tr><td colspan="4" style="text-align:center">-</td></tr>' : ''}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div style="flex:1;">
-                        <h3 style="margin:5px 0; font-size:11px; color:red;">تفاصيل المصاريف</h3>
-                        <table>
-                            <thead><tr><th>التاريخ</th><th>البند</th><th>المبلغ</th></tr></thead>
-                            <tbody>
-                                ${filteredExpenses.map(e => `<tr><td>${formatDate(e.date)}</td><td>${e.title}</td><td>${e.amount}</td></tr>`).join('')}
-                                ${filteredExpenses.length === 0 ? '<tr><td colspan="3" style="text-align:center">-</td></tr>' : ''}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <h2>ثانياً: ملاحظات الإدارة (النشطة حالياً)</h2>
-                <table>
-                    <thead><tr><th width="15%">تاريخ الإضافة</th><th>الملاحظة</th></tr></thead>
-                    <tbody>
-                        ${finalAdminNotes.map(n => `<tr><td>${formatDate(n.date)}</td><td>${n.text || n.content}</td></tr>`).join('')}
-                        ${finalAdminNotes.length === 0 ? '<tr><td colspan="2" style="text-align:center">لا يوجد ملاحظات إدارية</td></tr>' : ''}
-                    </tbody>
-                </table>
-
-                <h2>ثالثاً: سجل الطلاب الشامل (الوضع الحالي)</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th width="2%">#</th>
-                            <th width="12%">اسم الطالب</th>
-                            <th width="6%">الحزام</th>
-                            <th width="8%">حالة الاشتراك</th>
-                            <th width="8%">ينتهي في</th>
-                            <th width="8%">الوضع المالي</th>
-                            <th width="8%">آخر وصل</th>
-                            <th width="5%">حضور*</th>
-                            <th width="8%">فحص قادم</th>
-                            <th>الملاحظات (كل الأنواع)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${studentReportData.map((s, i) => `
+                    <h3>سجل الطلاب والتحصيل العلمي</h3>
+                    <table>
+                        <thead>
                             <tr>
-                                <td>${i + 1}</td>
-                                <td style="font-weight:bold;">${s.name}</td>
-                                <td>${s.belt}</td>
-                                <td style="text-align:center;">${s.statusInfo.label}</td>
-                                <td>${formatDate(s.subEnd)}</td>
-                                <td>${Number(s.balance) > 0 ? `<span style="color:red; font-weight:bold;">عليه ${s.balance}</span>` : '<span style="color:green;">مدفوع</span>'}</td>
-                                <td>${formatDate(s.lastPaymentDate)}</td>
-                                <td style="text-align:center; font-weight:bold;">${s.attendanceCount}</td>
-                                <td>${formatDate(s.nextTestDate)}</td>
-                                <td style="font-size:9px; color:#555;">${s.notesString}</td>
+                                <th>الطالب</th>
+                                <th>الحزام</th>
+                                <th>المالية</th>
+                                <th>الحضور</th>
+                                <th>آخر دفع</th>
+                                <th>الملاحظات الإدارية</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <p style="font-size:9px; margin-top:5px;">* عدد أيام الحضور يتم حسابه بناءً على الفترة المختارة في التقرير فقط.</p>
-                <script>window.onload = function() { window.print(); }</script>
-            </body>
+                        </thead>
+                        <tbody>
+                            ${studentReport.map(s => `
+                                <tr>
+                                    <td>${s.name}</td>
+                                    <td>${s.belt}</td>
+                                    <td>${Number(s.balance) > 0 ? `مدين ${s.balance}` : 'خالص'}</td>
+                                    <td>${s.attCount} أيام</td>
+                                    <td>${formatDate(s.lastPay)}</td>
+                                    <td style="font-size:9px">${s.allNotes || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <div>طبع بواسطة: النظام الإداري الموحد</div>
+                        <div style="display:flex; gap:40px">
+                            <div class="sig-box">توقيع المحاسب</div>
+                            <div class="sig-box">توقيع الإدارة</div>
+                        </div>
+                    </div>
+                </body>
             </html>
-        `;
-        printWin.document.write(htmlContent);
+        `);
         printWin.document.close();
+        printWin.print();
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20 md:pb-0 font-sans">
-            {/* Control Panel */}
-            <div className="bg-slate-900 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-800/60 sticky top-0 z-20 backdrop-blur-md bg-opacity-95">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-100 flex items-center gap-2">
-                            <FileText className="text-yellow-500"/> التقارير الشاملة
-                        </h2>
-                        <p className="text-slate-500 text-xs mt-1">يظهر التقرير جميع الملاحظات الحالية، بينما يتم فلترة البيانات المالية والحضور حسب التاريخ.</p>
+        <div className="max-w-7xl mx-auto space-y-6 pb-24">
+            {/* Header Area */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-black text-white flex items-center gap-3">
+                        <div className="p-3 bg-yellow-500 rounded-2xl shadow-lg shadow-yellow-500/20">
+                            <ClipboardList className="text-slate-900" size={28}/>
+                        </div>
+                        مركز التقارير والتحليل
+                    </h1>
+                    <p className="text-slate-500 font-medium">مراقبة الأداء المالي والأكاديمي لفرع {selectedBranch}</p>
+                </div>
+
+                <div className="flex items-center gap-3 bg-slate-900 p-2 rounded-2xl border border-slate-800">
+                    <div className="flex gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-white text-xs p-2 outline-none cursor-pointer" />
+                        <div className="w-[1px] bg-slate-800 my-2"></div>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-white text-xs p-2 outline-none cursor-pointer" />
                     </div>
-                    <button 
-                        onClick={handlePrintFullReport}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all w-full md:w-auto justify-center"
-                    >
-                        <Printer size={18}/> طباعة التقرير (PDF)
+                    <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-600/20">
+                        <Printer size={18}/> تصدير
                     </button>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><Calendar size={12}/> من تاريخ (للمالية والحضور)</label>
-                        <input 
-                            type="date" 
-                            value={startDate} 
-                            onChange={(e) => setStartDate(e.target.value)} 
-                            className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 outline-none focus:border-yellow-500 font-bold text-sm"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 flex items-center gap-1"><Calendar size={12}/> إلى تاريخ (للمالية والحضور)</label>
-                        <input 
-                            type="date" 
-                            value={endDate} 
-                            onChange={(e) => setEndDate(e.target.value)} 
-                            className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 outline-none focus:border-yellow-500 font-bold text-sm"
-                        />
-                    </div>
-                </div>
             </div>
 
-            {/* 1. Dashboard Summaries */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="border-l-4 border-l-emerald-500 hover:shadow-emerald-900/20">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-emerald-900/20 rounded-lg text-emerald-500"><TrendingUp size={20}/></div>
-                        <h3 className="font-bold text-slate-400 text-sm">الإيرادات</h3>
-                    </div>
-                    <p className="text-2xl font-black text-slate-200">{totalIncome} <span className="text-sm font-normal text-slate-500">JD</span></p>
-                </Card>
-
-                <Card className="border-l-4 border-l-red-500 hover:shadow-red-900/20">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-red-900/20 rounded-lg text-red-500"><TrendingDown size={20}/></div>
-                        <h3 className="font-bold text-slate-400 text-sm">المصاريف</h3>
-                    </div>
-                    <p className="text-2xl font-black text-slate-200">{totalExpense} <span className="text-sm font-normal text-slate-500">JD</span></p>
-                </Card>
-
-                <Card className="border-l-4 border-l-blue-500 hover:shadow-blue-900/20">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-blue-900/20 rounded-lg text-blue-500"><DollarSign size={20}/></div>
-                        <h3 className="font-bold text-slate-400 text-sm">صافي الربح</h3>
-                    </div>
-                    <p className="text-2xl font-black text-slate-200">{netProfit} <span className="text-sm font-normal text-slate-500">JD</span></p>
-                </Card>
-
-                <Card className="border-l-4 border-l-yellow-500 hover:shadow-yellow-900/20">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-yellow-900/20 rounded-lg text-yellow-500"><Users size={20}/></div>
-                        <h3 className="font-bold text-slate-400 text-sm">الطلاب (الفرع)</h3>
-                    </div>
-                    <p className="text-2xl font-black text-slate-200">{studentReportData.length}</p>
-                </Card>
+            {/* Top KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KPICard title="السيولة الواردة" value={financialData.totalIn} icon={<TrendingUp/>} color="emerald" />
+                <KPICard title="المصاريف التشغيلية" value={financialData.totalOut} icon={<TrendingDown/>} color="red" />
+                <KPICard title="صافي الربح" value={financialData.net} icon={<DollarSign/>} color="blue" isMain />
+                <KPICard title="إجمالي الأبطال" value={studentReport.length} icon={<Users/>} color="yellow" />
             </div>
 
-            {/* 2. On-Screen Details Sections */}
-            
-            {/* Financial Details */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
-                    <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
-                        <h3 className="font-bold text-emerald-400 flex items-center gap-2"><TrendingUp size={18}/> الإيرادات</h3>
-                        <span className="text-xs font-bold bg-emerald-900/20 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20">{filteredIncome.length} وصل</span>
+            {/* Main Tabs Selection */}
+            <div className="flex gap-4 border-b border-slate-800">
+                {['overview', 'financial', 'students', 'notes'].map(tab => (
+                    <button 
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`pb-4 px-2 font-bold text-sm transition-all relative ${activeTab === tab ? 'text-yellow-500' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        {tab === 'overview' && 'نظرة عامة'}
+                        {tab === 'financial' && 'الحركة المالية'}
+                        {tab === 'students' && 'سجل الأبطال'}
+                        {tab === 'notes' && 'ملاحظات الإدارة'}
+                        {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-500 rounded-t-full shadow-[0_-4px_10px_rgba(234,179,8,0.3)]"></div>}
+                    </button>
+                ))}
+            </div>
+
+            {/* Tab Content Rendering */}
+            <div className="min-h-[400px]">
+                {activeTab === 'overview' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+                        <Card className="lg:col-span-2 bg-slate-900/50 backdrop-blur">
+                            <h3 className="text-slate-100 font-bold mb-4 flex items-center gap-2"><Activity size={18} className="text-blue-500"/> ملخص النشاط</h3>
+                            <div className="h-64 flex items-center justify-center border border-dashed border-slate-800 rounded-2xl">
+                                <p className="text-slate-600 text-sm">مساحة مخصصة للرسم البياني المستقبلي</p>
+                            </div>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-slate-900 to-slate-950">
+                            <h3 className="text-slate-100 font-bold mb-4 flex items-center gap-2"><PieChart size={18} className="text-yellow-500"/> التوزيـع</h3>
+                            <div className="space-y-4">
+                                <ProgressBar label="الإيرادات" current={financialData.totalIn} total={financialData.totalIn + financialData.totalOut} color="bg-emerald-500" />
+                                <ProgressBar label="المصاريف" current={financialData.totalOut} total={financialData.totalIn + financialData.totalOut} color="bg-red-500" />
+                            </div>
+                        </Card>
                     </div>
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-xs text-right">
-                            <thead className="bg-slate-950 text-slate-500 sticky top-0">
-                                <tr>
-                                    <th className="p-3">التاريخ</th>
-                                    <th className="p-3">الطالب</th>
-                                    <th className="p-3">المبلغ</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {filteredIncome.map(p => (
-                                    <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-3 text-slate-500">{formatDate(p.date)}</td>
-                                        <td className="p-3 font-bold text-slate-300">{p.name}</td>
-                                        <td className="p-3 font-bold text-emerald-400">{p.amount}</td>
+                )}
+
+                {activeTab === 'financial' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-500">
+                        <FinancialList title="الواردات" data={financialData.income} type="in" />
+                        <FinancialList title="المصاريف" data={financialData.outgo} type="out" />
+                    </div>
+                )}
+
+                {activeTab === 'students' && (
+                     <Card className="bg-slate-900 p-0 overflow-hidden border-slate-800">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-right text-sm">
+                                <thead className="bg-slate-950 text-slate-500">
+                                    <tr>
+                                        <th className="p-4">البطل</th>
+                                        <th className="p-4">الحزام</th>
+                                        <th className="p-4">الحضور</th>
+                                        <th className="p-4">المالية</th>
+                                        <th className="p-4">الملاحظات</th>
                                     </tr>
-                                ))}
-                                {filteredIncome.length === 0 && <tr><td colSpan="3" className="p-4 text-center text-slate-600">لا يوجد إيرادات</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
-                    <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
-                        <h3 className="font-bold text-red-400 flex items-center gap-2"><TrendingDown size={18}/> المصاريف</h3>
-                        <span className="text-xs font-bold bg-red-900/20 text-red-400 px-2 py-1 rounded-full border border-red-500/20">{filteredExpenses.length} حركة</span>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-xs text-right">
-                            <thead className="bg-slate-950 text-slate-500 sticky top-0">
-                                <tr>
-                                    <th className="p-3">التاريخ</th>
-                                    <th className="p-3">البند</th>
-                                    <th className="p-3">المبلغ</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800">
-                                {filteredExpenses.map(e => (
-                                    <tr key={e.id} className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-3 text-slate-500">{formatDate(e.date)}</td>
-                                        <td className="p-3 font-bold text-slate-300">{e.title}</td>
-                                        <td className="p-3 font-bold text-red-400">{e.amount}</td>
-                                    </tr>
-                                ))}
-                                {filteredExpenses.length === 0 && <tr><td colSpan="3" className="p-4 text-center text-slate-600">لا يوجد مصاريف</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            {/* Admin Notes Section (No Filter) */}
-            <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
-                <div className="p-4 border-b border-slate-800 bg-yellow-900/10 flex justify-between items-center">
-                    <h3 className="font-bold text-yellow-500 flex items-center gap-2"><AlertCircle size={18}/> ملاحظات الإدارة (الكل)</h3>
-                    <span className="text-xs font-bold bg-yellow-900/20 text-yellow-500 px-2 py-1 rounded-full border border-yellow-500/20">{finalAdminNotes.length} ملاحظة</span>
-                </div>
-                <div className="max-h-48 overflow-y-auto custom-scrollbar p-0">
-                    <table className="w-full text-xs text-right">
-                        <thead className="bg-slate-950 text-slate-500 sticky top-0">
-                            <tr>
-                                <th className="p-3 w-32">التاريخ</th>
-                                <th className="p-3">الملاحظة</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                            {finalAdminNotes.map((n, i) => (
-                                <tr key={i} className="hover:bg-slate-800/50 transition-colors">
-                                    <td className="p-3 text-slate-500">{formatDate(n.date)}</td>
-                                    <td className="p-3 text-slate-300">{n.text || n.content}</td>
-                                </tr>
-                            ))}
-                            {finalAdminNotes.length === 0 && <tr><td colSpan="2" className="p-4 text-center text-slate-600">لا يوجد ملاحظات إدارية</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Students Table */}
-            <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
-                <div className="p-4 border-b border-slate-800 bg-blue-900/10 flex justify-between items-center">
-                    <h3 className="font-bold text-blue-400 flex items-center gap-2"><Users size={18}/> سجل الطلاب الشامل</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-right">
-                        <thead className="bg-slate-950 text-slate-500">
-                            <tr>
-                                <th className="p-3">#</th>
-                                <th className="p-3">الطالب</th>
-                                <th className="p-3">الحزام</th>
-                                <th className="p-3">الاشتراك</th>
-                                <th className="p-3">الانتهاء</th>
-                                <th className="p-3">المالية</th>
-                                <th className="p-3">آخر وصل</th>
-                                <th className="p-3">الحضور</th>
-                                <th className="p-3">ملاحظات</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                            {studentReportData.map((s, i) => (
-                                <tr key={s.id} className="hover:bg-slate-800/50 transition-colors group">
-                                    <td className="p-3 text-slate-600">{i + 1}</td>
-                                    <td className="p-3 font-bold text-slate-200 group-hover:text-yellow-500 transition-colors">{s.name}</td>
-                                    <td className="p-3 text-slate-400">{s.belt}</td>
-                                    <td className="p-3">
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.statusInfo.className}`}>
-                                            {s.statusInfo.label}
-                                        </span>
-                                    </td>
-                                    <td className="p-3 dir-ltr text-right text-slate-500 font-mono">{formatDate(s.subEnd)}</td>
-                                    <td className="p-3">
-                                        {Number(s.balance) > 0 
-                                            ? <span className="text-red-400 font-bold bg-red-900/20 px-2 py-0.5 rounded border border-red-500/20">عليه {s.balance}</span> 
-                                            : <span className="text-emerald-500 font-bold">مدفوع</span>}
-                                    </td>
-                                    <td className="p-3 text-slate-500">{formatDate(s.lastPaymentDate)}</td>
-                                    <td className="p-3 font-bold text-center text-blue-400">{s.attendanceCount}</td>
-                                    <td className="p-3 text-slate-500 max-w-xs truncate" title={s.notesString}>{s.notesString !== '-' ? s.notesString : ''}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800">
+                                    {studentReport.map(s => (
+                                        <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
+                                            <td className="p-4 font-bold text-slate-200">{s.name}</td>
+                                            <td className="p-4"><span className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-400">{s.belt}</span></td>
+                                            <td className="p-4 font-mono text-blue-400">{s.attCount} يوم</td>
+                                            <td className="p-4">
+                                                {Number(s.balance) > 0 
+                                                    ? <span className="text-red-400 font-bold underline">مدين {s.balance}</span> 
+                                                    : <span className="text-emerald-500">خالص</span>}
+                                            </td>
+                                            <td className="p-4 text-xs text-slate-500 max-w-xs truncate">{s.allNotes}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                     </Card>
+                )}
             </div>
         </div>
+    );
+}
+
+// --- Sub-components for Cleanliness ---
+function KPICard({ title, value, icon, color, isMain }) {
+    const colors = {
+        emerald: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+        red: "text-red-500 bg-red-500/10 border-red-500/20",
+        blue: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+        yellow: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20"
+    };
+
+    return (
+        <Card className={`${isMain ? 'ring-2 ring-blue-500 shadow-2xl shadow-blue-500/10' : ''} bg-slate-900 border-slate-800`}>
+            <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl border ${colors[color]}`}>{icon}</div>
+                <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</p>
+                    <p className="text-2xl font-black text-white">{value} <span className="text-xs font-normal text-slate-600">JD</span></p>
+                </div>
+            </div>
+        </Card>
+    );
+}
+
+function ProgressBar({ label, current, total, color }) {
+    const percent = total > 0 ? (current / total) * 100 : 0;
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between text-xs font-bold text-slate-400">
+                <span>{label}</span>
+                <span>{percent.toFixed(1)}%</span>
+            </div>
+            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className={`h-full ${color} transition-all duration-1000`} style={{ width: `${percent}%` }}></div>
+            </div>
+        </div>
+    );
+}
+
+function FinancialList({ title, data, type }) {
+    return (
+        <Card className="bg-slate-900 p-0 overflow-hidden border-slate-800">
+            <div className={`p-4 font-bold border-b border-slate-800 flex justify-between ${type === 'in' ? 'text-emerald-400 bg-emerald-500/5' : 'text-red-400 bg-red-500/5'}`}>
+                {title}
+                <span>{data.length} حركة</span>
+            </div>
+            <div className="max-h-80 overflow-y-auto p-2 space-y-2">
+                {data.map((item, i) => (
+                    <div key={i} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-center group hover:border-slate-700 transition-all">
+                        <div>
+                            <p className="text-sm font-bold text-slate-200">{item.name || item.title}</p>
+                            <p className="text-[10px] text-slate-600">{new Date(item.date).toLocaleDateString('ar-JO')}</p>
+                        </div>
+                        <p className={`font-black ${type === 'in' ? 'text-emerald-500' : 'text-red-500'}`}>{item.amount} JD</p>
+                    </div>
+                ))}
+            </div>
+        </Card>
     );
 }
