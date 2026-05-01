@@ -364,6 +364,15 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [newS, setNewS] = useState(defaultForm);
   const [linkFamily, setLinkFamily] = useState('new');
   
+  // ✅ دالة مساعدة لتنظيف عرض المجموعة (تمنع الفواصل والـ Arrays)
+  const formatGroupName = (group) => {
+      if (!group) return 'غير محدد';
+      if (Array.isArray(group)) {
+          return group.length > 0 ? group[0] : 'الكل';
+      }
+      return group;
+  };
+
   const uniqueFamilies = useMemo(() => {
       const familiesMap = {};
       
@@ -438,7 +447,6 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       return result;
   }, [students, search, statusFilter, sortOption]);
 
-  // ✅ تعديل دالة الطباعة هنا لإصلاح مشكلة عرض الاسم وتكرار العائلة
   const handlePrintStudents = () => {
     const printWin = window.open('', 'PRINT', 'height=800,width=1100');
     const logoUrl = window.location.origin + IMAGES.LOGO;
@@ -446,8 +454,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
     let rowsHtml = '';
     processedStudents.forEach((s, i) => {
-        // تم الإصلاح: عرض الاسم كما هو مخزن دون مصفوفات أو تكرار
         let displayName = s.name ? s.name.trim() : "-";
+        
+        // تم الإصلاح: تنظيف عرض المجموعة في الطباعة
+        let groupDisplay = formatGroupName(s.group);
 
         const status = calculateStatus(s.subEnd);
         let statusText = 'فعال';
@@ -471,7 +481,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${i + 1}</td>
                 <td style="border:1px solid #000; padding:6px; font-weight:bold; font-size:13px;">${displayName}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${s.belt || '-'}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${s.group || '-'}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${groupDisplay}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${s.phone || '-'}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; background-color:${s.balance > 0 ? '#fee2e2' : 'transparent'};">${balanceText}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${formatDate(s.subEnd)}</td>
@@ -881,7 +891,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                 </td>
                                 
                                 <td className="p-4">
-                                    <span className="px-2 py-1 bg-blue-900/20 text-blue-400 rounded text-xs font-bold border border-blue-500/20">{s.group || 'غير محدد'}</span>
+                                    {/* تم الإصلاح: عرض المجموعة في الجدول للكمبيوتر */}
+                                    <span className="px-2 py-1 bg-blue-900/20 text-blue-400 rounded text-xs font-bold border border-blue-500/20">
+                                        {formatGroupName(s.group)}
+                                    </span>
                                 </td>
                                 <td className="p-4">
                                     <div className="flex items-center gap-3">
@@ -962,7 +975,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                 {isNew && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 rounded-full border border-red-500/40 animate-pulse">NEW</span>}
                              </div>
                              <p className="text-xs text-slate-500 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
-                             <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">{s.group || 'غير محدد'}</span>
+                             {/* تم الإصلاح: عرض المجموعة في كروت الهاتف */}
+                             <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
+                                 {formatGroupName(s.group)}
+                             </span>
                          </div>
                          <StatusBadge status={status} />
                      </div>
