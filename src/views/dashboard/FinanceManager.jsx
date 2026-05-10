@@ -7,12 +7,41 @@ import { IMAGES } from '../../lib/constants';
 import { addDoc, deleteDoc, doc } from "firebase/firestore"; 
 import { db } from '../../lib/firebase';
 
+// ✅ دالة مساعدة لتحويل أي قيمة تاريخ إلى String آمن
+const toDateString = (value) => {
+  if (!value) return '';
+  // إذا كان Array (المشكلة القديمة) خذ العنصر الأول
+  if (Array.isArray(value)) return value[0] || '';
+  // إذا كان Firebase Timestamp
+  if (value?.toDate) return value.toDate().toISOString().split('T')[0];
+  // إذا كان String عادي
+  if (typeof value === 'string') return value.split('T')[0];
+  // إذا كان Date object
+  if (value instanceof Date) return value.toISOString().split('T')[0];
+  return String(value);
+};
+
+// ✅ دالة عرض التاريخ بشكل جميل dd/mm/yyyy
+const formatDateDisplay = (value) => {
+  const dateStr = toDateString(value);
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// ✅ دالة اليوم الحالي كـ String
+const todayString = () => new Date().toISOString().split('T')[0];
+
 // --- مكون النافذة المنبثقة لإدارة الأسباب ---
 const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
     const [newReason, setNewReason] = useState("");
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
                 <div className="flex justify-between items-center mb-4">
@@ -56,13 +85,14 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
 
 // --- مكون نافذة التقرير المالي ---
 const ReportModal = ({ isOpen, onClose, onGenerate }) => {
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T'));
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T'));
+    // ✅ استخدام todayString() الصحيح
+    const [startDate, setStartDate] = useState(todayString());
+    const [endDate, setEndDate] = useState(todayString());
 
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
                 <div className="flex justify-between items-center mb-6">
@@ -101,8 +131,13 @@ export default function FinanceManager({
     financeReasons = [], financeReasonsCollection 
 }) {
   const [viewMode, setViewMode] = useState('income'); 
-  const [payForm, setPayForm] = useState({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '' }); 
-  const [expForm, setExpForm] = useState({ title: '', amount: '', date: new Date().toISOString().split('T') }); 
+  const [payForm, setPayForm] = useState({ 
+    sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '' 
+  }); 
+  // ✅ إصلاح: date الابتدائي صحيح
+  const [expForm, setExpForm] = useState({ 
+    title: '', amount: '', date: todayString()
+  }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
   const [showReportModal, setShowReportModal] = useState(false);
@@ -111,9 +146,18 @@ export default function FinanceManager({
   const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
   
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
-      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+      .sort((a, b) => {
+        // ✅ استخدام toDateString لمقارنة آمنة
+        const dateA = toDateString(a.createdAt || a.date);
+        const dateB = toDateString(b.createdAt || b.date);
+        return dateB.localeCompare(dateA);
+      });
 
-  const sortedExpenses = [...branchExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedExpenses = [...branchExpenses].sort((a, b) => {
+    const dateA = toDateString(a.date);
+    const dateB = toDateString(b.date);
+    return dateB.localeCompare(dateA);
+  });
 
   const handleAddReason = async (title) => {
       if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
@@ -147,7 +191,9 @@ export default function FinanceManager({
         reason: finalReason, 
         details: payForm.details, 
         method: payForm.method || 'cash', 
-        date: new Date().toISOString().split('T'), 
+        // ✅ إصلاح رئيسي: حفظ التاريخ كـ String وليس Array
+        date: todayString(),
+        createdAt: new Date().toISOString(),
         branch: selectedBranch 
     }; 
     
@@ -159,25 +205,34 @@ export default function FinanceManager({
 
   const handleAddExpense = async (e) => { 
     e.preventDefault(); 
-    await expensesCollection.add({ id: Date.now().toString(), title: expForm.title, amount: Number(expForm.amount), date: expForm.date, branch: selectedBranch }); 
+    await expensesCollection.add({ 
+      id: Date.now().toString(), 
+      title: expForm.title, 
+      amount: Number(expForm.amount), 
+      // ✅ إصلاح: التاريخ صحيح
+      date: expForm.date || todayString(),
+      createdAt: new Date().toISOString(),
+      branch: selectedBranch 
+    }); 
     logActivity("مصروف", `صرف ${expForm.amount} لـ ${expForm.title}`); 
-    setExpForm({ title: '', amount: '', date: new Date().toISOString().split('T') }); 
+    // ✅ إصلاح: reset صحيح
+    setExpForm({ title: '', amount: '', date: todayString() }); 
   };
 
   const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
   const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
 
-  // --- تقرير الطباعة الرسمي والمنسق (توفير الحبر وملموم) ---
+  // --- تقرير الطباعة ---
   const handlePrintReport = (startDate, endDate) => {
+    // ✅ إصلاح: مقارنة التواريخ بشكل آمن
     const reportData = branchPayments.filter(p => {
-        const pDate = new Date(p.date); 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        return pDate >= start && pDate <= end;
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const pDateStr = toDateString(p.date);
+        if (!pDateStr) return false;
+        return pDateStr >= startDate && pDateStr <= endDate;
+    }).sort((a, b) => toDateString(a.date).localeCompare(toDateString(b.date)));
 
-    const totalCash = reportData.filter(p => !p.method || p.method === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
-    const totalCliq = reportData.filter(p => p.method === 'cliq').reduce((acc, curr) => acc + curr.amount, 0);
+    const totalCash = reportData.filter(p => !p.method || p.method === 'cash').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const totalCliq = reportData.filter(p => p.method === 'cliq').reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
     const grandTotal = totalCash + totalCliq;
 
     const printWin = window.open('', 'REPORT', 'height=800,width=1000');
@@ -186,18 +241,18 @@ export default function FinanceManager({
 
     let rowsHtml = '';
     reportData.forEach((p, i) => {
-        // ✅ عرض الاسم كما هو تماماً بدون أي تقطيع لتجنب الفواصل والتكرار
         let displayName = p.name || "";
-        
         const extraDetails = p.details ? ` <span style="color:#555; font-size:10px;">(${p.details})</span>` : '';
         const methodText = p.method === 'cliq' ? 'كليك' : 'كاش';
+        // ✅ عرض التاريخ بشكل آمن
+        const displayDate = formatDateDisplay(p.date);
 
         rowsHtml += `
             <tr>
                 <td style="text-align:center;">${i + 1}</td>
-                <td style="text-align:center; font-family:monospace;">${p.date}</td>
+                <td style="text-align:center; font-family:monospace;">${displayDate}</td>
                 <td style="text-align:right; font-weight:bold;">${displayName}</td>
-                <td style="text-align:right;">${p.reason}${extraDetails}</td>
+                <td style="text-align:right;">${p.reason || '-'}${extraDetails}</td>
                 <td style="text-align:center; font-weight:bold;">${methodText}</td>
                 <td style="text-align:center; font-weight:900; font-size:13px;">${p.amount}</td>
             </tr>
@@ -214,41 +269,28 @@ export default function FinanceManager({
              @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
              body { font-family: 'Cairo', sans-serif; padding: 0; margin: 0; background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
              .container { padding: 20px; max-width: 900px; margin: 0 auto; }
-             
-             /* Header (Compact & Side-by-side) */
              .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px; }
              .header-right { display: flex; align-items: center; gap: 10px; }
              .logo { height: 50px; object-fit: contain; }
-             .academy-info { display: flex; flex-direction: column; }
              .academy-info h1 { margin: 0; font-size: 16px; font-weight: 900; color: #000; }
              .academy-info p { margin: 0; font-size: 11px; color: #333; font-weight: bold; }
-             
              .header-left { text-align: left; font-size: 11px; color: #333; line-height: 1.4; }
              .header-left strong { color: #000; }
-             
-             /* Stats Grid (Ink Saving) */
              .stats-grid { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; }
              .stat-card { border: 1px solid #ccc; border-radius: 4px; padding: 8px 15px; text-align: center; min-width: 120px; }
              .stat-card.main { border: 2px solid #000; }
              .stat-title { font-size: 11px; font-weight: bold; color: #000; margin-bottom: 3px; }
              .stat-value { font-size: 16px; font-weight: 900; color: #000; direction: ltr; }
              .stat-currency { font-size: 10px; font-weight: normal; color: #000; }
-
-             /* Table (Lightweight borders, no dark backgrounds) */
              table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
              th { background-color: #f3f4f6; color: #000; padding: 6px; font-weight: bold; border: 1px solid #ccc; text-align: center; }
              td { border: 1px solid #ccc; padding: 6px; }
              tr:nth-child(even) { background-color: #fafafa; }
-             
-             /* Signatures */
              .signatures { display: flex; justify-content: space-between; margin-top: 30px; padding: 0 20px; }
              .sig-box { width: 150px; text-align: center; }
              .sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 30px; }
              .sig-title { font-size: 11px; font-weight: bold; color: #000; }
-             
-             /* Footer */
              .footer { margin-top: 20px; text-align: center; font-size: 9px; color: #555; border-top: 1px solid #eee; padding-top: 10px; }
-
              @page { size: A4 portrait; margin: 5mm; }
           </style>
         </head>
@@ -265,7 +307,7 @@ export default function FinanceManager({
                     <div class="header-left">
                         <div><strong>رقم التقرير:</strong> #${reportId}</div>
                         <div><strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
-                        <div><strong>الفترة:</strong> من ${startDate} إلى ${endDate}</div>
+                        <div><strong>الفترة:</strong> من ${formatDateDisplay(startDate)} إلى ${formatDateDisplay(endDate)}</div>
                     </div>
                 </div>
 
@@ -338,8 +380,9 @@ export default function FinanceManager({
     const receiptWindow = window.open('', 'PRINT', 'height=800,width=1000');
     const logoUrl = window.location.origin + IMAGES.LOGO;
     const methodText = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
-    
     const extraDetails = payment.details ? ' (' + payment.details + ')' : '';
+    // ✅ عرض التاريخ بشكل آمن في السند
+    const displayDate = formatDateDisplay(payment.date);
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -389,8 +432,8 @@ export default function FinanceManager({
                 <img src="${logoUrl}" onerror="this.style.display='none'"/>
               </div>
               <div class="meta-info">
-                <div>رقم السند: <strong>${payment.id.slice(-6)}</strong></div>
-                <div>التاريخ: <strong>${payment.date}</strong></div>
+                <div>رقم السند: <strong>${String(payment.id).slice(-6)}</strong></div>
+                <div>التاريخ: <strong>${displayDate}</strong></div>
               </div>
             </div>
             <div class="content">
@@ -412,7 +455,7 @@ export default function FinanceManager({
               </div>
               <div class="row">
                 <span class="label">وذلك عن:</span>
-                <span class="value">${payment.reason}${extraDetails}</span>
+                <span class="value">${payment.reason || '-'}${extraDetails}</span>
               </div>
             </div>
             <div class="footer">
@@ -459,7 +502,6 @@ export default function FinanceManager({
   return (
     <div className="space-y-6 animate-fade-in pb-20 md:pb-0 font-sans">
       
-      {/* نافذة إدارة الأسباب */}
       <ReasonsModal 
         isOpen={showReasonsModal} 
         onClose={() => setShowReasonsModal(false)} 
@@ -468,7 +510,6 @@ export default function FinanceManager({
         onDelete={handleDeleteReason}
       />
 
-      {/* نافذة التقرير المالي */}
       <ReportModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
@@ -487,7 +528,6 @@ export default function FinanceManager({
       
       {viewMode === 'income' ? (
         <>
-           {/* زر التقرير المالي */}
            <div className="flex justify-end mb-4">
               <Button onClick={() => setShowReportModal(true)} className="bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20 shadow-lg flex items-center gap-2 border-none">
                  <PieChart size={18} /> التقارير المالية
@@ -529,7 +569,6 @@ export default function FinanceManager({
                   </select>
               </div>
 
-              {/* قائمة الأسباب */}
               <div className="relative">
                   <label className="text-xs block mb-1 font-bold text-slate-400 flex justify-between">
                       السبب
@@ -571,7 +610,7 @@ export default function FinanceManager({
              <StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} />
           </div>
 
-          {/* --- DESKTOP VIEW --- */}
+          {/* DESKTOP TABLE */}
           <div className="hidden md:block">
             <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
                 <table className="w-full text-sm text-right">
@@ -590,7 +629,7 @@ export default function FinanceManager({
                     <tbody className="divide-y divide-slate-800 bg-slate-900">
                         {filteredPayments.map(p => (
                             <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
-                                <td className="p-3 text-slate-600 font-mono text-xs">{p.id.slice(-6)}</td>
+                                <td className="p-3 text-slate-600 font-mono text-xs">{String(p.id).slice(-6)}</td>
                                 <td className="p-3 font-bold text-slate-200">{p.name}</td>
                                 <td className="p-3 text-slate-400">
                                     <span className="block font-bold text-xs text-slate-300">{p.reason}</span>
@@ -601,7 +640,8 @@ export default function FinanceManager({
                                         {p.method === 'cliq' ? 'كليك' : 'كاش'}
                                     </span>
                                 </td>
-                                <td className="p-3 text-xs text-slate-500">{p.date}</td>
+                                {/* ✅ عرض التاريخ بشكل آمن */}
+                                <td className="p-3 text-xs text-slate-500">{formatDateDisplay(p.date)}</td>
                                 <td className="p-3 font-bold text-green-400">+{p.amount}</td>
                                 <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700"><Printer size={16}/></button></td>
                                 <td className="p-3"><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20"><Trash2 size={16}/></button></td>
@@ -613,7 +653,7 @@ export default function FinanceManager({
             </Card>
           </div>
 
-          {/* --- MOBILE VIEW --- */}
+          {/* MOBILE VIEW */}
           <div className="md:hidden grid gap-4">
               {filteredPayments.map(p => (
                   <div key={p.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col gap-3 relative overflow-hidden">
@@ -625,7 +665,8 @@ export default function FinanceManager({
                                   <span className="font-bold text-slate-200">{p.name}</span>
                               </div>
                               <div className="text-xs text-slate-500 flex items-center gap-2">
-                                  <Calendar size={12}/> {p.date}
+                                  {/* ✅ عرض التاريخ بشكل آمن */}
+                                  <Calendar size={12}/> {formatDateDisplay(p.date)}
                               </div>
                           </div>
                           <div className="text-green-400 font-bold text-lg bg-green-900/20 px-2 py-1 rounded-lg border border-green-500/20">
@@ -673,12 +714,16 @@ export default function FinanceManager({
                     <input type="number" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none placeholder-slate-600" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount:e.target.value})} required placeholder="0.00" />
                 </div>
                 <div>
+                    <label className="text-xs block mb-1 font-bold text-slate-400">التاريخ</label>
+                    <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.date} onChange={e=>setExpForm({...expForm, date:e.target.value})} />
+                </div>
+                <div>
                     <Button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20 py-2.5 border-none">حفظ</Button>
                 </div>
               </form>
           </Card>
           
-          {/* --- DESKTOP VIEW (Expenses Table) --- */}
+          {/* DESKTOP TABLE Expenses */}
           <div className="hidden md:block">
             <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
                 <table className="w-full text-sm text-right">
@@ -694,7 +739,8 @@ export default function FinanceManager({
                         {sortedExpenses.map(e=>(
                             <tr key={e.id} className="hover:bg-slate-800/50 transition-colors">
                                 <td className="p-3 font-bold text-slate-300">{e.title}</td>
-                                <td className="p-3 text-slate-500 text-xs">{e.date}</td>
+                                {/* ✅ عرض التاريخ بشكل آمن */}
+                                <td className="p-3 text-slate-500 text-xs">{formatDateDisplay(e.date)}</td>
                                 <td className="p-3 text-red-400 font-bold">-{e.amount}</td>
                                 <td className="p-3"><button onClick={()=>deleteExpense(e.id)} className="text-red-400 p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 border border-red-500/20"><Trash2 size={16}/></button></td>
                             </tr>
@@ -704,14 +750,15 @@ export default function FinanceManager({
             </Card>
           </div>
 
-          {/* --- MOBILE VIEW (Expenses Cards) --- */}
+          {/* MOBILE VIEW Expenses */}
           <div className="md:hidden grid gap-4">
               {sortedExpenses.map(e => (
                   <div key={e.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex justify-between items-center relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
                       <div className="pl-3">
                           <h4 className="font-bold text-slate-200">{e.title}</h4>
-                          <span className="text-xs text-slate-500 block mt-1">{e.date}</span>
+                          {/* ✅ عرض التاريخ بشكل آمن */}
+                          <span className="text-xs text-slate-500 block mt-1">{formatDateDisplay(e.date)}</span>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                           <span className="font-bold text-red-400 text-lg">-{e.amount}</span>
