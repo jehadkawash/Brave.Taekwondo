@@ -13,6 +13,20 @@ import {
 } from 'recharts';
 import { useCollection } from '../../hooks/useCollection'; 
 
+// ✅ دالة مساعدة مركزية لتحويل أي قيمة تاريخ إلى String آمن
+const toDateString = (value) => {
+  if (!value) return '';
+  // إذا كان Array (مشكلة البيانات القديمة من split('T') بدون [0])
+  if (Array.isArray(value)) return value[0] || '';
+  // إذا كان Firebase Timestamp
+  if (value?.toDate) return value.toDate().toISOString().split('T')[0];
+  // إذا كان String - نأخذ فقط الجزء قبل T
+  if (typeof value === 'string') return value.split('T')[0];
+  // إذا كان Date object
+  if (value instanceof Date) return value.toISOString().split('T')[0];
+  return String(value);
+};
+
 // --- ترتيب الأحزمة الثابت ---
 const BELT_ORDER = [
     'أبيض', 
@@ -39,7 +53,9 @@ const BELT_COLORS_MAP = {
 const safeDate = (dateStr) => {
     try {
         if (!dateStr) return null;
-        const d = new Date(dateStr.toDate ? dateStr.toDate() : dateStr);
+        const safe = toDateString(dateStr);
+        if (!safe) return null;
+        const d = new Date(safe);
         if (isNaN(d.getTime())) return null;
         return d;
     } catch { return null; }
@@ -62,7 +78,7 @@ const calculateStatus = (dateString) => {
 const LogsModal = ({ isOpen, onClose, logs }) => {
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-2xl h-[80vh] flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center p-6 border-b border-slate-800">
@@ -99,7 +115,7 @@ const LogsModal = ({ isOpen, onClose, logs }) => {
     );
 };
 
-// --- مودال الاشتراكات التي تنتهي قريباً ---
+// --- مودال الاشتراكات ---
 const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
     if (!isOpen) return null;
 
@@ -107,7 +123,7 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
     const nearEndStudents = students.filter(s => calculateStatus(s.subEnd) === 'near_end');
 
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-3xl h-[85vh] flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center p-6 border-b border-slate-800">
@@ -118,8 +134,6 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-8">
-                    
-                    {/* القسم الأول: الاشتراكات المنتهية */}
                     <div>
                         <div className="flex items-center gap-3 mb-4 pb-2 border-b border-red-500/20">
                             <div className="bg-red-500/20 p-2 rounded-xl"><X size={20} className="text-red-500"/></div>
@@ -145,7 +159,6 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
                         </div>
                     </div>
 
-                    {/* القسم الثاني: تنتهي قريباً */}
                     <div>
                         <div className="flex items-center gap-3 mb-4 pb-2 border-b border-orange-500/20">
                             <div className="bg-orange-500/20 p-2 rounded-xl"><Clock size={20} className="text-orange-500"/></div>
@@ -170,18 +183,17 @@ const NearEndModal = ({ isOpen, onClose, students, openWhatsApp }) => {
                             {nearEndStudents.length === 0 && <p className="text-slate-500 text-sm col-span-2 text-center py-4">لا يوجد اشتراكات تنتهي قريباً.</p>}
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>, document.body
     );
 };
 
-// --- مودال الفحوصات القادمة (أقرب 20 يوم) ---
+// --- مودال الفحوصات القادمة ---
 const UpcomingTestsModal = ({ isOpen, onClose, students }) => {
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-3xl h-[85vh] flex flex-col animate-fade-in">
                 <div className="flex justify-between items-center p-6 border-b border-slate-800">
@@ -218,7 +230,7 @@ const UpcomingTestsModal = ({ isOpen, onClose, students }) => {
     );
 };
 
-// --- مكون البطاقة الإحصائية المعدل (يدعم splitValues) ---
+// --- مكون البطاقة الإحصائية ---
 const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onClick, isClickable, splitValues }) => (
   <div 
     onClick={onClick}
@@ -233,7 +245,6 @@ const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onCl
             {headerAction && <div className="ml-2 z-20 relative">{headerAction}</div>}
           </div>
           
-          {/* إذا كان هناك قسمة للقيم نعرضها هنا */}
           {splitValues ? (
               <div className="flex items-center gap-4 mt-2">
                   <div className="flex flex-col">
@@ -249,7 +260,6 @@ const StatCard = ({ title, value, icon: Icon, color, subText, headerAction, onCl
           ) : (
               <h3 className="text-2xl md:text-3xl font-black text-white">{value}</h3>
           )}
-          
         </div>
         <div className={`p-3 rounded-2xl ${color} bg-opacity-20 text-white shadow-inner ml-2`}>
           <Icon size={24} />
@@ -287,14 +297,12 @@ export const DashboardStats = ({
   branchPayments = [], branchRegistrations = [], totalAttendance = 0 
 }) => {
   
-  // States
   const [financialYear, setFinancialYear] = useState(new Date().getFullYear());
   const [time, setTime] = useState(new Date());
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showNearEndModal, setShowNearEndModal] = useState(false);
   const [showTestsModal, setShowTestsModal] = useState(false); 
 
-  // --- نظام التبديل التلقائي للإحصائيات (Auto-play) ---
   const views = ['daily', 'monthly', 'yearly'];
   const viewLabels = { daily: 'اليومي', monthly: 'الشهري', yearly: 'السنوي' };
   const [statViewIndex, setStatViewIndex] = useState(0); 
@@ -308,41 +316,58 @@ export const DashboardStats = ({
       return () => clearInterval(timer);
   }, [isAutoPlaying]);
 
-  // تحديث الوقت كل ثانية
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch Tests Data
   const { data: beltTests } = useCollection('belt_tests');
 
-  // --- الحسابات الديناميكية للمالية والحضور ---
+  // ✅ الإصلاح الرئيسي: حسابات المالية والحضور مع toDateString
   const { displayedIncome, incomeSubText, displayedAttendance, attendanceSubText } = useMemo(() => {
       const d = new Date();
+      // ✅ نبني prefix strings للمقارنة
       const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
       const yearStr = `${d.getFullYear()}`;
 
-      // حسابات الدخل
-      const dailyInc = branchPayments.filter(p => p.date === todayStr).reduce((a, c) => a + Number(c.amount), 0);
-      const monthlyInc = branchPayments.filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(monthStr)).reduce((a, c) => a + Number(c.amount), 0);
-      const yearlyInc = branchPayments.filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(yearStr)).reduce((a, c) => a + Number(c.amount), 0);
+      // ✅ حساب الدخل - نستخدم toDateString لتحويل أي نوع تاريخ
+      const dailyInc = branchPayments
+        .filter(p => toDateString(p.date) === todayStr)
+        .reduce((a, c) => a + Number(c.amount || 0), 0);
 
-      // حسابات الحضور
-      const dailyAtt = branchStudents.reduce((acc, s) => acc + (s.attendance?.[todayStr] ? 1 : 0), 0);
-      const monthlyAtt = branchStudents.reduce((acc, s) => acc + Object.keys(s.attendance || {}).filter(k => k.startsWith(monthStr)).length, 0);
-      const yearlyAtt = branchStudents.reduce((acc, s) => acc + Object.keys(s.attendance || {}).filter(k => k.startsWith(yearStr)).length, 0);
+      const monthlyInc = branchPayments
+        .filter(p => toDateString(p.date).startsWith(monthStr))
+        .reduce((a, c) => a + Number(c.amount || 0), 0);
+
+      const yearlyInc = branchPayments
+        .filter(p => toDateString(p.date).startsWith(yearStr))
+        .reduce((a, c) => a + Number(c.amount || 0), 0);
+
+      // ✅ حساب الحضور - نستخدم toDateString على مفاتيح الحضور أيضاً
+      const dailyAtt = branchStudents.reduce((acc, s) => {
+        if (!s.attendance) return acc;
+        return acc + (Object.keys(s.attendance).some(k => toDateString(k) === todayStr) ? 1 : 0);
+      }, 0);
+
+      const monthlyAtt = branchStudents.reduce((acc, s) => {
+        if (!s.attendance) return acc;
+        return acc + Object.keys(s.attendance).filter(k => toDateString(k).startsWith(monthStr)).length;
+      }, 0);
+
+      const yearlyAtt = branchStudents.reduce((acc, s) => {
+        if (!s.attendance) return acc;
+        return acc + Object.keys(s.attendance).filter(k => toDateString(k).startsWith(yearStr)).length;
+      }, 0);
 
       return {
           displayedIncome: statViewIndex === 0 ? dailyInc : statViewIndex === 1 ? monthlyInc : yearlyInc,
-          incomeSubText: statViewIndex === 0 ? "الدخل اليومي" : statViewIndex === 1 ? "الدخل الشهري" : "الدخل السنوي",
+          incomeSubText: statViewIndex === 0 ? `الدخل اليومي (${todayStr})` : statViewIndex === 1 ? `الدخل الشهري (${monthStr})` : `الدخل السنوي (${yearStr})`,
           displayedAttendance: statViewIndex === 0 ? dailyAtt : statViewIndex === 1 ? monthlyAtt : yearlyAtt,
-          attendanceSubText: statViewIndex === 0 ? "حصص اليوم" : statViewIndex === 1 ? "حصص الشهر" : "حصص السنة"
+          attendanceSubText: statViewIndex === 0 ? 'حضور اليوم' : statViewIndex === 1 ? 'حضور الشهر' : 'حضور السنة'
       };
   }, [branchPayments, branchStudents, statViewIndex]);
 
-  // مكون أزرار التبديل
   const ViewToggle = () => (
       <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800" onClick={(e) => e.stopPropagation()}>
           {views.map((v, i) => (
@@ -357,7 +382,7 @@ export const DashboardStats = ({
       </div>
   );
 
-  // --- 1. توزيع الأحزمة (مرتب حسب الطلب) ---
+  // --- توزيع الأحزمة ---
   const { beltData, beltColors } = useMemo(() => {
     const belts = {};
     branchStudents.forEach(s => {
@@ -366,7 +391,6 @@ export const DashboardStats = ({
     });
     
     let data = Object.keys(belts).map(key => ({ name: key, value: belts[key] }));
-    
     data.sort((a, b) => {
         let indexA = BELT_ORDER.indexOf(a.name);
         let indexB = BELT_ORDER.indexOf(b.name);
@@ -379,7 +403,7 @@ export const DashboardStats = ({
     return { beltData: data, beltColors: colors };
   }, [branchStudents]);
 
-  // --- 2. البيانات المالية (حسب السنة المختارة) ---
+  // ✅ البيانات المالية الشهرية - مصلحة مع toDateString
   const financeData = useMemo(() => {
     const data = [];
     for (let i = 0; i < 12; i++) {
@@ -387,24 +411,29 @@ export const DashboardStats = ({
         const monthKey = `${financialYear}-${String(monthIndex).padStart(2, '0')}`;
         
         const income = branchPayments
-            .filter(p => p.date && typeof p.date === 'string' && p.date.startsWith(monthKey))
-            .reduce((acc, curr) => acc + Number(curr.amount), 0);
+            .filter(p => {
+              const dateStr = toDateString(p.date);
+              return dateStr.startsWith(monthKey);
+            })
+            .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
             
         data.push({ name: `${monthIndex}`, دخل: income });
     }
     return data;
   }, [branchPayments, financialYear]);
 
-  // --- 3. القوائم الذكية ---
-  
+  // --- القوائم الذكية ---
   const nearEndStudentsList = useMemo(() => {
       return branchStudents.filter(s => {
           const stat = calculateStatus(s.subEnd);
           return stat === 'near_end' || stat === 'expired';
-      }).sort((a,b) => new Date(a.subEnd || 0) - new Date(b.subEnd || 0));
+      }).sort((a,b) => {
+        const dateA = toDateString(a.subEnd);
+        const dateB = toDateString(b.subEnd);
+        return dateA.localeCompare(dateB);
+      });
   }, [branchStudents]);
 
-  // حساب أعداد المنتهية وقريباً لنصفين البطاقة
   const expiredStudentsCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'expired').length;
   const soonToExpireCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
 
@@ -431,8 +460,12 @@ export const DashboardStats = ({
           const joinDate = safeDate(s.joinDate);
           if (joinDate && joinDate > sevenDaysAgo) return false;
           if (!s.attendance || Object.keys(s.attendance).length === 0) return true;
-          const dates = Object.keys(s.attendance).map(d => new Date(d)).sort((a,b) => b - a); 
-          const lastAttDate = dates;
+          // ✅ تحويل مفاتيح الحضور بشكل آمن
+          const dates = Object.keys(s.attendance)
+            .map(d => safeDate(d))
+            .filter(Boolean)
+            .sort((a,b) => b - a); 
+          const lastAttDate = dates[0];
           return lastAttDate < fiveDaysAgo;
       }).slice(0, 10); 
   }, [branchStudents]);
@@ -447,7 +480,7 @@ export const DashboardStats = ({
             const testDate = safeDate(s.nextTestDate);
             return testDate && testDate <= tomorrow;
         })
-        .sort((a,b) => new Date(a.nextTestDate) - new Date(b.nextTestDate))
+        .sort((a,b) => toDateString(a.nextTestDate).localeCompare(toDateString(b.nextTestDate)))
         .slice(0, 5);
   }, [branchStudents]);
 
@@ -461,15 +494,13 @@ export const DashboardStats = ({
             const testDate = safeDate(s.nextTestDate);
             return testDate && testDate <= in20Days;
         })
-        .sort((a,b) => new Date(a.nextTestDate) - new Date(b.nextTestDate));
+        .sort((a,b) => toDateString(a.nextTestDate).localeCompare(toDateString(b.nextTestDate)));
   }, [branchStudents]);
-
 
   const recentLogs = useMemo(() => {
       return (activityLogs || []).slice(0, 5);
   }, [activityLogs]);
 
-  // --- Helpers for Actions ---
   const openWhatsApp = (phone) => {
       if (!phone) return;
       let cleanPhone = phone.replace(/\D/g, ''); 
@@ -552,14 +583,12 @@ export const DashboardStats = ({
       {/* --- Charts Section --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         
-        {/* 1. الرسم البياني المالي */}
+        {/* الرسم البياني المالي */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg">
           <div className="flex flex-wrap items-center justify-between mb-6 gap-2">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <BarChart3 className="text-yellow-500"/> الأداء المالي (الإيرادات)
             </h3>
-            
-            {/* Year Selector */}
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 items-center">
                 <button onClick={() => setFinancialYear(y => y - 1)} className="p-1 hover:text-white text-slate-500"><ChevronLeft size={16}/></button>
                 <span className="px-3 font-bold text-slate-200 text-sm">{financialYear}</span>
@@ -578,8 +607,7 @@ export const DashboardStats = ({
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                 <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                {/* ✅ تم إضافة zIndex هنا لمنع المؤشر من تغطية النوافذ */}
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip 
                   wrapperStyle={{ zIndex: 50 }}
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '10px' }}
@@ -593,7 +621,7 @@ export const DashboardStats = ({
           </div>
         </div>
 
-        {/* 2. توزيع الأحزمة */}
+        {/* توزيع الأحزمة */}
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-lg flex flex-col">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
             <PieIcon className="text-blue-500"/> توزيع الطلاب (الأحزمة)
@@ -614,7 +642,6 @@ export const DashboardStats = ({
                     <Cell key={`cell-${index}`} fill={beltColors[index]} stroke="rgba(0,0,0,0)" />
                   ))}
                 </Pie>
-                {/* ✅ تم إضافة zIndex هنا أيضاً */}
                 <Tooltip 
                    wrapperStyle={{ zIndex: 50 }}
                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', color: '#fff' }}
@@ -622,7 +649,6 @@ export const DashboardStats = ({
               </PieChart>
             </ResponsiveContainer>
             
-            {/* Center Text */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                <div className="text-center">
                  <span className="block text-3xl font-black text-white">{branchStudents.length}</span>
@@ -646,7 +672,7 @@ export const DashboardStats = ({
       {/* --- Bottom Grid (Smart Lists) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           
-          {/* 1. آخر الحركات */}
+          {/* آخر الحركات */}
           <ListCard 
             title="آخر العمليات" 
             icon={Activity} 
@@ -668,7 +694,7 @@ export const DashboardStats = ({
               )) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد حركات حديثة</p>}
           </ListCard>
 
-          {/* 2. طلاب جدد (أسبوع) */}
+          {/* طلاب جدد */}
           <ListCard title="طلاب جدد (أسبوع)" icon={UserPlus} colorClass="text-emerald-500">
               {newStudents.length > 0 ? newStudents.map(s => {
                   const joinD = safeDate(s.joinDate);
@@ -685,7 +711,7 @@ export const DashboardStats = ({
               )}) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد طلاب جدد هذا الأسبوع</p>}
           </ListCard>
 
-          {/* 3. أقرب الفحوصات (مستقبلاً) */}
+          {/* أقرب الفحوصات */}
           <ListCard 
              title="أقرب الفحوصات" 
              icon={Award} 
@@ -712,7 +738,7 @@ export const DashboardStats = ({
               )}) : <p className="text-center text-slate-600 text-xs py-4">لا يوجد فحوصات قادمة</p>}
           </ListCard>
 
-          {/* 4. الغياب (> 5 أيام) - أزرار تواصل فعلية */}
+          {/* الغياب */}
           <ListCard title="غياب > 5 أيام" icon={UserX} colorClass="text-red-500">
               {absentStudents.length > 0 ? absentStudents.map(s => (
                   <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-red-900/10 border border-red-500/10">
