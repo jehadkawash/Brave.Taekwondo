@@ -12,7 +12,6 @@ import StudentPortal from './views/StudentPortal';
 import AdminDashboard from './views/AdminDashboard';
 import { BRANCHES } from './lib/constants';
 
-// دالة التشفير (نحتاجها هنا لمقارنة كلمة المرور المدخلة مع المشفرة في قاعدة البيانات)
 const hashPassword = async (password) => {
     const msgBuffer = new TextEncoder().encode(password);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -58,7 +57,7 @@ export default function App() {
 
   const handleLogin = async (username, password) => {
     try {
-      // 1. نظام الطلاب (مع دعم الباسورد المكشوف والمشفر)
+      // 1. نظام الطلاب
       const hashedPassword = await hashPassword(password);
       const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
       
@@ -71,8 +70,8 @@ export default function App() {
       const studentSnap = await getDocs(qStudent);
 
       if (!studentSnap.empty) {
-        // ✅ تم إصلاح الخطأ هنا بإضافة
-        const studentDoc = studentSnap.docs; 
+        // FIX #1: كان studentSnap.docs (array) بدون [0] فكان .data() يرمي error
+        const studentDoc = studentSnap.docs[0]; 
         const studentData = studentDoc.data();
         const userData = { 
             role: 'student', 
@@ -86,7 +85,7 @@ export default function App() {
         return;
       }
 
-      // 2. نظام الإدارة والكباتن (التعديل الذكي للأحرف)
+      // 2. نظام الإدارة والكباتن
       let cleanUsername = username.trim().toLowerCase(); 
       let email = cleanUsername;
       
@@ -115,7 +114,6 @@ export default function App() {
 
             if (userSnap.exists()) {
                 const userData = { ...userSnap.data(), email: userEmail, id: firebaseUser.uid };
-                
                 setUser(userData);
                 setDashboardBranch(userData.branch || BRANCHES.SHAFA);
                 localStorage.setItem('braveUser', JSON.stringify(userData));
@@ -143,13 +141,25 @@ export default function App() {
     navigateTo('home'); 
   };
 
-  if (loadingAuth && user) return <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">جاري التأكد من الصلاحيات...</div>;
+  if (loadingAuth && user) return (
+    <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">
+      جاري التأكد من الصلاحيات...
+    </div>
+  );
 
   return (
     <>
       {view === 'home' && <HomeView setView={navigateTo} schedule={scheduleCollection.data} />}
       {view === 'login' && <LoginView setView={navigateTo} handleLogin={handleLogin} />}
-      {view === 'student_portal' && user && <StudentPortal user={user} students={studentsCollection.data} schedule={scheduleCollection.data} news={newsCollection.data} handleLogout={handleLogout} />}
+      {view === 'student_portal' && user && (
+        <StudentPortal 
+          user={user} 
+          students={studentsCollection.data} 
+          schedule={scheduleCollection.data} 
+          news={newsCollection.data} 
+          handleLogout={handleLogout} 
+        />
+      )}
       {view === 'admin_dashboard' && user && (
         <AdminDashboard 
           user={user} 
