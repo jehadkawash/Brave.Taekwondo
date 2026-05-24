@@ -1,67 +1,118 @@
 // src/hooks/useCollection.js
-import { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query } from "firebase/firestore";
+// FIX #9: لا تمسح البيانات عند انقطاع الاتصال — نحتفظ بآخر بيانات معروفة
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db, appId } from '../lib/firebase';
 
-// ✅ أضفنا isActive عشان نتحكم متى يشتغل الـ Hook (الـ Lazy Loading)
-export const useCollection = (collectionName, _queryConstraints = [], isActive = true) => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+/**
+ * useCollection
+ * - يحتفظ بآخر بيانات معروفة عند انقطاع الاتصال
+ * - يعرض مؤشر offline بدلاً من مسح البيانات
+ * - يعيد المحاولة تلقائياً بـ exponential backoff
+ */
+export const useCollection = (collectionName, options = {}) => {
+  const { orderByField = null, orderDirection = 'asc' } = options;
 
-  const queryConstraintsDep = JSON.stringify(_queryConstraints);
+  const [data, setData]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [isOffline, setIsOffline]   = useState(false);
+
+  // FIX #9: نخزن آخر snapshot صالح هنا حتى لا نفقدها عند انقطاع الاتصال
+  const lastGoodDataRef = useRef([]);
+  const unsubscribeRef  = useRef(null);
+  const retryTimerRef   = useRef(null);
+  const retryCountRef   = useRef(0);
+  const MAX_RETRIES     = 6;
+
+  const subscribe = useCallback(() => {
+    // نلغي أي اشتراك سابق قبل البدء
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
+    const ref = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+    const q   = orderByField
+      ? query(ref, orderBy(orderByField, orderDirection))
+      : ref;
+
+    const unsub = onSnapshot(
+      q,
+      // ✅ نجاح: استلمنا بيانات
+      (snapshot) => {
+        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // FIX #9: نحدّث المرجع أولاً ثم الـ state
+        lastGoodDataRef.current = docs;
+        setData(docs);
+        setLoading(false);
+        setError(null);
+
+        // الاتصال عاد — نصفّر العداد والحالة
+        if (isOffline) setIsOffline(false);
+        retryCountRef.current = 0;
+        if (retryTimerRef.current) {
+          clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = null;
+        }
+      },
+      // ❌ خطأ: انقطع الاتصال أو رفضت القاعدة
+      (err) => {
+        console.error(`[useCollection] Error in "${collectionName}":`, err);
+        setError(err.message);
+        setLoading(false);
+
+        // FIX #9: نبقي البيانات القديمة ظاهرة ونعرض offline indicator فقط
+        if (lastGoodDataRef.current.length > 0) {
+          setData(lastGoodDataRef.current);
+          setIsOffline(true);
+        }
+
+        // إعادة المحاولة بـ exponential backoff
+        scheduleRetry();
+      }
+    );
+
+    unsubscribeRef.current = unsub;
+  }, [collectionName, orderByField, orderDirection]);
+
+  const scheduleRetry = useCallback(() => {
+    if (retryCountRef.current >= MAX_RETRIES) {
+      console.warn(`[useCollection] Max retries reached for "${collectionName}"`);
+      return;
+    }
+
+    // Exponential backoff: 2s, 4s, 8s, 16s, 32s, 60s
+    const delay = Math.min(2000 * Math.pow(2, retryCountRef.current), 60000);
+    retryCountRef.current += 1;
+
+    console.log(`[useCollection] Retrying "${collectionName}" in ${delay}ms (attempt ${retryCountRef.current})`);
+
+    retryTimerRef.current = setTimeout(() => {
+      subscribe();
+    }, delay);
+  }, [subscribe, collectionName]);
 
   useEffect(() => {
-    // 🛑 التعديل السحري: إذا التاب مش شغال (isActive = false)، وقف التحميل ولا تتصل بقاعدة البيانات أبداً!
-    if (!isActive) {
-        setLoading(false);
-        return;
-    }
+    subscribe();
 
-    setLoading(true);
-    let ref = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
-    let q;
+    // مراقبة حالة الشبكة من المتصفح
+    const handleOnline  = () => { retryCountRef.current = 0; subscribe(); };
+    const handleOffline = () => { setIsOffline(true); };
 
-    if (_queryConstraints && _queryConstraints.length > 0) {
-       q = query(ref, ..._queryConstraints);
-    } else {
-       q = query(ref);
-    }
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      setData(items);
-      setLoading(false);
-    }, (error) => {
-      console.error(`Error fetching ${collectionName}:`, error);
-      setLoading(false);
-    });
+    return () => {
+      if (unsubscribeRef.current)  unsubscribeRef.current();
+      if (retryTimerRef.current)   clearTimeout(retryTimerRef.current);
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [subscribe]);
 
-    return () => unsubscribe();
-  }, [collectionName, queryConstraintsDep, isActive]);
-
-  const add = async (item) => {
-    try {
-      const itemWithTimestamp = { ...item, createdAt: new Date().toISOString() };
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), itemWithTimestamp);
-      return true;
-    } catch (e) {
-      console.error(e);
-      alert("خطأ في الحفظ، تأكد من الاتصال");
-      return false;
-    }
-  };
-
-  const update = async (id, updates) => {
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id), updates);
-    } catch (e) { console.error(e); }
-  };
-
-  const remove = async (id) => {
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
-    } catch (e) { console.error(e); }
-  };
-
-  return { data, loading, add, update, remove };
+  return { data, loading, error, isOffline };
 };
+
+export default useCollection;
