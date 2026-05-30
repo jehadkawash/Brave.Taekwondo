@@ -94,7 +94,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                           </h4>
                           <div className="space-y-2 text-sm font-mono dir-ltr text-right text-yellow-100/80">
                               <p><span className="text-yellow-600 font-sans font-bold float-right ml-2">:Username</span> {selectedStudentForDetails.username}</p>
-                              <p><span className="text-yellow-600 font-sans font-bold float-right ml-2">:Password</span> {selectedStudentForDetails.password}</p>
+                              <p><span className="text-yellow-600 font-sans font-bold float-right ml-2">:Password</span> ••••••••</p>
                           </div>
                       </div>
 

@@ -20,15 +20,24 @@ const hashPassword = async (password) => {
 };
 
 export default function App() {
-  const [user, setUser] = useState(() => { 
-      const saved = localStorage.getItem('braveUser'); 
-      return saved ? JSON.parse(saved) : null; 
+const [user, setUser] = useState(() => {
+      try {
+          const saved = localStorage.getItem('braveUser');
+          return saved ? JSON.parse(saved) : null;
+      } catch {
+          localStorage.removeItem('braveUser');
+          return null;
+      }
   });
 
   const [view, setView] = useState(() => {
-      if (typeof window !== 'undefined' && localStorage.getItem('braveUser')) {
-          const u = JSON.parse(localStorage.getItem('braveUser'));
-          return u.role === 'student' ? 'student_portal' : 'admin_dashboard';
+      try {
+          if (typeof window !== 'undefined' && localStorage.getItem('braveUser')) {
+              const u = JSON.parse(localStorage.getItem('braveUser'));
+              return u.role === 'student' ? 'student_portal' : 'admin_dashboard';
+          }
+      } catch {
+          localStorage.removeItem('braveUser');
       }
       return 'home';
   });

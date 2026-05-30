@@ -13,7 +13,7 @@ const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
     const [newGroup, setNewGroup] = useState("");
     if (!isOpen) return null;
     return createPortal(
-        <div className="fixed inset-0 z- flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md p-6 animate-fade-in">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-100">
