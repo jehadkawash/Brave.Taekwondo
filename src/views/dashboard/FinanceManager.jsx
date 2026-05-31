@@ -133,9 +133,12 @@ export default function FinanceManager({
     financeReasons = [], financeReasonsCollection 
 }) {
   const [viewMode, setViewMode] = useState('income'); 
-  const [payForm, setPayForm] = useState({ 
-    sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '' 
-  }); 
+  // FIX 2: أضفنا date للفورم — اليوم افتراضياً لكن يمكن تغييره للتاريخ الفعلي
+  const [payForm, setPayForm] = useState({
+    sid: '', amount: '', reason: '', customReason: '',
+    details: '', method: 'cash', extraName: '',
+    date: todayString()   // ← قابل للتعديل
+  });
   // ✅ إصلاح: date الابتدائي صحيح
   const [expForm, setExpForm] = useState({ 
     title: '', amount: '', date: todayString()
@@ -149,10 +152,17 @@ export default function FinanceManager({
   
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
       .sort((a, b) => {
-        // ✅ استخدام toDateString لمقارنة آمنة
-        const dateA = toDateString(a.createdAt || a.date);
-        const dateB = toDateString(b.createdAt || b.date);
-        return dateB.localeCompare(dateA);
+        // FIX 1: الترتيب الصحيح — الأجدد أولاً
+        // نستخدم createdAt (ISO كامل مع الوقت) للتمييز بين وصولات نفس اليوم
+        // لو createdAt موجود → نرتب بالوقت الفعلي (الأجدد أولاً)
+        // لو مش موجود → نرتب بالتاريخ فقط
+        const ca = a.createdAt || '';
+        const cb = b.createdAt || '';
+        if (ca && cb) return cb.localeCompare(ca); // الأجدد createdAt أولاً
+        // fallback: بالتاريخ
+        const da = toDateString(a.date);
+        const db = toDateString(b.date);
+        return db.localeCompare(da);
       });
 
   const sortedExpenses = [...branchExpenses].sort((a, b) => {
@@ -197,15 +207,18 @@ export default function FinanceManager({
         reason: finalReason,
         details: payForm.details,
         method: payForm.method || 'cash',
-        date: todayString(),
+        // FIX 2: نستخدم التاريخ اللي حدده المستخدم (ممكن يكون ماضي)
+        date:      payForm.date || todayString(),
+        // createdAt = وقت الإدخال الفعلي (للترتيب الصحيح بين وصولات نفس اليوم)
         createdAt: new Date().toISOString(),
         branch: selectedBranch,
     };
-    
-    await paymentsCollection.add(newPay); 
-    logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`); 
-    
-    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '' }); 
+
+    await paymentsCollection.add(newPay);
+    logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`);
+
+    // reset مع إبقاء التاريخ المحدد (مفيد لو بدو يضيف وصولات بنفس اليوم القديم)
+    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '', date: payForm.date });
   };
 
   const handleAddExpense = async (e) => { 
@@ -771,10 +784,35 @@ export default function FinanceManager({
                      <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required />
                   </div>
               )}
-              <div className="col-span-1 md:col-span-4">
+              <div className="col-span-1 md:col-span-2">
                   <label className="text-xs block mb-1 font-bold text-slate-400">تفاصيل إضافية (اختياري)</label>
                   <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500 placeholder-slate-600" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} placeholder="مثال: عن شهر 12 + 1" />
               </div>
+
+              {/* FIX 2: حقل التاريخ — يسمح بإدخال وصل بتاريخ ماضي */}
+              <div className="col-span-1 md:col-span-2">
+                  <label className="text-xs block mb-1 font-bold text-slate-400 flex items-center justify-between">
+                      <span>تاريخ الاستلام</span>
+                      {payForm.date !== todayString() && (
+                          <span className="text-orange-400 font-bold text-[10px] bg-orange-900/20 px-2 py-0.5 rounded border border-orange-500/20 flex items-center gap-1">
+                              ⚠️ تاريخ ماضٍ
+                              <button type="button" onClick={() => setPayForm({...payForm, date: todayString()})}
+                                  className="text-slate-400 hover:text-white mr-1">↩ اليوم</button>
+                          </span>
+                      )}
+                  </label>
+                  <input
+                      type="date"
+                      max={todayString()}
+                      className={`w-full bg-slate-950 border text-slate-200 p-2 rounded-xl outline-none h-[45px] transition-colors
+                          ${payForm.date !== todayString()
+                              ? 'border-orange-500/50 focus:border-orange-500 bg-orange-900/5'
+                              : 'border-slate-700 focus:border-green-500'}`}
+                      value={payForm.date}
+                      onChange={e => setPayForm({...payForm, date: e.target.value})}
+                  />
+              </div>
+
               <div className="col-span-1 md:col-span-4 mt-2">
                   <Button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/20 py-3 border-none">حفظ وقبض</Button>
               </div>
