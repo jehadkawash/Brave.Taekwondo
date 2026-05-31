@@ -1,11 +1,13 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
-import { addDoc, deleteDoc, doc } from "firebase/firestore"; 
+import { addDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from '../../lib/firebase';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // ✅ دالة مساعدة لتحويل أي قيمة تاريخ إلى String آمن
 const toDateString = (value) => {
@@ -517,7 +519,7 @@ export default function FinanceManager({
 
     receiptWindow.document.write(htmlContent);
     receiptWindow.document.close();
-    
+
     receiptWindow.onload = () => {
         receiptWindow.focus();
         setTimeout(() => {
@@ -525,6 +527,130 @@ export default function FinanceManager({
             receiptWindow.close();
         }, 500);
     };
+  };
+
+  // ─── تحميل الوصل كـ PDF مباشرة بدون نافذة طباعة ──────────────────────────
+  const downloadReceiptAsPDF = async (payment) => {
+    const displayDate  = formatDateDisplay(payment.date);
+    const methodText   = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
+    const extraDetails = payment.details ? ` (${payment.details})` : '';
+    const logoUrl      = window.location.origin + IMAGES.LOGO;
+
+    // نبني محتوى الوصل في div مخفي
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: fixed; left: -9999px; top: 0;
+      width: 794px; background: white; padding: 30px;
+      font-family: 'Cairo', Arial, sans-serif; direction: rtl;
+    `;
+
+    container.innerHTML = `
+      <div style="border: 3px double #444; padding: 25px; position: relative; min-height: 420px; display: flex; flex-direction: column; justify-content: space-between;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #b45309; padding-bottom: 12px; margin-bottom: 18px;">
+          <div>
+            <h1 style="margin:0; font-size:22px; color:#b45309; font-weight:900;">أكاديمية الشجاع للتايكواندو</h1>
+            <p style="margin:4px 0 0; font-size:13px; color:#555; font-weight:bold;">فرع: ${selectedBranch}</p>
+          </div>
+          <div style="text-align:left; font-size:12px; color:#333;">
+            <div>رقم السند: <strong>${String(payment.id).slice(-6)}</strong></div>
+            <div>التاريخ: <strong>${displayDate}</strong></div>
+          </div>
+        </div>
+
+        <div style="text-align:center; font-size:26px; font-weight:900; margin:10px 0 20px; text-decoration:underline; text-decoration-color:#b45309;">
+          سند قبض
+        </div>
+
+        <div style="border:2px solid #333; display:inline-block; padding:6px 18px; border-radius:8px; position:absolute; left:30px; top:100px; transform:rotate(-5deg); background:#f9f9f9;">
+          <div style="font-size:22px; font-weight:900; direction:ltr;">${payment.amount} JD</div>
+        </div>
+
+        <div>
+          ${[
+            ['استلمنا من:', payment.name],
+            ['مبلغ وقدره:', `${payment.amount} دينار أردني`],
+            ['طريقة الدفع:', methodText],
+            ['وذلك عن:', `${payment.reason || '-'}${extraDetails}`],
+          ].map(([label, value]) => `
+            <div style="display:flex; align-items:baseline; margin-bottom:14px; font-size:16px;">
+              <span style="font-weight:bold; min-width:120px; color:#333;">${label}</span>
+              <span style="flex:1; border-bottom:1px dotted #888; padding:0 6px; font-weight:700;">${value}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="margin-top:20px;">
+          <div style="display:flex; justify-content:space-between; padding:0 40px; margin-bottom:14px;">
+            <div style="text-align:center; width:150px;">
+              <div style="border-top:1px solid #333; margin-bottom:5px; height:30px;"></div>
+              <div style="font-size:12px; font-weight:bold; color:#555;">توقيع الإدارة</div>
+            </div>
+            <div style="text-align:center; width:150px;">
+              <div style="border-top:1px solid #333; margin-bottom:5px; height:30px;"></div>
+              <div style="font-size:12px; font-weight:bold; color:#555;">توقيع المستلم</div>
+            </div>
+          </div>
+          <div style="border-top:2px solid #b45309; padding-top:8px; font-size:11px; display:flex; justify-content:space-between;">
+            <div>
+              <span style="font-weight:bold; color:#b45309;">شفابدران:</span> شارع رفعت شموط | <span style="direction:ltr; display:inline-block;">079 5629 606</span>
+            </div>
+            <div>
+              <span style="font-weight:bold; color:#b45309;">أبو نصير:</span> دوار البحرية - مجمع الفرّا | <span style="direction:ltr; display:inline-block;">079 0368 603</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(container);
+
+    try {
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf     = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5' });
+      const pdfW    = pdf.internal.pageSize.getWidth();
+      const pdfH    = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+      pdf.save(`وصل-${payment.name}-${displayDate.replace(/\//g, '-')}.pdf`);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('حدث خطأ أثناء إنشاء PDF. جرب زر الطباعة.');
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
+  // ─── إرسال تفاصيل الوصل عبر WhatsApp ────────────────────────────────────────
+  const sendReceiptWhatsApp = (payment) => {
+    const student = (studentsRef || []).find ? null : null; // phone is in payment.name context
+    // نبحث عن رقم هاتف الطالب من بيانات المدفوعات
+    const displayDate  = formatDateDisplay(payment.date);
+    const methodText   = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقداً (Cash)';
+    const extraDetails = payment.details ? ` (${payment.details})` : '';
+
+    const message =
+      `✅ *سند قبض - أكاديمية الشجاع للتايكواندو*\n\n` +
+      `👤 *استلمنا من:* ${payment.name}\n` +
+      `💰 *المبلغ:* ${payment.amount} دينار أردني\n` +
+      `📋 *البيان:* ${payment.reason || '-'}${extraDetails}\n` +
+      `💳 *طريقة الدفع:* ${methodText}\n` +
+      `📅 *التاريخ:* ${displayDate}\n` +
+      `🔢 *رقم السند:* #${String(payment.id).slice(-6)}\n\n` +
+      `شكراً لكم 🥋\n` +
+      `📞 شفابدران: 0795629606\n` +
+      `📞 أبو نصير: 0790368603`;
+
+    // نحتاج رقم هاتف — نفتح WhatsApp بدون رقم (يختار المستخدم) أو رقم الطالب
+    const encodedMsg = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
   };
 
   return (
@@ -671,7 +797,23 @@ export default function FinanceManager({
                                 {/* ✅ عرض التاريخ بشكل آمن */}
                                 <td className="p-3 text-xs text-slate-500">{formatDateDisplay(p.date)}</td>
                                 <td className="p-3 font-bold text-green-400">+{p.amount}</td>
-                                <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700"><Printer size={16}/></button></td>
+                                {/* ─── أزرار الوصل الثلاثة ─── */}
+                                <td className="p-3">
+                                  <div className="flex items-center gap-1">
+                                    {/* طباعة */}
+                                    <button onClick={()=>printReceipt(p)} title="طباعة" className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700 transition-colors">
+                                      <Printer size={15}/>
+                                    </button>
+                                    {/* تحميل PDF */}
+                                    <button onClick={()=>downloadReceiptAsPDF(p)} title="تحميل PDF مباشر" className="p-2 bg-blue-900/20 rounded-lg hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 transition-colors">
+                                      <Download size={15}/>
+                                    </button>
+                                    {/* إرسال WhatsApp */}
+                                    <button onClick={()=>sendReceiptWhatsApp(p)} title="إرسال WhatsApp" className="p-2 bg-green-900/20 rounded-lg hover:bg-[#25D366] text-[#25D366] border border-green-500/20 transition-colors">
+                                      <MessageCircle size={15}/>
+                                    </button>
+                                  </div>
+                                </td>
                                 {/* يدوي فقط — الوصل لا يُحذف إلا من هنا */}
                                 <td className="p-3"><button onClick={()=>deletePayment(p)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
                             </tr>
@@ -716,9 +858,18 @@ export default function FinanceManager({
                           <span className="text-[10px] pr-6 block text-slate-500">{p.details}</span>
                       </div>
 
-                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-slate-800">
-                          <button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-900/20 text-blue-400 px-3 py-2 rounded-lg font-bold border border-blue-500/20 hover:bg-blue-900/30">
+                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-slate-800 flex-wrap">
+                          {/* طباعة */}
+                          <button onClick={()=>printReceipt(p)} title="طباعة" className="flex items-center gap-1 text-xs bg-slate-800 text-slate-400 px-3 py-2 rounded-lg font-bold border border-slate-700 hover:bg-slate-700 transition-colors">
                               <Printer size={14}/> طباعة
+                          </button>
+                          {/* تحميل PDF */}
+                          <button onClick={()=>downloadReceiptAsPDF(p)} title="تحميل PDF" className="flex items-center gap-1 text-xs bg-blue-900/20 text-blue-400 px-3 py-2 rounded-lg font-bold border border-blue-500/20 hover:bg-blue-600 hover:text-white transition-colors">
+                              <Download size={14}/> PDF
+                          </button>
+                          {/* WhatsApp */}
+                          <button onClick={()=>sendReceiptWhatsApp(p)} title="WhatsApp" className="flex items-center gap-1 text-xs bg-green-900/20 text-[#25D366] px-3 py-2 rounded-lg font-bold border border-green-500/20 hover:bg-[#25D366] hover:text-white transition-colors">
+                              <MessageCircle size={14}/> واتساب
                           </button>
                           {/* يدوي فقط */}
                           <button onClick={()=>deletePayment(p)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30" title="حذف يدوي فقط">
