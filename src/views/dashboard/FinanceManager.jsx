@@ -6,8 +6,8 @@ import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import { addDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from '../../lib/firebase';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+// FIX: removed jsPDF + html2canvas (caused freezing + white colors)
+// PDF is now generated via the same print HTML — perfect quality, no freezing
 
 // ✅ دالة مساعدة لتحويل أي قيمة تاريخ إلى String آمن
 const toDateString = (value) => {
@@ -530,111 +530,128 @@ export default function FinanceManager({
   };
 
   // ─── تحميل الوصل كـ PDF مباشرة بدون نافذة طباعة ──────────────────────────
-  const downloadReceiptAsPDF = async (payment) => {
+  // ─── حفظ PDF مباشر (نفس HTML الطباعة بالضبط — لا html2canvas لا تعليق) ────────
+  // FIX: بدلنا html2canvas (ثقيل + يعلق + ألوان غلط) بنفس طريقة الطباعة
+  // المتصفح يفتح نافذة الطباعة → المستخدم يختار "Save as PDF" → يُحفظ بنفس شكل الطباعة
+  const downloadReceiptAsPDF = (payment) => {
     const displayDate  = formatDateDisplay(payment.date);
     const methodText   = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقدًا (Cash)';
-    const extraDetails = payment.details ? ` (${payment.details})` : '';
+    const extraDetails = payment.details ? ' (' + payment.details + ')' : '';
     const logoUrl      = window.location.origin + IMAGES.LOGO;
+    const fileName     = `وصل-${payment.name}-${displayDate.replace(/\//g, '-')}`;
 
-    // نبني محتوى الوصل في div مخفي
-    const container = document.createElement('div');
-    container.style.cssText = `
-      position: fixed; left: -9999px; top: 0;
-      width: 794px; background: white; padding: 30px;
-      font-family: 'Cairo', Arial, sans-serif; direction: rtl;
+    // نفس HTML الطباعة بالضبط — لا فرق في الشكل
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+        <head>
+          <meta charset="UTF-8">
+          <title>${fileName}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+            @page { size: A5 landscape; margin: 0; }
+            body { font-family: 'Cairo', sans-serif; margin: 0; padding: 10mm; background-color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; height: 100vh; box-sizing: border-box; }
+            .receipt-border { border: 3px double #444; height: 96%; position: relative; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+            .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); width: 50%; opacity: 0.08; z-index: 0; pointer-events: none; filter: grayscale(100%); }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #b45309; padding-bottom: 10px; margin-bottom: 15px; position: relative; z-index: 2; }
+            .company-info h1 { margin: 0; font-size: 22px; color: #b45309; font-weight: 900; }
+            .company-info p { margin: 2px 0; font-size: 12px; font-weight: bold; color: #555; }
+            .logo img { height: 70px; object-fit: contain; }
+            .meta-info { text-align: left; font-size: 12px; border-right: 2px solid #eee; padding-right: 10px; }
+            .meta-info div { margin-bottom: 3px; }
+            .content { position: relative; z-index: 2; flex-grow: 1; }
+            .title { text-align: center; font-size: 24px; font-weight: 900; margin: 10px 0 20px; text-decoration: underline; text-decoration-color: #b45309; text-underline-offset: 5px; }
+            .row { display: flex; align-items: baseline; margin-bottom: 12px; font-size: 16px; }
+            .label { font-weight: bold; width: 110px; color: #333; }
+            .value { flex: 1; border-bottom: 1px dotted #888; font-weight: 700; padding: 0 5px; }
+            .amount-container { position: absolute; left: 20px; top: 40px; border: 2px solid #333; padding: 5px 15px; border-radius: 8px; background: #f9f9f9; transform: rotate(-5deg); box-shadow: 2px 2px 0 #ccc; }
+            .amount-number { font-size: 20px; font-weight: 900; direction: ltr; }
+            .footer { margin-top: 20px; position: relative; z-index: 2; }
+            .signatures { display: flex; justify-content: space-between; padding: 0 40px; margin-bottom: 15px; }
+            .sign-box { text-align: center; width: 150px; }
+            .sign-line { border-top: 1px solid #333; margin-bottom: 5px; }
+            .sign-title { font-size: 12px; font-weight: bold; color: #555; }
+            .branches-box { border-top: 2px solid #b45309; padding-top: 8px; font-size: 10px; display: flex; justify-content: space-between; background: #fff; }
+            .branch { display: flex; flex-direction: column; width: 48%; }
+            .branch span { display: block; margin-bottom: 2px; }
+            .phone { direction: ltr; text-align: right; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-border">
+            <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
+            <div class="header">
+              <div class="company-info">
+                <h1>أكاديمية الشجاع للتايكواندو</h1>
+                <p>فرع: ${selectedBranch}</p>
+              </div>
+              <div class="logo">
+                <img src="${logoUrl}" onerror="this.style.display='none'"/>
+              </div>
+              <div class="meta-info">
+                <div>رقم السند: <strong>${String(payment.id).slice(-6)}</strong></div>
+                <div>التاريخ: <strong>${displayDate}</strong></div>
+              </div>
+            </div>
+            <div class="content">
+              <div class="title">سند قبض</div>
+              <div class="amount-container">
+                <div class="amount-number">${payment.amount} JD</div>
+              </div>
+              <div class="row"><span class="label">استلمنا من:</span><span class="value">${payment.name}</span></div>
+              <div class="row"><span class="label">مبلغ وقدره:</span><span class="value">${payment.amount} دينار أردني</span></div>
+              <div class="row"><span class="label">طريقة الدفع:</span><span class="value">${methodText}</span></div>
+              <div class="row"><span class="label">وذلك عن:</span><span class="value">${payment.reason || '-'}${extraDetails}</span></div>
+            </div>
+            <div class="footer">
+              <div class="signatures">
+                <div class="sign-box"><div class="sign-line"></div><div class="sign-title">توقيع الإدارة</div></div>
+                <div class="sign-box"><div class="sign-line"></div><div class="sign-title">توقيع المستلم</div></div>
+              </div>
+              <div class="branches-box">
+                <div class="branch">
+                  <span style="font-weight:bold;color:#b45309">الفرع الأول: شفابدران</span>
+                  <span>شارع رفعت شموط</span>
+                  <span class="phone">079 5629 606</span>
+                </div>
+                <div class="branch">
+                  <span style="font-weight:bold;color:#b45309">الفرع الثاني: أبو نصير</span>
+                  <span>دوار البحرية - مجمع الفرّا</span>
+                  <span class="phone">079 0368 603</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <script>
+            // عند فتح النافذة نعطي المستخدم خيار الحفظ مباشرة
+            window.onload = function() {
+              window.focus();
+              setTimeout(function() { window.print(); }, 600);
+            };
+          </script>
+        </body>
+      </html>
     `;
 
-    container.innerHTML = `
-      <div style="border: 3px double #444; padding: 25px; position: relative; min-height: 420px; display: flex; flex-direction: column; justify-content: space-between;">
-
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #b45309; padding-bottom: 12px; margin-bottom: 18px;">
-          <div>
-            <h1 style="margin:0; font-size:22px; color:#b45309; font-weight:900;">أكاديمية الشجاع للتايكواندو</h1>
-            <p style="margin:4px 0 0; font-size:13px; color:#555; font-weight:bold;">فرع: ${selectedBranch}</p>
-          </div>
-          <div style="text-align:left; font-size:12px; color:#333;">
-            <div>رقم السند: <strong>${String(payment.id).slice(-6)}</strong></div>
-            <div>التاريخ: <strong>${displayDate}</strong></div>
-          </div>
-        </div>
-
-        <div style="text-align:center; font-size:26px; font-weight:900; margin:10px 0 20px; text-decoration:underline; text-decoration-color:#b45309;">
-          سند قبض
-        </div>
-
-        <div style="border:2px solid #333; display:inline-block; padding:6px 18px; border-radius:8px; position:absolute; left:30px; top:100px; transform:rotate(-5deg); background:#f9f9f9;">
-          <div style="font-size:22px; font-weight:900; direction:ltr;">${payment.amount} JD</div>
-        </div>
-
-        <div>
-          ${[
-            ['استلمنا من:', payment.name],
-            ['مبلغ وقدره:', `${payment.amount} دينار أردني`],
-            ['طريقة الدفع:', methodText],
-            ['وذلك عن:', `${payment.reason || '-'}${extraDetails}`],
-          ].map(([label, value]) => `
-            <div style="display:flex; align-items:baseline; margin-bottom:14px; font-size:16px;">
-              <span style="font-weight:bold; min-width:120px; color:#333;">${label}</span>
-              <span style="flex:1; border-bottom:1px dotted #888; padding:0 6px; font-weight:700;">${value}</span>
-            </div>
-          `).join('')}
-        </div>
-
-        <div style="margin-top:20px;">
-          <div style="display:flex; justify-content:space-between; padding:0 40px; margin-bottom:14px;">
-            <div style="text-align:center; width:150px;">
-              <div style="border-top:1px solid #333; margin-bottom:5px; height:30px;"></div>
-              <div style="font-size:12px; font-weight:bold; color:#555;">توقيع الإدارة</div>
-            </div>
-            <div style="text-align:center; width:150px;">
-              <div style="border-top:1px solid #333; margin-bottom:5px; height:30px;"></div>
-              <div style="font-size:12px; font-weight:bold; color:#555;">توقيع المستلم</div>
-            </div>
-          </div>
-          <div style="border-top:2px solid #b45309; padding-top:8px; font-size:11px; display:flex; justify-content:space-between;">
-            <div>
-              <span style="font-weight:bold; color:#b45309;">شفابدران:</span> شارع رفعت شموط | <span style="direction:ltr; display:inline-block;">079 5629 606</span>
-            </div>
-            <div>
-              <span style="font-weight:bold; color:#b45309;">أبو نصير:</span> دوار البحرية - مجمع الفرّا | <span style="direction:ltr; display:inline-block;">079 0368 603</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(container);
-
-    try {
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf     = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5' });
-      const pdfW    = pdf.internal.pageSize.getWidth();
-      const pdfH    = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
-      pdf.save(`وصل-${payment.name}-${displayDate.replace(/\//g, '-')}.pdf`);
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      alert('حدث خطأ أثناء إنشاء PDF. جرب زر الطباعة.');
-    } finally {
-      document.body.removeChild(container);
-    }
+    const pdfWin = window.open('', fileName, 'height=700,width=1000');
+    if (!pdfWin) { alert('يرجى السماح للنوافذ المنبثقة في المتصفح'); return; }
+    pdfWin.document.write(htmlContent);
+    pdfWin.document.close();
   };
 
-  // ─── إرسال تفاصيل الوصل عبر WhatsApp ────────────────────────────────────────
+  // ─── إرسال الوصل عبر WhatsApp ────────────────────────────────────────────────
+  // FIX 1: نبحث عن رقم الطالب من students array باستخدام payment.studentId
+  // FIX 2: wa.me/رقم?text=رسالة بدل wa.me/?text= (بدون رقم ما يشتغل)
   const sendReceiptWhatsApp = (payment) => {
-    const student = (studentsRef || []).find ? null : null; // phone is in payment.name context
-    // نبحث عن رقم هاتف الطالب من بيانات المدفوعات
     const displayDate  = formatDateDisplay(payment.date);
     const methodText   = payment.method === 'cliq' ? 'كليك (CliQ)' : 'نقداً (Cash)';
     const extraDetails = payment.details ? ` (${payment.details})` : '';
+
+    // FIX: نجيب رقم هاتف الطالب من students
+    const student   = students.find(s => s.id === payment.studentId);
+    const rawPhone  = student?.phone || '';
+    let   cleanPhone = rawPhone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
 
     const message =
       `✅ *سند قبض - أكاديمية الشجاع للتايكواندو*\n\n` +
@@ -648,9 +665,14 @@ export default function FinanceManager({
       `📞 شفابدران: 0795629606\n` +
       `📞 أبو نصير: 0790368603`;
 
-    // نحتاج رقم هاتف — نفتح WhatsApp بدون رقم (يختار المستخدم) أو رقم الطالب
     const encodedMsg = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+
+    // FIX: لو عندنا رقم → نفتح مباشرة على الطالب، لو لأ → يختار المستخدم
+    const url = cleanPhone
+      ? `https://wa.me/962${cleanPhone}?text=${encodedMsg}`
+      : `https://api.whatsapp.com/send?text=${encodedMsg}`;
+
+    window.open(url, '_blank');
   };
 
   return (

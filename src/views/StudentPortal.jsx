@@ -306,6 +306,54 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
             </div>
         </div>
 
+        {/* إعلانات الأكاديمية الموجهة للأهل */}
+        {(() => {
+            // نجمع الإعلانات العامة من جميع أبنائهم (notes بنوع public فقط)
+            const allAnnouncements = myStudents.flatMap(s =>
+                (s.notes || [])
+                    .filter(n => n.type === 'public' || !n.type)  // العامة فقط
+                    .map(n => ({ ...n, studentName: s.name }))
+            ).sort((a, b) => (b.id > a.id ? 1 : -1));
+
+            if (allAnnouncements.length === 0) return null;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div className="p-2 bg-emerald-900/20 rounded-lg text-emerald-500">
+                            <ChevronLeft size={24}/>
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-100">إعلانات الأكاديمية</h2>
+                        <span className="bg-emerald-500 text-slate-900 text-xs font-black px-2 py-0.5 rounded-full">
+                            {allAnnouncements.length}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {allAnnouncements.map((n, idx) => (
+                            <motion.div
+                                key={n.id || idx}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                className="bg-slate-900 border border-emerald-500/20 rounded-2xl p-5 relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 right-0 w-1 h-full bg-emerald-500 rounded-r-full"></div>
+                                <div className="flex justify-between items-start mb-3 pr-2">
+                                    <span className="text-[10px] font-bold bg-emerald-900/20 text-emerald-400 px-2 py-1 rounded-lg border border-emerald-500/20">
+                                        {n.studentName}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-mono">{n.date}</span>
+                                </div>
+                                <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-line pr-2">
+                                    {n.text}
+                                </p>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            );
+        })()}
+
         {/* الأبطال المسجلين */}
         <div className="space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
