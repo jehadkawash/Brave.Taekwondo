@@ -1,12 +1,7 @@
 // src/lib/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import {
-  getFirestore,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-} from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 export const firebaseConfig = {
@@ -20,18 +15,8 @@ export const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
-
-// FIX: Enable Firestore offline persistence using the new persistent cache API.
-// Before: getFirestore(app) — no offline support.
-// Now: writes queue locally when internet is lost and sync when it returns.
-// This fixes the "n.add is not a function" / silent failure on network change.
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(), // supports multiple browser tabs
-  }),
-});
-
+export const auth    = getAuth(app);
+export const db      = getFirestore(app);
 export const storage = getStorage(app);
 
 export const appId = 'brave-academy-live-data';
