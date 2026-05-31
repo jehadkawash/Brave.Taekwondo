@@ -424,7 +424,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
           result = result.filter(s => 
               s.name.toLowerCase().includes(lowerSearch) || 
               s.phone.includes(lowerSearch) ||
-              s.username.toLowerCase().includes(lowerSearch)
+             (s.username || '').toLowerCase().includes(lowerSearch)
           );
       }
 
