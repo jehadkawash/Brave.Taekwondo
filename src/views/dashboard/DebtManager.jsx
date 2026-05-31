@@ -536,23 +536,39 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
         return { totalRemaining, totalDebtors, overdue, paidThisMonth };
     }, [branchDebts]);
 
-    // ── فلترة ─────────────────────────────────────────────────────────────────
-    const filtered = useMemo(() => {
-        let result = [...branchDebts];
-        if (search) result = result.filter(d => d.studentName?.includes(search) || d.reason?.includes(search));
-        if (statusFilter !== 'all') result = result.filter(d => getStatus(d.totalAmount, d.paidAmount) === statusFilter);
-        // الأحدث أولاً، المتأخرات أعلى
-        return result.sort((a, b) => {
-            const sa = getStatus(a.totalAmount, a.paidAmount);
-            const sb = getStatus(b.totalAmount, b.paidAmount);
-            if (sa === 'paid' && sb !== 'paid') return 1;
-            if (sa !== 'paid' && sb === 'paid') return -1;
+    const [showArchivedDebts, setShowArchivedDebts] = useState(false);
+
+    // ── فلترة — نفصل النشطة عن المسددة ──────────────────────────────────────
+    const { activeFiltered, paidFiltered } = useMemo(() => {
+        const sortFn = (a, b) => {
             const ao = a.dueDate && new Date(a.dueDate) < new Date() ? 1 : 0;
             const bo = b.dueDate && new Date(b.dueDate) < new Date() ? 1 : 0;
             if (ao !== bo) return bo - ao;
             return (b.createdAt || '').localeCompare(a.createdAt || '');
-        });
+        };
+
+        let result = [...branchDebts];
+        if (search) result = result.filter(d => d.studentName?.includes(search) || d.reason?.includes(search));
+
+        // الديون النشطة (غير مدفوعة / جزئية)
+        const active = result
+            .filter(d => {
+                const s = getStatus(d.totalAmount, d.paidAmount);
+                if (statusFilter !== 'all') return s === statusFilter && s !== 'paid';
+                return s !== 'paid';
+            })
+            .sort(sortFn);
+
+        // الديون المسددة (أرشيف)
+        const paid = result
+            .filter(d => getStatus(d.totalAmount, d.paidAmount) === 'paid')
+            .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+        return { activeFiltered: active, paidFiltered: paid };
     }, [branchDebts, search, statusFilter]);
+
+    // للاستخدام في طباعة الكشف الشامل
+    const filtered = [...activeFiltered, ...paidFiltered];
 
     // ── حفظ دين جديد ──────────────────────────────────────────────────────────
     const handleAddDebt = async (data) => {
@@ -865,17 +881,17 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
                 </div>
             </div>
 
-            {/* ── قائمة الديون ── */}
+            {/* ── الديون النشطة ── */}
             {debtsCollection.loading ? (
                 <div className="text-center py-16 text-slate-500">
                     <div className="w-10 h-10 border-2 border-slate-700 border-t-red-500 rounded-full animate-spin mx-auto mb-3"/>
                     جاري التحميل...
                 </div>
-            ) : filtered.length === 0 ? (
-                <div className="text-center py-20 bg-slate-900/50 border border-slate-800 border-dashed rounded-2xl">
+            ) : activeFiltered.length === 0 ? (
+                <div className="text-center py-16 bg-slate-900/50 border border-slate-800 border-dashed rounded-2xl">
                     <DollarSign size={48} className="mx-auto text-slate-700 mb-3 opacity-30"/>
                     <p className="text-slate-500 font-bold">
-                        {search || statusFilter !== 'all' ? 'لا يوجد نتائج مطابقة' : 'لا يوجد ديون مسجّلة لهذا الفرع'}
+                        {search || statusFilter !== 'all' ? 'لا يوجد نتائج مطابقة' : 'لا يوجد ديون نشطة لهذا الفرع'}
                     </p>
                     {!search && statusFilter === 'all' && (
                         <button onClick={() => setShowAddModal(true)}
@@ -886,24 +902,41 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                    {filtered.map(debt => (
-                        <DebtCard
-                            key={debt.id}
-                            debt={debt}
-                            onPay={setPayingDebt}
-                            onDelete={handleDelete}
-                            onPrint={handlePrint}
-                        />
+                    {activeFiltered.map(debt => (
+                        <DebtCard key={debt.id} debt={debt} onPay={setPayingDebt} onDelete={handleDelete} onPrint={handlePrint}/>
                     ))}
                 </div>
             )}
 
-            {/* عداد النتائج */}
-            {filtered.length > 0 && (
-                <p className="text-center text-xs text-slate-600 pb-4">
-                    عرض {filtered.length} دين من أصل {branchDebts.length}
-                </p>
+            {/* ── أرشيف الديون المسددة ── */}
+            {paidFiltered.length > 0 && (
+                <div className="mt-4">
+                    <button
+                        onClick={() => setShowArchivedDebts(v => !v)}
+                        className="w-full flex items-center justify-between px-5 py-3 bg-slate-900 border border-emerald-900/30 rounded-2xl text-sm font-bold text-emerald-400 hover:bg-slate-800 transition-colors"
+                    >
+                        <span className="flex items-center gap-2">
+                            <CheckCircle size={16}/> أرشيف الديون المسددة
+                            <span className="bg-emerald-900/30 text-emerald-400 text-xs px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                {paidFiltered.length}
+                            </span>
+                        </span>
+                        <span className="text-slate-500 text-xs">{showArchivedDebts ? '▲ إخفاء' : '▼ عرض'}</span>
+                    </button>
+
+                    {showArchivedDebts && (
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                            {paidFiltered.map(debt => (
+                                <DebtCard key={debt.id} debt={debt} onPay={setPayingDebt} onDelete={handleDelete} onPrint={handlePrint}/>
+                            ))}
+                        </div>
+                    )}
+                </div>
             )}
+
+            <p className="text-center text-xs text-slate-700 pb-4 mt-2">
+                نشطة: {activeFiltered.length} | مسددة: {paidFiltered.length} | الكلي: {branchDebts.length}
+            </p>
         </div>
     );
 }

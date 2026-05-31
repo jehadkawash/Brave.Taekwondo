@@ -1,7 +1,7 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import { addDoc, deleteDoc, doc } from "firebase/firestore";
@@ -218,7 +218,7 @@ export default function FinanceManager({
     logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`);
 
     // reset مع إبقاء التاريخ المحدد (مفيد لو بدو يضيف وصولات بنفس اليوم القديم)
-    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '', date: payForm.date });
+    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '', date: payForm.date, _showDatePicker: false });
   };
 
   const handleAddExpense = async (e) => { 
@@ -784,33 +784,54 @@ export default function FinanceManager({
                      <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500" value={payForm.customReason} onChange={e=>setPayForm({...payForm, customReason:e.target.value})} required />
                   </div>
               )}
-              <div className="col-span-1 md:col-span-2">
-                  <label className="text-xs block mb-1 font-bold text-slate-400">تفاصيل إضافية (اختياري)</label>
-                  <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500 placeholder-slate-600" value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} placeholder="مثال: عن شهر 12 + 1" />
-              </div>
+              {/* تفاصيل + تغيير تاريخ (في نفس السطر) */}
+              <div className="col-span-1 md:col-span-4 flex flex-col md:flex-row gap-3 items-start md:items-end">
+                  <div className="flex-1">
+                      <label className="text-xs block mb-1 font-bold text-slate-400">تفاصيل إضافية (اختياري)</label>
+                      <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-green-500 placeholder-slate-600 h-[45px]"
+                          value={payForm.details} onChange={e=>setPayForm({...payForm, details:e.target.value})} placeholder="مثال: عن شهر 12 + 1" />
+                  </div>
 
-              {/* FIX 2: حقل التاريخ — يسمح بإدخال وصل بتاريخ ماضي */}
-              <div className="col-span-1 md:col-span-2">
-                  <label className="text-xs block mb-1 font-bold text-slate-400 flex items-center justify-between">
-                      <span>تاريخ الاستلام</span>
-                      {payForm.date !== todayString() && (
-                          <span className="text-orange-400 font-bold text-[10px] bg-orange-900/20 px-2 py-0.5 rounded border border-orange-500/20 flex items-center gap-1">
-                              ⚠️ تاريخ ماضٍ
-                              <button type="button" onClick={() => setPayForm({...payForm, date: todayString()})}
-                                  className="text-slate-400 hover:text-white mr-1">↩ اليوم</button>
-                          </span>
+                  {/* تغيير التاريخ — زر صغير يفتح picker عند الحاجة فقط */}
+                  <div className="shrink-0">
+                      {payForm.date === todayString() ? (
+                          // الحالة الطبيعية: زر صغير
+                          <button type="button"
+                              onClick={() => setPayForm({...payForm, _showDatePicker: true})}
+                              className="flex items-center gap-1.5 px-3 py-2 h-[45px] bg-slate-950 border border-slate-700 text-slate-500 hover:text-orange-400 hover:border-orange-500/40 rounded-xl text-xs font-bold transition-colors whitespace-nowrap"
+                              title="تغيير تاريخ الاستلام لتاريخ ماضٍ">
+                              <Calendar size={13}/> تغيير التاريخ
+                          </button>
+                      ) : (
+                          // حالة تاريخ ماضٍ: يظهر التاريخ مع زر إلغاء
+                          <div className="flex items-center gap-2 h-[45px]">
+                              <input type="date" max={todayString()}
+                                  className="bg-orange-900/10 border border-orange-500/40 text-orange-300 p-2 rounded-xl outline-none focus:border-orange-500 text-xs font-bold h-full"
+                                  value={payForm.date}
+                                  onChange={e => setPayForm({...payForm, date: e.target.value})}
+                              />
+                              <button type="button"
+                                  onClick={() => setPayForm({...payForm, date: todayString(), _showDatePicker: false})}
+                                  className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors border border-slate-700 h-full"
+                                  title="رجوع لتاريخ اليوم">
+                                  <X size={14}/>
+                              </button>
+                          </div>
                       )}
-                  </label>
-                  <input
-                      type="date"
-                      max={todayString()}
-                      className={`w-full bg-slate-950 border text-slate-200 p-2 rounded-xl outline-none h-[45px] transition-colors
-                          ${payForm.date !== todayString()
-                              ? 'border-orange-500/50 focus:border-orange-500 bg-orange-900/5'
-                              : 'border-slate-700 focus:border-green-500'}`}
-                      value={payForm.date}
-                      onChange={e => setPayForm({...payForm, date: e.target.value})}
-                  />
+                      {/* picker مخفي يظهر عند ضغط الزر */}
+                      {payForm._showDatePicker && payForm.date === todayString() && (
+                          <div className="absolute mt-1 z-20">
+                              <input type="date" max={todayString()} autoFocus
+                                  className="bg-slate-900 border border-orange-500/50 text-orange-300 p-2 rounded-xl outline-none text-xs shadow-xl"
+                                  defaultValue={todayString()}
+                                  onChange={e => {
+                                      if (e.target.value) setPayForm({...payForm, date: e.target.value, _showDatePicker: false});
+                                  }}
+                                  onBlur={() => setPayForm(f => ({...f, _showDatePicker: false}))}
+                              />
+                          </div>
+                      )}
+                  </div>
               </div>
 
               <div className="col-span-1 md:col-span-4 mt-2">

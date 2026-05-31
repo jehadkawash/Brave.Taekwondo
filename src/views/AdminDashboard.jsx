@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive,
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin,
-  Award, Calendar, ChevronDown, X, MessageSquare, CalendarDays, Scale,
+  Award, Calendar, ChevronDown, X, MessageSquare,
   AlertTriangle
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore";
@@ -12,7 +12,6 @@ import { useCollection } from '../hooks/useCollection';
 import { IMAGES } from '../lib/constants';
 
 // Import Managers
-import AdminNotesManager from './dashboard/AdminNotesManager';
 import { DashboardStats } from './dashboard/DashboardStats';
 import StudentsManager from './dashboard/StudentsManager';
 import ArchiveManager from './dashboard/ArchiveManager';
@@ -26,9 +25,8 @@ import BeltTestsManager from './dashboard/BeltTestsManager';
 import ReportsManager from './dashboard/ReportsManager';
 import SubscriptionsManager from './dashboard/SubscriptionsManager';
 import NotesManager from './dashboard/NotesManager';
-import EventsManager from './dashboard/EventsManager';
-import WeightTracker from './dashboard/WeightTracker';
 import DebtManager from './dashboard/DebtManager';
+// ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -165,7 +163,6 @@ const AdminDashboard = ({
   const isRegistration = activeTab === 'registrations';
   const isArchive      = activeTab === 'archive';
   const isNews         = activeTab === 'news';
-  const isNotes        = activeTab === 'notes';
   const isDebts        = activeTab === 'debts';
 
   // ── Collections ─────────────────────────────────────────────────────────────
@@ -194,7 +191,6 @@ const AdminDashboard = ({
   const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students' });
   const newsCollection         = useCollection('news',            { enabled: isDashboard || isNews });
   const financeReasonsCollection = useCollection('finance_reasons', { enabled: isFinance });
-  const adminNotesCollection   = useCollection('admin_notes',     { enabled: isNotes || isReports });
 
   // ── Safe data accessors ─────────────────────────────────────────────────────
   const students       = studentsCollection?.data    || [];
@@ -207,7 +203,6 @@ const AdminDashboard = ({
   const newsData       = newsCollection.data         || [];
   const financeReasonsData    = financeReasonsCollection.data    || [];
   const activityLogsData      = activityLogsCollection.data      || [];
-  const adminNotesData        = adminNotesCollection.data        || [];
 
   // ── Branch-filtered memos ───────────────────────────────────────────────────
   const branchStudents      = useMemo(() => students.filter(s => s.branch === selectedBranch),      [students, selectedBranch]);
@@ -216,7 +211,6 @@ const AdminDashboard = ({
   const branchRegistrations = useMemo(() => registrations.filter(r => r.branch === selectedBranch), [registrations, selectedBranch]);
   const branchGroups        = useMemo(() => groupsData.filter(g => g.branch === selectedBranch),    [groupsData, selectedBranch]);
   const branchFinanceReasons = useMemo(() => financeReasonsData.filter(r => r.branch === selectedBranch), [financeReasonsData, selectedBranch]);
-  const branchAdminNotes    = adminNotesData; // not branch-filtered by design
 
   const branchActivityLogs = useMemo(() =>
     activityLogsData
@@ -276,20 +270,17 @@ const AdminDashboard = ({
     hasPerm('subscriptions') && { id: 'subscriptions', icon: Calendar,     label: 'اشتراكات' },
     hasPerm('tests')         && { id: 'tests',         icon: Award,        label: 'فحص' },
     hasPerm('finance')       && { id: 'finance',       icon: DollarSign,   label: 'وصولات' },
+    hasPerm('finance')       && { id: 'debts',         icon: AlertTriangle,label: 'الذمم والأقساط' },
     hasPerm('archive')       && { id: 'archive',       icon: Archive,      label: 'الأرشيف' },
   ].filter(Boolean);
 
   const adminGroups = [
-    hasPerm('registrations') && { id: 'registrations', icon: Inbox,        label: 'طلبات التسجيل', badge: branchRegistrations.length },
-    hasPerm('schedule')      && { id: 'schedule',      icon: Clock,        label: 'جدول الحصص' },
-    hasPerm('notes')         && { id: 'notes',         icon: FileText,     label: 'ملاحظات الإدارة' },
-    hasPerm('events')        && { id: 'events',        icon: CalendarDays, label: 'إدارة التدريبات' },
-    hasPerm('weight')        && { id: 'weight',        icon: Scale,        label: 'الاوزان' },
-    hasPerm('finance')       && { id: 'debts',         icon: AlertTriangle,label: 'الذمم والأقساط' },
-    hasPerm('news')          && { id: 'news',          icon: Megaphone,    label: 'الاخبار والعروض' },
-    hasPerm('reports')       && { id: 'reports',       icon: FileText,     label: 'التقارير الشاملة' },
-    user.isSuper             && { id: 'captains',      icon: Shield,       label: 'الكباتن والصلاحيات' },
-    user.isSuper             && { id: 'backup',        icon: Database,     label: 'باك اب داتابيس', action: handleBackup, special: true },
+    hasPerm('registrations') && { id: 'registrations', icon: Inbox,     label: 'طلبات التسجيل', badge: branchRegistrations.length },
+    hasPerm('schedule')      && { id: 'schedule',      icon: Clock,     label: 'جدول الحصص' },
+    hasPerm('news')          && { id: 'news',          icon: Megaphone, label: 'الأخبار والعروض' },
+    hasPerm('reports')       && { id: 'reports',       icon: FileText,  label: 'التقارير الشاملة' },
+    user.isSuper             && { id: 'captains',      icon: Shield,    label: 'الكباتن والصلاحيات' },
+    user.isSuper             && { id: 'backup',        icon: Database,  label: 'باك اب داتابيس', action: handleBackup, special: true },
   ].filter(Boolean);
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -491,7 +482,6 @@ const AdminDashboard = ({
               branchRegistrations={branchRegistrations}
               branchPayments={branchPayments}
               activityLogs={branchActivityLogs}
-              onNavigateToDebts={hasPerm('finance') ? () => setActiveTab('debts') : null}
             />
           )}
           {activeTab === 'students'       && hasPerm('students')       && (
@@ -516,7 +506,6 @@ const AdminDashboard = ({
               expenses={branchExpenses}
               activityLogs={branchActivityLogs}
               registrations={branchRegistrations}
-              adminNotes={branchAdminNotes}
               selectedBranch={selectedBranch}
             />
           )}
@@ -571,19 +560,12 @@ const AdminDashboard = ({
               logActivity={handleLog}
             />
           )}
-          {activeTab === 'events'         && hasPerm('events')         && (
-            <EventsManager students={branchStudents} logActivity={handleLog} />
-          )}
-          {activeTab === 'weight'         && hasPerm('weight')         && (
-            <WeightTracker students={branchStudents} logActivity={handleLog} />
-          )}
           {activeTab === 'captains'       && user.isSuper              && (
             <CaptainsManager captains={captains} captainsCollection={captainsCollection} />
           )}
           {activeTab === 'news'           && hasPerm('news')           && (
             <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />
           )}
-          {activeTab === 'notes'          && hasPerm('notes')          && <AdminNotesManager />}
           {activeTab === 'student_notes'  && hasPerm('student_notes')  && (
             <NotesManager
               students={branchStudents}
