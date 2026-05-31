@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS, IMAGES } from '../../lib/constants';
-import { writeBatch, doc } from "firebase/firestore"; 
+import { writeBatch, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, appId } from '../../lib/firebase';
 
 // --- Helper Functions ---
@@ -342,13 +342,16 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [sortOption, setSortOption] = useState('joinDateDesc'); 
 
-  const [showModal, setShowModal] = useState(false); 
-  const [editingStudent, setEditingStudent] = useState(null); 
+  const [showModal, setShowModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
   const [createdCreds, setCreatedCreds] = useState(null);
-  
+  // FIX: loading state to prevent double-submit and show feedback
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
   const [studentForNotes, setStudentForNotes] = useState(null);
   const [showBroadcast, setShowBroadcast] = useState(false);
-  const [renewingStudent, setRenewingStudent] = useState(null); 
+  const [renewingStudent, setRenewingStudent] = useState(null);
 
   const availableGroups = useMemo(() => {
       return groups ? groups.map(g => g.name) : [];
@@ -553,63 +556,85 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   };
 
   const addStudent = async (e) => {
-    e.preventDefault(); 
-    let finalUser = newS.username;
-    let finalPass = newS.password;
-    
-    if (!finalUser || !finalPass) {
+    e.preventDefault();
+    // FIX: prevent double-submit
+    if (isSubmitting) return;
+
+    // تحقق بسيط
+    if (!newS.name.trim()) { setSubmitError('الرجاء إدخال اسم الطالب'); return; }
+    if (!newS.phone.trim()) { setSubmitError('الرجاء إدخال رقم الهاتف'); return; }
+
+    setIsSubmitting(true);
+    setSubmitError('');
+
+    try {
+      let finalUser = newS.username;
+      let finalPass = newS.password;
+
+      if (!finalUser || !finalPass) {
         const creds = generateCredentials();
         finalUser = creds.username;
         finalPass = creds.password;
-    }
+      }
 
-    let finalFamilyId, finalFamilyName;
-    if (linkFamily === 'new') { 
-        finalFamilyId = Math.floor(Date.now() / 1000); 
-        finalFamilyName = `عائلة ${newS.name.trim().split(/\s+/).pop()}`; 
-    } else { 
-        finalFamilyId = parseInt(linkFamily); 
+      let finalFamilyId, finalFamilyName;
+      if (linkFamily === 'new') {
+        finalFamilyId  = Math.floor(Date.now() / 1000);
+        finalFamilyName = `عائلة ${newS.name.trim().split(/\s+/).pop()}`;
+      } else {
+        finalFamilyId = parseInt(linkFamily);
         const existingFamily = uniqueFamilies.find(f => f.id === linkFamily.toString());
         if (existingFamily) {
-             finalFamilyName = existingFamily.displayName.split(' (')[0];
+          finalFamilyName = existingFamily.displayName.split(' (')[0];
         } else {
-             finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
+          finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || 'عائلة';
         }
-    }
+      }
 
-    let subEnd = newS.subEnd;
-    if (!subEnd) {
-        const joinDateObj = new Date(newS.joinDate || new Date()); 
-        const subEndDateObj = new Date(joinDateObj); 
-        subEndDateObj.setMonth(subEndDateObj.getMonth() + 1); 
+      let subEnd = newS.subEnd;
+      if (!subEnd) {
+        const joinDateObj  = new Date(newS.joinDate || new Date());
+        const subEndDateObj = new Date(joinDateObj);
+        subEndDateObj.setMonth(subEndDateObj.getMonth() + 1);
         subEnd = subEndDateObj.toISOString().split('T')[0];
-    }
-    
-    const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : "الكل");
+      }
 
-    const student = { 
-        ...newS, 
-        branch: selectedBranch, 
-        status: 'active', 
-        subEnd: subEnd, 
-        notes: [], 
-        internalNotes: [],
-        attendance: {}, 
-        familyId: finalFamilyId, 
-        familyName: finalFamilyName, 
-        customOrder: Date.now(), 
-        group: finalGroup,
-        username: finalUser, 
-        password: finalPass,
-        isPasswordHashed: false 
-    };
-    
-    const success = await studentsCollection.add(student); 
-    
-    if (success) {
-        if(logActivity) logActivity("إضافة طالب", `تم إضافة الطالب ${student.name}`);
-        setCreatedCreds({ name: student.name, username: finalUser, password: finalPass, phone: student.phone }); 
-        closeModal();
+      const finalGroup = newS.group || (availableGroups.length > 0 ? availableGroups[0] : 'الكل');
+
+      const student = {
+        ...newS,
+        branch:          selectedBranch,
+        status:          'active',
+        subEnd:          subEnd,
+        notes:           [],
+        internalNotes:   [],
+        attendance:      {},
+        familyId:        finalFamilyId,
+        familyName:      finalFamilyName,
+        customOrder:     Date.now(),
+        group:           finalGroup,
+        username:        finalUser,
+        password:        finalPass,
+        isPasswordHashed: false,
+      };
+
+      const result = await studentsCollection.add(student);
+
+      // FIX: useCollection.add() returns DocumentReference on success, null on failure
+      if (!result) {
+        setSubmitError('فشل الحفظ في قاعدة البيانات. تحقق من الاتصال بالإنترنت وأذونات النظام.');
+        return;
+      }
+
+      if (logActivity) logActivity('إضافة طالب', `تم إضافة الطالب ${student.name}`);
+      setCreatedCreds({ name: student.name, username: finalUser, password: finalPass, phone: student.phone });
+      closeModal();
+
+    } catch (err) {
+      console.error('addStudent error:', err);
+      setSubmitError(`حدث خطأ غير متوقع: ${err.message || 'تحقق من الاتصال'}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -637,12 +662,28 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       setEditingStudent(null);
       setNewS(defaultForm);
       setLinkFamily('new');
+      setSubmitError('');
+      setIsSubmitting(false);
   };
 
-  const handleSaveEdit = async (e) => { 
-      e.preventDefault(); 
-      await studentsCollection.update(editingStudent.id, newS); 
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const ok = await studentsCollection.update(editingStudent.id, newS);
+      if (ok === false) {
+        setSubmitError('فشل التحديث. تحقق من الاتصال بالإنترنت.');
+        return;
+      }
       closeModal();
+    } catch (err) {
+      console.error('handleSaveEdit error:', err);
+      setSubmitError(`حدث خطأ: ${err.message || 'تحقق من الاتصال'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const promoteBelt = async (student) => { 
@@ -652,12 +693,30 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       } 
   };
 
-  const archiveStudent = async (student) => { 
-      if(confirm(`هل أنت متأكد من أرشفة الطالب ${student.name}؟`)) { 
-          await archiveCollection.add({ ...student, archivedAt: new Date().toISOString().split('T')[0], originalId: student.id }); 
-          await studentsCollection.remove(student.id); 
-          if(logActivity) logActivity("أرشفة", `أرشفة الطالب ${student.name}`);
-      } 
+  const archiveStudent = async (student) => {
+    if (!confirm(`هل أنت متأكد من أرشفة الطالب ${student.name}؟`)) return;
+
+    // FIX BUG-3: use a Firestore batch so both operations succeed or both fail.
+    // Previously: two separate awaits — if the second failed, student appeared in both collections.
+    try {
+      const batch = writeBatch(db);
+
+      const archivePath = doc(db, 'artifacts', appId, 'public', 'data', 'archive', student.id);
+      batch.set(archivePath, {
+        ...student,
+        archivedAt: new Date().toISOString().split('T')[0],
+        originalId: student.id,
+      });
+
+      const studentPath = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
+      batch.delete(studentPath);
+
+      await batch.commit();
+      if (logActivity) logActivity("أرشفة", `أرشفة الطالب ${student.name}`);
+    } catch (err) {
+      console.error("Archive error:", err);
+      alert("حدث خطأ أثناء الأرشفة. الطالب لم يُحذف.");
+    }
   };
 
   const handleNoteAction = async (studentId, type, action, noteObj) => {
@@ -910,18 +969,13 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                     <div className="flex items-center gap-2">
                                         <div className="bg-slate-950 p-1.5 rounded-lg text-xs font-mono border border-slate-800">
                                             <div className="text-blue-400">U: {s.username}</div>
+                                            {/* FIX SECURITY: never show plaintext password — always mask it */}
                                             <div className="text-red-400 font-bold flex items-center gap-2">
                                                 <span>P:</span>
-                                                {isPasswordHashed ? (
-                                                    <>
-                                                        <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
-                                                        <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1" title="توليد كلمة مرور جديدة للطالب">
-                                                            <RefreshCw size={10}/> Reset
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    s.password
-                                                )}
+                                                <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
+                                                <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1" title="توليد كلمة مرور جديدة للطالب">
+                                                    <RefreshCw size={10}/> Reset
+                                                </button>
                                             </div>
                                         </div>
                                         <button onClick={() => sendCredentialsWhatsApp(s)} className="text-slate-600 hover:text-[#25D366] transition-colors"><Send size={16}/></button>
@@ -996,18 +1050,13 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                      <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800 border-dashed">
                          <div className="text-xs font-mono text-slate-400">
                              <div className="mb-1"><span className="font-bold text-blue-500">U:</span> {s.username}</div>
+                             {/* FIX SECURITY: never show plaintext password on mobile either */}
                              <div className="flex items-center gap-2">
-                                 <span className="font-bold text-red-500">P:</span> 
-                                 {isPasswordHashed ? (
-                                    <>
-                                        <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
-                                        <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1">
-                                            <RefreshCw size={10}/> Reset
-                                        </button>
-                                    </>
-                                 ) : (
-                                    s.password
-                                 )}
+                                 <span className="font-bold text-red-500">P:</span>
+                                 <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
+                                 <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1">
+                                     <RefreshCw size={10}/> Reset
+                                 </button>
                              </div>
                          </div>
                          <button onClick={() => sendCredentialsWhatsApp(s)} className="p-2 bg-green-900/20 text-green-500 border border-green-500/20 rounded-lg hover:bg-green-600 hover:text-white">
@@ -1129,10 +1178,32 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                             </div>
                         </div>
                         
-                        <div className="flex gap-3 justify-end mt-8 pt-4 border-t border-slate-700">
-                            <Button type="button" variant="ghost" onClick={closeModal} className="text-slate-400 hover:bg-slate-800 hover:text-white">إلغاء</Button>
-                            <Button type="submit" className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 px-8 border-none">
-                                {editingStudent ? 'حفظ التعديلات' : 'إضافة الطالب'}
+                        {/* FIX: error message shown inside modal */}
+                        {submitError && (
+                          <div className="bg-red-900/20 border border-red-500/30 text-red-400 p-3 rounded-xl text-sm font-bold flex items-center gap-2 mt-4">
+                            <FileWarning size={16} className="shrink-0"/> {submitError}
+                          </div>
+                        )}
+
+                        <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-slate-700">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={closeModal}
+                              disabled={isSubmitting}
+                              className="text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
+                            >
+                              إلغاء
+                            </Button>
+                            {/* FIX: disabled + loading text while submitting */}
+                            <Button
+                              type="submit"
+                              disabled={isSubmitting}
+                              className="bg-yellow-500 text-slate-900 font-bold hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 px-8 border-none disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {isSubmitting
+                                ? (editingStudent ? '⏳ جاري الحفظ...' : '⏳ جاري الإضافة...')
+                                : (editingStudent ? 'حفظ التعديلات' : 'إضافة الطالب')}
                             </Button>
                         </div>
                     </form>

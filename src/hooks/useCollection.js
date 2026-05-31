@@ -43,17 +43,22 @@ export const useCollection = (collectionName, options = {}) => {
     [collectionName]
   );
 
-  /** Add a new document. Returns the new doc reference on success. */
+  /** Add a new document. Returns the new doc reference on success, null on failure. */
   const add = useCallback(async (docData) => {
     try {
       const ref = await addDoc(collectionRef(), {
         ...docData,
         createdAt: docData.createdAt ?? new Date().toISOString(),
       });
-      return ref;
+      return ref; // DocumentReference — truthy on success
     } catch (err) {
-      console.error(`[useCollection] add error in "${collectionName}":`, err);
-      return null;
+      // FIX: log with more detail so developer can debug permission issues
+      console.error(
+        `[useCollection] add error in "${collectionName}":`,
+        err.code,   // e.g. "permission-denied", "unavailable"
+        err.message
+      );
+      return null; // caller checks: if (!result) showError()
     }
   }, [collectionName, collectionRef]);
 

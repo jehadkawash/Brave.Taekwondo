@@ -103,11 +103,13 @@ const HomeView = ({ setView, schedule }) => {
           </div>
 
           <nav className="hidden md:flex gap-1 items-center bg-slate-900/50 backdrop-blur-md px-2 py-1.5 rounded-full border border-slate-800">
+            {/* FIX: "من نحن" now scrolls to #about section (added below in JSX) */}
             {['الرئيسية', 'من نحن', 'الفروع', 'جدول الحصص'].map((item) => (
               <button key={item} className="px-5 py-2 rounded-full text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all relative overflow-hidden group" onClick={() => {
                 if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
                 if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
-                if (item === 'الرئيسية') window.scrollTo(0,0);
+                if (item === 'من نحن') document.getElementById('about')?.scrollIntoView({behavior: 'smooth'});
+                if (item === 'الرئيسية') window.scrollTo(0, 0);
               }}>
                 <span className="relative z-10">{item}</span>
               </button>
@@ -132,12 +134,13 @@ const HomeView = ({ setView, schedule }) => {
              >
                <div className="p-6 flex flex-col gap-4">
                  {['الرئيسية', 'من نحن', 'الفروع', 'جدول الحصص'].map((item) => (
-                    <button key={item} 
+                    <button key={item}
                       onClick={() => {
                         setMobileMenuOpen(false);
                         if (item === 'جدول الحصص') document.getElementById('schedule')?.scrollIntoView({behavior: 'smooth'});
                         if (item === 'الفروع') document.getElementById('branches')?.scrollIntoView({behavior: 'smooth'});
-                        if (item === 'الرئيسية') window.scrollTo(0,0);
+                        if (item === 'من نحن') document.getElementById('about')?.scrollIntoView({behavior: 'smooth'});
+                        if (item === 'الرئيسية') window.scrollTo(0, 0);
                       }}
                       className="text-right text-lg font-bold text-slate-300 hover:text-yellow-500 border-b border-slate-900 pb-3 last:border-0"
                     >
@@ -156,18 +159,18 @@ const HomeView = ({ setView, schedule }) => {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-900/20 via-slate-950 to-black z-0"></div>
         
         {/* Background Image */}
+        {/* FIX: removed <Suspense> — it only works with React.lazy() components, not plain elements.
+            Wrapping a regular img in Suspense does nothing and is misleading. */}
         <div className="absolute inset-0 z-10 opacity-60 md:opacity-100 pointer-events-none md:pointer-events-auto">
-           <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-slate-700 font-black text-2xl animate-pulse">LOADING...</div>}>
-              <div className="absolute inset-0 bg-slate-950/50 z-10 mix-blend-multiply"></div>
-              <motion.img 
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 20, ease: "linear" }}
-                src={IMAGES.HERO_BG} 
-                alt="Hero" 
-                className="w-full h-full object-cover" 
-              />
-           </Suspense>
+          <div className="absolute inset-0 bg-slate-950/50 z-10 mix-blend-multiply"></div>
+          <motion.img
+            initial={{ scale: 1.2 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 20, ease: "linear" }}
+            src={IMAGES.HERO_BG}
+            alt="Hero"
+            className="w-full h-full object-cover"
+          />
         </div>
 
         <div className="container mx-auto px-4 md:px-6 relative z-20 pt-20 md:pt-0">
@@ -263,8 +266,8 @@ const HomeView = ({ setView, schedule }) => {
         </section>
       )}
 
-      {/* Why Choose Us */}
-      <section className="py-20 md:py-32 bg-slate-950 relative">
+      {/* Why Choose Us — FIX: added id="about" so "من نحن" nav link works */}
+      <section id="about" className="py-20 md:py-32 bg-slate-950 relative">
          <div className="container mx-auto px-4 md:px-6 relative z-10">
             <div className="text-center mb-12 md:mb-20">
                 <span className="text-yellow-600 font-bold tracking-widest text-[10px] md:text-sm uppercase bg-yellow-900/10 px-4 py-2 rounded-full border border-yellow-500/20">لماذا أكاديمية الشجاع؟</span>
@@ -345,9 +348,10 @@ const HomeView = ({ setView, schedule }) => {
                          <button onClick={() => openLocation(branch.loc)} className="flex-1 bg-white text-black py-3 md:py-4 rounded-xl md:rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-yellow-500 transition-colors text-sm md:text-base border-none">
                             <Navigation size={18}/> الموقع
                          </button>
-                         <button onClick={() => window.open(`tel:${branch.phone}`)} className="w-14 h-14 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center hover:bg-white hover:text-black transition-colors border border-white/20">
-                            <Phone size={20} className="md:w-6 md:h-6"/>
-                         </button>
+                         {/* FIX: window.open("tel:") unreliable — use <a href="tel:"> instead */}
+                         <a href={`tel:${branch.phone}`} className="w-14 h-14 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center hover:bg-white hover:text-black transition-colors border border-white/20">
+                           <Phone size={20} className="md:w-6 md:h-6"/>
+                         </a>
                       </div>
                    </div>
                 </motion.div>
@@ -413,7 +417,8 @@ const HomeView = ({ setView, schedule }) => {
             <div className="mb-10">
                <img src={IMAGES.LOGO} alt="Logo" className="w-20 h-20 mx-auto opacity-50 grayscale hover:grayscale-0 transition-all duration-500 hover:scale-110" />
             </div>
-            <p className="text-gray-500 text-sm font-medium tracking-wide">© 2020 أكاديمية الشجاع للتايكواندو. جميع الحقوق محفوظة.</p>
+            {/* FIX: dynamic year instead of hardcoded 2020 */}
+            <p className="text-gray-500 text-sm font-medium tracking-wide">© {new Date().getFullYear()} أكاديمية الشجاع للتايكواندو. جميع الحقوق محفوظة.</p>
          </div>
       </footer>
 

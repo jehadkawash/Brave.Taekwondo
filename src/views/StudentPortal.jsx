@@ -6,20 +6,15 @@ import {
 } from 'lucide-react';
 import { Button, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
-import { updateDoc, doc } from "firebase/firestore"; 
+import { updateDoc, doc } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { motion, AnimatePresence } from 'framer-motion';
+// FIX: removed duplicate hashPassword — now imported from shared utils
+import { hashPassword } from '../lib/utils';
 
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
-
-const hashPassword = async (password) => {
-    const msgBuffer = new TextEncoder().encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
 
 const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -474,15 +469,18 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                             <label className="block text-xs font-bold text-slate-400 mb-2 text-right">
                               كلمة المرور الجديدة
                             </label>
-                            <input 
+                            {/* FIX: added type="password" so password is not shown in plaintext */}
+                            <input
+                                type="password"
                                 className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-4 rounded-xl focus:border-yellow-500 outline-none text-left font-mono dir-ltr placeholder-slate-600"
                                 value={creds.password}
                                 placeholder={
-                                  currentUserData.isPasswordHashed 
-                                    ? "كلمة المرور الحالية مشفرة ومحمية" 
+                                  currentUserData.isPasswordHashed
+                                    ? "كلمة المرور الحالية مشفرة ومحمية"
                                     : "أدخل كلمة المرور الجديدة"
                                 }
-                                onChange={(e) => setCreds({...creds, password: e.target.value})}
+                                onChange={(e) => setCreds({ ...creds, password: e.target.value })}
+                                autoComplete="new-password"
                                 required
                             />
                             {currentUserData.isPasswordHashed && (

@@ -596,8 +596,10 @@ export const DashboardStats = ({
             </div>
           </div>
           
+          {/* FIX: explicit pixel height — ResponsiveContainer with height="100%" needs a parent
+               with a defined pixel height, not just flex-1, to avoid width/height = -1 error */}
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={256}>
               <AreaChart data={financeData}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -626,8 +628,9 @@ export const DashboardStats = ({
           <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
             <PieIcon className="text-blue-500"/> توزيع الطلاب (الأحزمة)
           </h3>
-          <div className="flex-1 min-h-[200px] relative">
-            <ResponsiveContainer width="100%" height="100%">
+          {/* FIX: same fix — use explicit pixel height for PieChart */}
+          <div className="min-h-[200px] relative" style={{ height: 200 }}>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
                   data={beltData}

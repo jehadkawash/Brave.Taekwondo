@@ -12,12 +12,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!--
+      FIX: Removed cdn.tailwindcss.com script.
+      Tailwind is already compiled into the bundle by Vite + PostCSS.
+      Loading it again from CDN caused:
+        1. Double CSS loading (~350KB wasted)
+        2. "should not be used in production" warning
+        3. Potential style conflicts
+    -->
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-
-
   </body>
 </html>

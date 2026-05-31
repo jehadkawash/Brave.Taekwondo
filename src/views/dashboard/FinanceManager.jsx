@@ -183,19 +183,22 @@ export default function FinanceManager({
         ? `${selectedStudent.name} و ${payForm.extraName}` 
         : selectedStudent.name;
 
-    const newPay = { 
-        id: Date.now().toString(), 
-        studentId: selectedStudent.id, 
-        name: paymentName, 
-        amount: Number(payForm.amount), 
-        reason: finalReason, 
-        details: payForm.details, 
-        method: payForm.method || 'cash', 
-        // ✅ إصلاح رئيسي: حفظ التاريخ كـ String وليس Array
+    // FIX BUG-1: removed manual 'id' field from the object.
+    // useCollection maps docs as { id: d.id, ...d.data() }.
+    // If the data also has an 'id' field, the spread overwrites Firestore's doc ID,
+    // breaking remove() because it passes the wrong ID to deleteDoc().
+    // Firestore assigns its own auto-generated ID — we don't need to set one.
+    const newPay = {
+        studentId: selectedStudent.id,
+        name: paymentName,
+        amount: Number(payForm.amount),
+        reason: finalReason,
+        details: payForm.details,
+        method: payForm.method || 'cash',
         date: todayString(),
         createdAt: new Date().toISOString(),
-        branch: selectedBranch 
-    }; 
+        branch: selectedBranch,
+    };
     
     await paymentsCollection.add(newPay); 
     logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`); 
@@ -205,22 +208,47 @@ export default function FinanceManager({
 
   const handleAddExpense = async (e) => { 
     e.preventDefault(); 
-    await expensesCollection.add({ 
-      id: Date.now().toString(), 
-      title: expForm.title, 
-      amount: Number(expForm.amount), 
-      // ✅ إصلاح: التاريخ صحيح
+    // FIX BUG-1: removed manual 'id' field — same reason as payments above.
+    await expensesCollection.add({
+      title: expForm.title,
+      amount: Number(expForm.amount),
       date: expForm.date || todayString(),
       createdAt: new Date().toISOString(),
-      branch: selectedBranch 
-    }); 
+      branch: selectedBranch,
+    });
     logActivity("مصروف", `صرف ${expForm.amount} لـ ${expForm.title}`); 
     // ✅ إصلاح: reset صحيح
     setExpForm({ title: '', amount: '', date: todayString() }); 
   };
 
-  const deletePayment = async (id) => { if(confirm('حذف السند؟')) await paymentsCollection.remove(id); };
-  const deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await expensesCollection.remove(id); };
+  // ─── حذف الوصل / المصروف (يدوي فقط — لا يوجد حذف تلقائي في أي مكان) ──────
+  // الوصولات تبقى دائماً حتى لو تم حذف الطالب أو أرشفته.
+  // الحذف الوحيد الممكن هو بالضغط على زر 🗑️ هنا يدوياً.
+  const deletePayment = async (payment) => {
+    const confirmed = window.confirm(
+      `⚠️ تأكيد الحذف النهائي\n\n` +
+      `السند: ${payment.name}\n` +
+      `المبلغ: ${payment.amount} JD\n` +
+      `السبب: ${payment.reason || '-'}\n` +
+      `التاريخ: ${formatDateDisplay(payment.date)}\n\n` +
+      `هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.`
+    );
+    if (!confirmed) return;
+    await paymentsCollection.remove(payment.id);
+    logActivity("حذف وصل", `حذف وصل بمبلغ ${payment.amount} JD من ${payment.name}`);
+  };
+
+  const deleteExpense = async (expense) => {
+    const confirmed = window.confirm(
+      `⚠️ تأكيد حذف المصروف\n\n` +
+      `البند: ${expense.title}\n` +
+      `المبلغ: ${expense.amount} JD\n\n` +
+      `هل أنت متأكد؟ لا يمكن التراجع.`
+    );
+    if (!confirmed) return;
+    await expensesCollection.remove(expense.id);
+    logActivity("حذف مصروف", `حذف مصروف: ${expense.title} بمبلغ ${expense.amount} JD`);
+  };
 
   // --- تقرير الطباعة ---
   const handlePrintReport = (startDate, endDate) => {
@@ -644,7 +672,8 @@ export default function FinanceManager({
                                 <td className="p-3 text-xs text-slate-500">{formatDateDisplay(p.date)}</td>
                                 <td className="p-3 font-bold text-green-400">+{p.amount}</td>
                                 <td className="p-3"><button onClick={()=>printReceipt(p)} className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700"><Printer size={16}/></button></td>
-                                <td className="p-3"><button onClick={()=>deletePayment(p.id)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20"><Trash2 size={16}/></button></td>
+                                {/* يدوي فقط — الوصل لا يُحذف إلا من هنا */}
+                                <td className="p-3"><button onClick={()=>deletePayment(p)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
                             </tr>
                         ))}
                          {filteredPayments.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-slate-600">لا يوجد سندات</td></tr>}
@@ -691,7 +720,8 @@ export default function FinanceManager({
                           <button onClick={()=>printReceipt(p)} className="flex items-center gap-1 text-xs bg-blue-900/20 text-blue-400 px-3 py-2 rounded-lg font-bold border border-blue-500/20 hover:bg-blue-900/30">
                               <Printer size={14}/> طباعة
                           </button>
-                          <button onClick={()=>deletePayment(p.id)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30">
+                          {/* يدوي فقط */}
+                          <button onClick={()=>deletePayment(p)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30" title="حذف يدوي فقط">
                               <Trash2 size={14}/> حذف
                           </button>
                       </div>
@@ -742,7 +772,8 @@ export default function FinanceManager({
                                 {/* ✅ عرض التاريخ بشكل آمن */}
                                 <td className="p-3 text-slate-500 text-xs">{formatDateDisplay(e.date)}</td>
                                 <td className="p-3 text-red-400 font-bold">-{e.amount}</td>
-                                <td className="p-3"><button onClick={()=>deleteExpense(e.id)} className="text-red-400 p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 border border-red-500/20"><Trash2 size={16}/></button></td>
+                                {/* يدوي فقط */}
+                                <td className="p-3"><button onClick={()=>deleteExpense(e)} className="text-red-400 p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
                             </tr>
                         ))}
                     </tbody>
@@ -762,7 +793,8 @@ export default function FinanceManager({
                       </div>
                       <div className="flex flex-col items-end gap-2">
                           <span className="font-bold text-red-400 text-lg">-{e.amount}</span>
-                          <button onClick={()=>deleteExpense(e.id)} className="text-red-400 hover:text-red-300 bg-red-900/20 p-1.5 rounded-lg border border-red-500/20">
+                          {/* يدوي فقط */}
+                          <button onClick={()=>deleteExpense(e)} className="text-red-400 hover:text-red-300 bg-red-900/20 p-1.5 rounded-lg border border-red-500/20" title="حذف يدوي فقط">
                               <Trash2 size={16}/>
                           </button>
                       </div>
