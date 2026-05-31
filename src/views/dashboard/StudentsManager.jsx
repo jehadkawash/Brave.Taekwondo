@@ -337,7 +337,7 @@ const SubscriptionModal = ({ student, onClose, onSave }) => {
 };
 
 
-const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups }) => {
+const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups, debts = [], onNavigateToDebts }) => {
   const [search, setSearch] = useState(''); 
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [sortOption, setSortOption] = useState('joinDateDesc'); 
@@ -984,10 +984,24 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
                                 <td className="p-4"><span className="px-3 py-1 bg-slate-800 rounded-lg font-bold text-xs border border-slate-700 text-slate-300">{s.belt}</span></td>
                                 <td className="p-4">
-                                    {s.balance > 0 ? 
-                                        <span className="text-red-400 font-bold bg-red-900/20 px-2 py-1 rounded text-xs border border-red-500/20">عليه {s.balance}</span> : 
-                                        <span className="text-emerald-400 font-bold text-xs">مدفوع</span>
-                                    }
+                                    {(() => {
+                                        // حساب الذمم من collection الذمم الجديدة
+                                        const studentDebts  = debts.filter(d => d.studentId === s.id);
+                                        const totalDebt     = studentDebts.reduce((acc, d) =>
+                                            acc + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
+                                        if (totalDebt > 0) {
+                                            return (
+                                                <button
+                                                    onClick={() => onNavigateToDebts && onNavigateToDebts()}
+                                                    className="text-red-400 font-bold bg-red-900/20 px-2 py-1 rounded text-xs border border-red-500/20 hover:bg-red-600 hover:text-white transition-colors"
+                                                    title="اضغط للذهاب لصفحة الذمم"
+                                                >
+                                                    عليه {totalDebt} JD
+                                                </button>
+                                            );
+                                        }
+                                        return <span className="text-emerald-400 font-bold text-xs">خالص</span>;
+                                    })()}
                                 </td>
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                 <td className="p-4">
@@ -1041,10 +1055,23 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                              <span className="text-slate-500 text-xs block">الحزام</span>
                              <span className="font-bold text-slate-200">{s.belt}</span>
                          </div>
-                         <div className={`p-2 rounded-lg border ${s.balance > 0 ? 'bg-red-900/20 text-red-400 border-red-500/20' : 'bg-emerald-900/20 text-emerald-400 border-emerald-500/20'}`}>
-                             <span className="text-xs block opacity-70">الرصيد</span>
-                             <span className="font-bold">{s.balance > 0 ? `عليه ${s.balance}` : 'مدفوع'}</span>
-                         </div>
+                         {(() => {
+                             const studentDebts = debts.filter(d => d.studentId === s.id);
+                             const totalDebt    = studentDebts.reduce((acc, d) =>
+                                 acc + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
+                             return (
+                                 <button
+                                     onClick={() => totalDebt > 0 && onNavigateToDebts && onNavigateToDebts()}
+                                     className={`p-2 rounded-lg border text-right w-full transition-colors
+                                         ${totalDebt > 0
+                                             ? 'bg-red-900/20 text-red-400 border-red-500/20 hover:bg-red-600 hover:text-white'
+                                             : 'bg-emerald-900/20 text-emerald-400 border-emerald-500/20 cursor-default'}`}
+                                 >
+                                     <span className="text-xs block opacity-70">الذمم</span>
+                                     <span className="font-bold">{totalDebt > 0 ? `عليه ${totalDebt} JD` : 'خالص'}</span>
+                                 </button>
+                             );
+                         })()}
                      </div>
 
                      <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800 border-dashed">

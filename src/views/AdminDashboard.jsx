@@ -3,7 +3,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive,
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin,
-  Award, Calendar, ChevronDown, X, MessageSquare, CalendarDays, Scale
+  Award, Calendar, ChevronDown, X, MessageSquare, CalendarDays, Scale,
+  AlertTriangle
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
@@ -27,6 +28,7 @@ import SubscriptionsManager from './dashboard/SubscriptionsManager';
 import NotesManager from './dashboard/NotesManager';
 import EventsManager from './dashboard/EventsManager';
 import WeightTracker from './dashboard/WeightTracker';
+import DebtManager from './dashboard/DebtManager';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -164,6 +166,7 @@ const AdminDashboard = ({
   const isArchive      = activeTab === 'archive';
   const isNews         = activeTab === 'news';
   const isNotes        = activeTab === 'notes';
+  const isDebts        = activeTab === 'debts';
 
   // ── Collections ─────────────────────────────────────────────────────────────
   // Always loaded (lightweight)
@@ -185,7 +188,10 @@ const AdminDashboard = ({
   );
 
   // Fully isolated — only loaded when their tab is open
-  const archiveCollection      = useCollection('archive',         { enabled: isArchive });
+  // FIX: archiveCollection also needed for debts tab (to show archived students with debts)
+  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts });
+  // debts collection — needed for dashboard stats card + debts tab + students tab
+  const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students' });
   const newsCollection         = useCollection('news',            { enabled: isDashboard || isNews });
   const financeReasonsCollection = useCollection('finance_reasons', { enabled: isFinance });
   const adminNotesCollection   = useCollection('admin_notes',     { enabled: isNotes || isReports });
@@ -279,6 +285,7 @@ const AdminDashboard = ({
     hasPerm('notes')         && { id: 'notes',         icon: FileText,     label: 'ملاحظات الإدارة' },
     hasPerm('events')        && { id: 'events',        icon: CalendarDays, label: 'إدارة التدريبات' },
     hasPerm('weight')        && { id: 'weight',        icon: Scale,        label: 'الاوزان' },
+    hasPerm('finance')       && { id: 'debts',         icon: AlertTriangle,label: 'الذمم والأقساط' },
     hasPerm('news')          && { id: 'news',          icon: Megaphone,    label: 'الاخبار والعروض' },
     hasPerm('reports')       && { id: 'reports',       icon: FileText,     label: 'التقارير الشاملة' },
     user.isSuper             && { id: 'captains',      icon: Shield,       label: 'الكباتن والصلاحيات' },
@@ -484,6 +491,7 @@ const AdminDashboard = ({
               branchRegistrations={branchRegistrations}
               branchPayments={branchPayments}
               activityLogs={branchActivityLogs}
+              onNavigateToDebts={hasPerm('finance') ? () => setActiveTab('debts') : null}
             />
           )}
           {activeTab === 'students'       && hasPerm('students')       && (
@@ -494,6 +502,8 @@ const AdminDashboard = ({
               archiveCollection={archiveCollection}
               selectedBranch={selectedBranch}
               logActivity={handleLog}
+              debts={debtsCollection.data || []}
+              onNavigateToDebts={hasPerm('finance') ? () => setActiveTab('debts') : null}
             />
           )}
           {activeTab === 'tests'          && hasPerm('tests')          && (
@@ -580,6 +590,14 @@ const AdminDashboard = ({
               studentsCollection={studentsCollection}
               logActivity={handleLog}
               selectedBranch={selectedBranch}
+            />
+          )}
+          {activeTab === 'debts' && hasPerm('finance') && (
+            <DebtManager
+              students={branchStudents}
+              archivedStudents={archiveCollection.data || []}
+              selectedBranch={selectedBranch}
+              logActivity={handleLog}
             />
           )}
         </div>

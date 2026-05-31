@@ -291,10 +291,11 @@ const ListCard = ({ title, icon: Icon, children, colorClass = "text-yellow-500",
     </div>
 );
 
-export const DashboardStats = ({ 
-  user, selectedBranch, branchStudents = [], netProfit, 
-  activeStudentsCount, nearEndCount, activityLogs = [], 
-  branchPayments = [], branchRegistrations = [], totalAttendance = 0 
+export const DashboardStats = ({
+  user, selectedBranch, branchStudents = [], netProfit,
+  activeStudentsCount, nearEndCount, activityLogs = [],
+  branchPayments = [], branchRegistrations = [], totalAttendance = 0,
+  onNavigateToDebts,   // ← callback للانتقال لصفحة الذمم
 }) => {
   
   const [financialYear, setFinancialYear] = useState(new Date().getFullYear());
@@ -322,6 +323,18 @@ export const DashboardStats = ({
   }, []);
 
   const { data: beltTests } = useCollection('belt_tests');
+
+  // ── بيانات الذمم للبطاقة في الرئيسية ────────────────────────────────────────
+  const { data: allDebts } = useCollection('debts');
+  const branchDebts = allDebts.filter(d => d.branch === selectedBranch);
+  const activeDebts = branchDebts.filter(d => {
+    const remaining = Number(d.totalAmount) - Number(d.paidAmount || 0);
+    return remaining > 0;
+  });
+  const totalDebtRemaining = activeDebts.reduce(
+    (acc, d) => acc + (Number(d.totalAmount) - Number(d.paidAmount || 0)), 0
+  );
+  const debtorCount = new Set(activeDebts.map(d => d.studentId)).size;
 
   // ✅ الإصلاح الرئيسي: حسابات المالية والحضور مع toDateString
   const { displayedIncome, incomeSubText, displayedAttendance, attendanceSubText } = useMemo(() => {
@@ -567,15 +580,28 @@ export const DashboardStats = ({
             headerAction={<ViewToggle />}
         />
         
-        <StatCard 
-            title="الاشتراكات والتجديد" 
-            icon={AlertCircle} 
-            color="bg-slate-700" 
+        <StatCard
+            title="الاشتراكات والتجديد"
+            icon={AlertCircle}
+            color="bg-slate-700"
             isClickable={true}
             onClick={() => setShowNearEndModal(true)}
             splitValues={{
-                left: { value: expiredStudentsCount, label: 'منتهية', color: 'text-red-500' },
-                right: { value: soonToExpireCount, label: 'تنتهي قريباً', color: 'text-orange-500' }
+                left:  { value: expiredStudentsCount, label: 'منتهية',       color: 'text-red-500'    },
+                right: { value: soonToExpireCount,    label: 'تنتهي قريباً', color: 'text-orange-500' }
+            }}
+        />
+
+        {/* ── بطاقة الذمم — قابلة للنقر → تنتقل لصفحة الذمم ── */}
+        <StatCard
+            title="الذمم والأقساط"
+            icon={AlertCircle}
+            color="bg-red-600"
+            isClickable={!!onNavigateToDebts}
+            onClick={onNavigateToDebts}
+            splitValues={{
+                left:  { value: `${totalDebtRemaining} JD`, label: 'إجمالي الديون', color: 'text-red-400'    },
+                right: { value: debtorCount,                  label: 'مدين',          color: 'text-orange-400' }
             }}
         />
       </div>
