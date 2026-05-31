@@ -12,16 +12,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module" crossorigin src="/assets/index-hWNTvnOd.js"></script>
+
+    <!--
+      FIX: Removed cdn.tailwindcss.com script.
+      Tailwind is already compiled into the bundle by Vite + PostCSS.
+      Loading it again from CDN caused:
+        1. Double CSS loading (~350KB wasted)
+        2. "should not be used in production" warning
+        3. Potential style conflicts
+    -->
+    <script type="module" crossorigin src="/assets/index-izF4t6yy.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/es-toolkit-DFleJxRZ.js">
     <link rel="modulepreload" crossorigin href="/assets/react-sfkw8XxQ.js">
     <link rel="modulepreload" crossorigin href="/assets/scheduler-DYLXRpC5.js">
     <link rel="modulepreload" crossorigin href="/assets/react-dom-CGCstPkR.js">
     <link rel="modulepreload" crossorigin href="/assets/idb-BXWtuYvb.js">
-    <link rel="modulepreload" crossorigin href="/assets/@firebase-Cf6_sxgw.js">
-    <link rel="modulepreload" crossorigin href="/assets/firebase-BJulMy0r.js">
-    <link rel="modulepreload" crossorigin href="/assets/lucide-react-CQOFP8vh.js">
+    <link rel="modulepreload" crossorigin href="/assets/@firebase-DN0elHTG.js">
+    <link rel="modulepreload" crossorigin href="/assets/firebase-DAYRlq71.js">
+    <link rel="modulepreload" crossorigin href="/assets/lucide-react-ImczON4d.js">
     <link rel="modulepreload" crossorigin href="/assets/motion-utils-CYU-yiCP.js">
     <link rel="modulepreload" crossorigin href="/assets/motion-dom-IeVkY7j5.js">
     <link rel="modulepreload" crossorigin href="/assets/framer-motion-B492quHb.js">
@@ -50,11 +58,9 @@
     <link rel="modulepreload" crossorigin href="/assets/eventemitter3-DqTR1K0k.js">
     <link rel="modulepreload" crossorigin href="/assets/recharts-DOwM5bpS.js">
     <link rel="modulepreload" crossorigin href="/assets/html2canvas-BfYXEYrK.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-HDJymkTl.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-Bc6oiO2C.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
-    <div id="root"></div>
-
-
+    <div id="root"></div>
   </body>
 </html>
