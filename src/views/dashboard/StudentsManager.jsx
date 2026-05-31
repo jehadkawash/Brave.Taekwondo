@@ -422,10 +422,10 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       if (search) {
           const lowerSearch = search.toLowerCase();
           result = result.filter(s => 
-              s.name.toLowerCase().includes(lowerSearch) || 
-              s.phone.includes(lowerSearch) ||
-             (s.username || '').toLowerCase().includes(lowerSearch)
-          );
+            (s.name || '').toLowerCase().includes(lowerSearch) || 
+            (s.phone || '').includes(lowerSearch) ||
+            (s.username || '').toLowerCase().includes(lowerSearch)
+                );
       }
 
       if (statusFilter !== 'all') {
