@@ -132,7 +132,7 @@ export default function FinanceManager({
     selectedBranch, logActivity,
     financeReasons = [], financeReasonsCollection 
 }) {
-  const [viewMode, setViewMode] = useState('income'); 
+  // viewMode removed — page is now only for Receipts. Expenses moved to AccountsManager.
   // FIX 2: أضفنا date للفورم — اليوم افتراضياً لكن يمكن تغييره للتاريخ الفعلي
   const [payForm, setPayForm] = useState({
     sid: '', amount: '', reason: '', customReason: '',
@@ -705,17 +705,8 @@ export default function FinanceManager({
         onGenerate={handlePrintReport}
       />
 
-      {/* Top Toggle Switch */}
-      <div className="flex gap-4 mb-6 bg-slate-900 p-1 rounded-2xl border border-slate-800">
-        <button onClick={() => setViewMode('income')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'income' ? 'bg-green-600 text-white shadow-lg shadow-green-900/20' : 'bg-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
-           الإيرادات (القبض)
-        </button>
-        <button onClick={() => setViewMode('expense')} className={`flex-1 py-3 rounded-xl font-bold transition-all shadow-sm ${viewMode === 'expense' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>
-           المصاريف
-        </button>
-      </div>
-      
-      {viewMode === 'income' ? (
+      {/* تم نقل قسم المصاريف إلى صفحة "حسابات النادي" — هنا فقط الوصولات (الإيرادات) */}
+      <>
         <>
            <div className="flex justify-end mb-4">
               <Button onClick={() => setShowReportModal(true)} className="bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20 shadow-lg flex items-center gap-2 border-none">
@@ -962,80 +953,7 @@ export default function FinanceManager({
               {filteredPayments.length === 0 && <div className="text-center p-8 text-slate-600 bg-slate-900 rounded-xl border border-slate-800 border-dashed">لا يوجد سندات</div>}
           </div>
         </>
-      ) : (
-        <>
-          {/* Expenses Form */}
-          <Card title="تسجيل مصروف" className="border-red-500/20 shadow-lg shadow-red-900/10 bg-slate-900">
-              <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <div className="col-span-1 md:col-span-2">
-                    <label className="text-xs block mb-1 font-bold text-slate-400">البند (سبب الصرف)</label>
-                    <input className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none placeholder-slate-600" value={expForm.title} onChange={e=>setExpForm({...expForm, title:e.target.value})} required placeholder="مثال: فاتورة كهرباء" />
-                </div>
-                <div>
-                    <label className="text-xs block mb-1 font-bold text-slate-400">المبلغ</label>
-                    <input type="number" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none placeholder-slate-600" value={expForm.amount} onChange={e=>setExpForm({...expForm, amount:e.target.value})} required placeholder="0.00" />
-                </div>
-                <div>
-                    <label className="text-xs block mb-1 font-bold text-slate-400">التاريخ</label>
-                    <input type="date" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-red-500 outline-none" value={expForm.date} onChange={e=>setExpForm({...expForm, date:e.target.value})} />
-                </div>
-                <div>
-                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20 py-2.5 border-none">حفظ</Button>
-                </div>
-              </form>
-          </Card>
-          
-          {/* DESKTOP TABLE Expenses */}
-          <div className="hidden md:block">
-            <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
-                <table className="w-full text-sm text-right">
-                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
-                        <tr>
-                            <th className="p-3">البند</th>
-                            <th className="p-3">التاريخ</th>
-                            <th className="p-3">المبلغ</th>
-                            <th className="p-3">حذف</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-900">
-                        {sortedExpenses.map(e=>(
-                            <tr key={e.id} className="hover:bg-slate-800/50 transition-colors">
-                                <td className="p-3 font-bold text-slate-300">{e.title}</td>
-                                {/* ✅ عرض التاريخ بشكل آمن */}
-                                <td className="p-3 text-slate-500 text-xs">{formatDateDisplay(e.date)}</td>
-                                <td className="p-3 text-red-400 font-bold">-{e.amount}</td>
-                                {/* يدوي فقط */}
-                                <td className="p-3"><button onClick={()=>deleteExpense(e)} className="text-red-400 p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </Card>
-          </div>
-
-          {/* MOBILE VIEW Expenses */}
-          <div className="md:hidden grid gap-4">
-              {sortedExpenses.map(e => (
-                  <div key={e.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex justify-between items-center relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
-                      <div className="pl-3">
-                          <h4 className="font-bold text-slate-200">{e.title}</h4>
-                          {/* ✅ عرض التاريخ بشكل آمن */}
-                          <span className="text-xs text-slate-500 block mt-1">{formatDateDisplay(e.date)}</span>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                          <span className="font-bold text-red-400 text-lg">-{e.amount}</span>
-                          {/* يدوي فقط */}
-                          <button onClick={()=>deleteExpense(e)} className="text-red-400 hover:text-red-300 bg-red-900/20 p-1.5 rounded-lg border border-red-500/20" title="حذف يدوي فقط">
-                              <Trash2 size={16}/>
-                          </button>
-                      </div>
-                  </div>
-              ))}
-              {sortedExpenses.length === 0 && <div className="text-center p-8 text-slate-600 bg-slate-900 rounded-xl border border-slate-800 border-dashed">لا يوجد مصاريف</div>}
-          </div>
-        </>
-      )}
+      </>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import {
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive,
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin,
   Award, Calendar, ChevronDown, X, MessageSquare,
-  AlertTriangle
+  AlertTriangle, Scale, Wallet
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
@@ -26,7 +26,9 @@ import ReportsManager from './dashboard/ReportsManager';
 import SubscriptionsManager from './dashboard/SubscriptionsManager';
 import NotesManager from './dashboard/NotesManager';
 import DebtManager from './dashboard/DebtManager';
-// ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker
+import WeightsManager from './dashboard/WeightsManager';
+import AccountsManager from './dashboard/AccountsManager';
+// ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker القديمة
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -172,10 +174,10 @@ const AdminDashboard = ({
 
   // Lazy-loaded heavy collections — use { enabled: bool } options
   const paymentsCollection = useCollection(
-    'payments', { enabled: isDashboard || isFinance || isReports }
+    'payments', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts' }
   );
   const expensesCollection = useCollection(
-    'expenses', { enabled: isDashboard || isFinance || isReports }
+    'expenses', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts' }
   );
   const registrationsCollection = useCollection(
     'registrations', { enabled: isDashboard || isRegistration || isReports }
@@ -185,8 +187,8 @@ const AdminDashboard = ({
   );
 
   // Fully isolated — only loaded when their tab is open
-  // FIX: archiveCollection also needed for debts tab (to show archived students with debts)
-  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts });
+  // archiveCollection also needed for debts + weights tabs
+  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts || activeTab === 'weights' });
   // debts collection — needed for dashboard stats card + debts tab + students tab
   const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students' });
   const newsCollection         = useCollection('news',            { enabled: isDashboard || isNews });
@@ -271,12 +273,14 @@ const AdminDashboard = ({
     hasPerm('tests')         && { id: 'tests',         icon: Award,        label: 'فحص' },
     hasPerm('finance')       && { id: 'finance',       icon: DollarSign,   label: 'وصولات' },
     hasPerm('finance')       && { id: 'debts',         icon: AlertTriangle,label: 'الذمم والأقساط' },
+    hasPerm('students')      && { id: 'weights',       icon: Scale,        label: 'متابعة الأوزان' },
     hasPerm('archive')       && { id: 'archive',       icon: Archive,      label: 'الأرشيف' },
   ].filter(Boolean);
 
   const adminGroups = [
     hasPerm('registrations') && { id: 'registrations', icon: Inbox,     label: 'طلبات التسجيل', badge: branchRegistrations.length },
     hasPerm('schedule')      && { id: 'schedule',      icon: Clock,     label: 'جدول الحصص' },
+    hasPerm('finance')       && { id: 'accounts',      icon: Wallet,    label: 'حسابات النادي' },
     hasPerm('news')          && { id: 'news',          icon: Megaphone, label: 'الأخبار والعروض' },
     hasPerm('reports')       && { id: 'reports',       icon: FileText,  label: 'التقارير الشاملة' },
     user.isSuper             && { id: 'captains',      icon: Shield,    label: 'الكباتن والصلاحيات' },
@@ -578,6 +582,20 @@ const AdminDashboard = ({
             <DebtManager
               students={branchStudents}
               archivedStudents={archiveCollection.data || []}
+              selectedBranch={selectedBranch}
+              logActivity={handleLog}
+            />
+          )}
+          {activeTab === 'weights' && hasPerm('students') && (
+            <WeightsManager
+              students={branchStudents}
+              archivedStudents={archiveCollection.data || []}
+              selectedBranch={selectedBranch}
+              logActivity={handleLog}
+            />
+          )}
+          {activeTab === 'accounts' && hasPerm('finance') && (
+            <AccountsManager
               selectedBranch={selectedBranch}
               logActivity={handleLog}
             />
