@@ -370,13 +370,18 @@ const AdminDashboard = ({
             {user.email && user.emailVerified === false && (
               <button
                 onClick={async () => {
+                  if (!auth.currentUser) { alert('سجّل الدخول مرة أخرى'); return; }
                   try {
-                    if (auth.currentUser) {
-                      await sendEmailVerification(auth.currentUser);
-                      alert(`تم إرسال رابط التفعيل إلى ${user.email}\nافتح بريدك واضغط على الرابط ثم سجّل خروج وعد للدخول.`);
-                    }
+                    await sendEmailVerification(auth.currentUser);
+                    alert(`✅ تم إرسال رابط التفعيل إلى ${user.email}\n\nافتح بريدك واضغط على الرابط، ثم سجّل خروج وعد للدخول.`);
                   } catch (err) {
-                    alert('خطأ في الإرسال: ' + err.message);
+                    if (err.code === 'auth/too-many-requests') {
+                      alert('⏰ تم إرسال طلبات كثيرة. حاول بعد عدة دقائق.');
+                    } else if (err.code === 'auth/invalid-recipient-email' || err.code === 'auth/internal-error') {
+                      alert('⚠️ التفعيل بالبريد غير مفعّل في Firebase.\n\nلتفعيله: Firebase Console → Authentication → Templates → Email address verification → Enable');
+                    } else {
+                      alert('خطأ: ' + (err.message || err.code));
+                    }
                   }
                 }}
                 title="إيميلك غير مفعّل — اضغط لإرسال رابط التفعيل"
@@ -387,7 +392,7 @@ const AdminDashboard = ({
             )}
 
             {/* Quick Search Button (Ctrl+K) */}
-            <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+            <button onClick={() => window.__openQuickSearch && window.__openQuickSearch()}
               className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-lg text-xs transition-colors"
               title="بحث شامل (Ctrl+K)">
               <Search size={15}/>
@@ -549,7 +554,9 @@ const AdminDashboard = ({
               selectedBranch={selectedBranch}
               logActivity={handleLog}
               debts={debtsCollection.data || []}
-              onNavigateToDebts={hasPerm('finance') ? () => setActiveTab('debts') : null}
+              onNavigateToDebts={hasPerm('finance')  ? () => setActiveTab('debts')   : null}
+              onNavigateToWeights={hasPerm('students') ? () => setActiveTab('weights') : null}
+              onNavigateToFinance={hasPerm('finance')  ? () => setActiveTab('finance') : null}
             />
           )}
           {activeTab === 'tests'          && hasPerm('tests')          && (
@@ -684,11 +691,17 @@ const AdminDashboard = ({
             const isMenuBtn = item.id === '_menu';
             return (
               <button key={item.id}
-                onClick={() => {
-                  if (isMenuBtn) setMobileMenuOpen(true);
-                  else { setActiveTab(item.id); setMobileMenuOpen(false); }
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (isMenuBtn) setMobileMenuOpen(prev => !prev);
+                  else {
+                    setMobileMenuOpen(false);
+                    setActiveTab(item.id);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
                 }}
-                className={`flex flex-col items-center justify-center gap-0.5 transition-colors relative
+                className={`flex flex-col items-center justify-center gap-0.5 transition-colors relative active:scale-95
                   ${isActive
                     ? (item.highlight ? 'text-yellow-400' : 'text-yellow-500')
                     : 'text-slate-500 hover:text-slate-300'}`}>

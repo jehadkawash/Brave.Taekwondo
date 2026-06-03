@@ -13,17 +13,25 @@ import { Search, X, User, DollarSign, AlertTriangle, Archive, Phone } from 'luci
  *   - debts:           all debts
  *   - onNavigate(tab, studentId?): switch the dashboard tab + optional select
  */
+// نُعرّض دالة open globally على window للوصول من زر الـ header
 export default function QuickSearch({
     students = [], archivedStudents = [], payments = [], debts = [], onNavigate
 }) {
     const [open, setOpen]   = useState(false);
+
+    // نُعرّض الدالة على window حتى أي زر يقدر يفتحها
+    useEffect(() => {
+        window.__openQuickSearch = () => setOpen(true);
+        return () => { delete window.__openQuickSearch; };
+    }, []);
     const [query, setQuery] = useState('');
     const inputRef = useRef(null);
 
-    // Cmd/Ctrl + K to open
+    // Cmd/Ctrl + K to open — يستخدم e.code علشان يشتغل مع اللوحة العربية أيضاً
     useEffect(() => {
         const handler = (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            // e.code = 'KeyK' بغض النظر عن لغة لوحة المفاتيح (عربي/إنجليزي)
+            if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key === 'k' || e.key === 'K' || e.key === 'لا')) {
                 e.preventDefault();
                 setOpen(o => !o);
             }

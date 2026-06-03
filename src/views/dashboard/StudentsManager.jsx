@@ -1,14 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone, 
-  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles, 
-  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer, RefreshCw 
+  UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone,
+  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles,
+  Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer, RefreshCw,
+  User
 } from 'lucide-react';
 import { Button, Card, StatusBadge } from '../../components/UIComponents';
 import { BELTS, IMAGES } from '../../lib/constants';
 import { writeBatch, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, appId } from '../../lib/firebase';
+import StudentProfile from './StudentProfile';
 
 // --- Helper Functions ---
 const generateCredentials = () => {
@@ -337,7 +339,8 @@ const SubscriptionModal = ({ student, onClose, onSave }) => {
 };
 
 
-const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups, debts = [], onNavigateToDebts }) => {
+const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups, debts = [], onNavigateToDebts, onNavigateToWeights, onNavigateToFinance }) => {
+  const [profileStudent, setProfileStudent] = useState(null);
   const [search, setSearch] = useState(''); 
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [sortOption, setSortOption] = useState('joinDateDesc'); 
@@ -835,6 +838,22 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
       {renewingStudent && <SubscriptionModal student={renewingStudent} onClose={() => setRenewingStudent(null)} onSave={handleRenewSave} />}
 
+      {/* ── Student Profile (full-screen modal) ── */}
+      {profileStudent && (
+        <StudentProfile
+          student={profileStudent}
+          allStudents={students}
+          studentsCollection={studentsCollection}
+          archiveCollection={archiveCollection}
+          selectedBranch={selectedBranch}
+          logActivity={logActivity}
+          onClose={() => setProfileStudent(null)}
+          onOpenDebts={() => { setProfileStudent(null); onNavigateToDebts && onNavigateToDebts(); }}
+          onOpenWeights={() => { setProfileStudent(null); onNavigateToWeights && onNavigateToWeights(); }}
+          onOpenFinance={() => { setProfileStudent(null); onNavigateToFinance && onNavigateToFinance(); }}
+        />
+      )}
+
       {createdCreds && (
         <ModalOverlay onClose={() => setCreatedCreds(null)}>
             <div className="p-8 text-center">
@@ -946,7 +965,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                                 <FileWarning size={20} fill="currentColor" className="text-red-900/50"/>
                                             </button>
                                         )}
-                                        <div className="font-bold text-slate-200 text-base cursor-pointer hover:text-yellow-500 transition-colors" onClick={() => setStudentForNotes(s)}>
+                                        <div className="font-bold text-slate-200 text-base cursor-pointer hover:text-yellow-500 transition-colors" onClick={() => setProfileStudent(s)} title="فتح بروفايل الطالب">
                                             {s.name}
                                         </div>
                                         {isNew && <span className="px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 text-[10px] font-bold border border-red-500/30 animate-pulse">NEW</span>}
@@ -1012,6 +1031,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                                 <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
                                 <td className="p-4">
                                     <div className="flex gap-1">
+                                        <button onClick={() => setProfileStudent(s)} className="bg-purple-900/20 text-purple-400 border border-purple-500/20 p-2 rounded-lg hover:bg-purple-600 hover:text-white transition" title="بروفايل الطالب الكامل"><User size={16}/></button>
                                         <button onClick={() => setRenewingStudent(s)} className="bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition" title="تجديد الاشتراك"><CalendarClock size={16}/></button>
                                         <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition border ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-900/20 text-yellow-500 border-yellow-500/20' : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-yellow-500 hover:border-yellow-500/50'}`} title="الملاحظات"><Lock size={16}/></button>
                                         <button onClick={() => promoteBelt(s)} className="bg-blue-900/20 text-blue-400 border border-blue-500/20 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
@@ -1043,8 +1063,8 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
                      <div className="flex justify-between items-start">
                          <div>
-                             <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-slate-100 text-lg">{s.name}</h3>
+                             <div className="flex items-center gap-2" onClick={() => setProfileStudent(s)}>
+                                <h3 className="font-bold text-slate-100 text-lg cursor-pointer hover:text-yellow-500">{s.name}</h3>
                                 {isNew && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 rounded-full border border-red-500/40 animate-pulse">NEW</span>}
                              </div>
                              <p className="text-xs text-slate-500 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
@@ -1103,6 +1123,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                              <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-900/20 rounded-full text-[#25D366] border border-green-500/20"><MessageCircle size={16}/></button>
                          </div>
                          <div className="flex gap-2">
+                             <button onClick={() => setProfileStudent(s)} className="p-2 bg-purple-900/20 text-purple-400 border border-purple-500/20 rounded-lg" title="بروفايل كامل"><User size={16}/></button>
                              <button onClick={() => setRenewingStudent(s)} className="p-2 bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 rounded-lg"><CalendarClock size={16}/></button>
                              <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg border ${hasPrivateNotes ? 'bg-red-900/20 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'}`}><Lock size={16}/></button>
                              <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-900/20 text-blue-500 border border-blue-500/20 rounded-lg"><ArrowUp size={16}/></button>

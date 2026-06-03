@@ -302,7 +302,8 @@ export const DashboardStats = ({
   const [time, setTime] = useState(new Date());
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showNearEndModal, setShowNearEndModal] = useState(false);
-  const [showTestsModal, setShowTestsModal] = useState(false); 
+  const [showTestsModal, setShowTestsModal] = useState(false);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
 
   const views = ['daily', 'monthly', 'yearly'];
   const viewLabels = { daily: 'اليومي', monthly: 'الشهري', yearly: 'السنوي' };
@@ -547,6 +548,53 @@ export const DashboardStats = ({
       <NearEndModal isOpen={showNearEndModal} onClose={() => setShowNearEndModal(false)} students={nearEndStudentsList} openWhatsApp={openWhatsApp} />
       <UpcomingTestsModal isOpen={showTestsModal} onClose={() => setShowTestsModal(false)} students={allUpcomingTests} />
 
+      {/* مودال: قائمة كل المنتهي اشتراكهم +7 أيام */}
+      {showRenewalModal && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={() => setShowRenewalModal(false)}>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+          <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-red-500/30 w-full max-w-2xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-red-950/30 shrink-0">
+              <h3 className="text-lg font-black text-red-300 flex items-center gap-2">
+                ⏰ طلاب يحتاجون تذكير ({overdueWeekStudents.length})
+              </h3>
+              <button onClick={() => setShowRenewalModal(false)} className="text-slate-500 hover:text-red-400"><X size={20}/></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {overdueWeekStudents.map(s => {
+                const days = Math.floor((new Date() - new Date(s.subEnd)) / 86400000);
+                return (
+                  <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-950 hover:bg-slate-800/50 border border-slate-800 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 font-black">
+                        {s.name?.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-200 truncate">{s.name}</p>
+                        <p className="text-[10px] text-red-400 font-bold">منذ {days} يوم • {s.phone || 'لا يوجد رقم'}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => sendRenewalReminder(s)} disabled={!s.phone}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#25D366] hover:bg-[#20bd5a] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-md">
+                      <MessageCircle size={14}/> تذكير
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-4 border-t border-slate-800 bg-slate-950 shrink-0">
+              <button onClick={() => {
+                if (!confirm(`سيُفتح WhatsApp لـ ${overdueWeekStudents.length} طالب الواحد بعد الآخر. متابعة؟`)) return;
+                overdueWeekStudents.forEach((s, i) => setTimeout(() => sendRenewalReminder(s), i * 1200));
+              }}
+                className="w-full py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-sm font-bold shadow-lg flex items-center justify-center gap-2">
+                <MessageCircle size={16}/> تذكير الكل بالواتساب
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
         <div>
@@ -732,7 +780,7 @@ export const DashboardStats = ({
             </button>
           </div>
           <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-            {overdueWeekStudents.slice(0, 12).map(s => {
+            {overdueWeekStudents.slice(0, 8).map(s => {
               const days = Math.floor((new Date() - new Date(s.subEnd)) / 86400000);
               return (
                 <button key={s.id} onClick={() => sendRenewalReminder(s)}
@@ -745,11 +793,10 @@ export const DashboardStats = ({
                 </button>
               );
             })}
-            {overdueWeekStudents.length > 12 && (
-              <div className="shrink-0 flex items-center px-3 text-xs text-slate-500 font-bold">
-                + {overdueWeekStudents.length - 12} آخرين...
-              </div>
-            )}
+            <button onClick={() => setShowRenewalModal(true)}
+              className="shrink-0 flex items-center gap-2 px-4 py-2 bg-yellow-500/15 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30 rounded-xl text-xs font-bold transition-colors">
+              📋 عرض الكل ({overdueWeekStudents.length})
+            </button>
           </div>
         </div>
       )}

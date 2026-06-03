@@ -548,7 +548,7 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
     const target   = getTarget(selectedId);
 
     return (
-        <div className="space-y-5 animate-fade-in font-sans pb-20 md:pb-0">
+        <div className="space-y-5 animate-fade-in font-sans pb-20 md:pb-0 max-w-full overflow-x-hidden">
 
             {/* مودالات */}
             {showAddWeight && selectedStudent && (
@@ -659,7 +659,7 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="space-y-1.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
+                    <div className="space-y-1.5 max-h-[400px] lg:max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
                         {filteredStudents.length === 0 ? (
                             <div className="text-center py-10 bg-slate-900/30 border border-slate-800 border-dashed rounded-xl text-slate-600 text-sm">
                                 {search ? 'لا يوجد نتائج' : 'لا يوجد طلاب'}
@@ -679,7 +679,7 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
                 </div>
 
                 {/* عمود التفاصيل */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 min-w-0">
                     {!selectedStudent ? (
                         <div className="h-full flex flex-col items-center justify-center bg-slate-900/30 border border-slate-800 border-dashed rounded-2xl py-20">
                             <Scale size={48} className="text-slate-700 mb-4 opacity-40"/>
@@ -767,7 +767,7 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
                                         <TrendingUp size={14} className="text-blue-400"/> تطوّر الوزن عبر الزمن
                                         <span className="text-[10px] text-slate-500 mr-2 font-normal">— اضغط على أي نقطة لرؤية التفاصيل</span>
                                     </p>
-                                    <div style={{ height: 260 }}>
+                                    <div style={{ height: 260, width: '100%' }} className="min-w-0">
                                         <ResponsiveContainer width="100%" height={260}>
                                             <LineChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 5 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false}/>
