@@ -126,12 +126,13 @@ const ReportModal = ({ isOpen, onClose, onGenerate }) => {
     );
 };
 
-export default function FinanceManager({ 
-    students, payments, expenses, 
-    paymentsCollection, expensesCollection, 
+export default function FinanceManager({
+    students, payments,
+    paymentsCollection,
     selectedBranch, logActivity,
-    financeReasons = [], financeReasonsCollection 
+    financeReasons = [], financeReasonsCollection
 }) {
+    // ملاحظة: expenses و expensesCollection لم تعد مستخدمة هنا — انتقلت لـ AccountsManager
   // viewMode removed — page is now only for Receipts. Expenses moved to AccountsManager.
   // FIX 2: أضفنا date للفورم — اليوم افتراضياً لكن يمكن تغييره للتاريخ الفعلي
   const [payForm, setPayForm] = useState({
@@ -139,17 +140,12 @@ export default function FinanceManager({
     details: '', method: 'cash', extraName: '',
     date: todayString()   // ← قابل للتعديل
   });
-  // ✅ إصلاح: date الابتدائي صحيح
-  const [expForm, setExpForm] = useState({ 
-    title: '', amount: '', date: todayString()
-  }); 
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false); 
   const [showReportModal, setShowReportModal] = useState(false);
 
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
-  const branchExpenses = expenses.filter(e => e.branch === selectedBranch);
-  
+
   const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
       .sort((a, b) => {
         // FIX 1: الترتيب الصحيح — الأجدد أولاً
@@ -164,12 +160,6 @@ export default function FinanceManager({
         const db = toDateString(b.date);
         return db.localeCompare(da);
       });
-
-  const sortedExpenses = [...branchExpenses].sort((a, b) => {
-    const dateA = toDateString(a.date);
-    const dateB = toDateString(b.date);
-    return dateB.localeCompare(dateA);
-  });
 
   const handleAddReason = async (title) => {
       if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
@@ -221,22 +211,7 @@ export default function FinanceManager({
     setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '', date: payForm.date, _showDatePicker: false });
   };
 
-  const handleAddExpense = async (e) => { 
-    e.preventDefault(); 
-    // FIX BUG-1: removed manual 'id' field — same reason as payments above.
-    await expensesCollection.add({
-      title: expForm.title,
-      amount: Number(expForm.amount),
-      date: expForm.date || todayString(),
-      createdAt: new Date().toISOString(),
-      branch: selectedBranch,
-    });
-    logActivity("مصروف", `صرف ${expForm.amount} لـ ${expForm.title}`); 
-    // ✅ إصلاح: reset صحيح
-    setExpForm({ title: '', amount: '', date: todayString() }); 
-  };
-
-  // ─── حذف الوصل / المصروف (يدوي فقط — لا يوجد حذف تلقائي في أي مكان) ──────
+  // ─── حذف الوصل (يدوي فقط — لا يوجد حذف تلقائي في أي مكان) ────────────────
   // الوصولات تبقى دائماً حتى لو تم حذف الطالب أو أرشفته.
   // الحذف الوحيد الممكن هو بالضغط على زر 🗑️ هنا يدوياً.
   const deletePayment = async (payment) => {
@@ -251,18 +226,6 @@ export default function FinanceManager({
     if (!confirmed) return;
     await paymentsCollection.remove(payment.id);
     logActivity("حذف وصل", `حذف وصل بمبلغ ${payment.amount} JD من ${payment.name}`);
-  };
-
-  const deleteExpense = async (expense) => {
-    const confirmed = window.confirm(
-      `⚠️ تأكيد حذف المصروف\n\n` +
-      `البند: ${expense.title}\n` +
-      `المبلغ: ${expense.amount} JD\n\n` +
-      `هل أنت متأكد؟ لا يمكن التراجع.`
-    );
-    if (!confirmed) return;
-    await expensesCollection.remove(expense.id);
-    logActivity("حذف مصروف", `حذف مصروف: ${expense.title} بمبلغ ${expense.amount} JD`);
   };
 
   // --- تقرير الطباعة ---

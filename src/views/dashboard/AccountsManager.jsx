@@ -35,16 +35,30 @@ const fmtDate = (v) => {
 
 // ─── مودال إضافة دخل/مصروف ─────────────────────────────────────────────────
 const EntryModal = ({ type, monthKey, onClose, onSave }) => {
-    const [title, setTitle] = useState('');
+    const [title, setTitle]   = useState('');
     const [amount, setAmount] = useState('');
-    const [date, setDate] = useState(todayStr());
-    const [note, setNote] = useState('');
+    const [date, setDate]     = useState(todayStr());
+    const [note, setNote]     = useState('');
+    const [method, setMethod] = useState('cash'); // ← طريقة الدفع
     const [saving, setSaving] = useState(false);
 
     const isIncome = type === 'income';
+    // FIX: استخدام classes كاملة بدل ديناميكية حتى تعمل في build
     const cfg = isIncome
-        ? { color: 'emerald', label: 'دخل إضافي', icon: TrendingUp }
-        : { color: 'red',     label: 'مصروف',    icon: TrendingDown };
+        ? {
+            label: 'دخل إضافي', icon: TrendingUp,
+            headerBg: 'bg-emerald-950/40', headerBorder: 'border-emerald-900/30', headerText: 'text-emerald-300',
+            inputBg: 'bg-emerald-950/20', inputBorder: 'border-emerald-500/30', inputText: 'text-emerald-200', inputFocus: 'focus:border-emerald-500',
+            labelText: 'text-emerald-400',
+            btnBg: 'bg-emerald-600', btnHover: 'hover:bg-emerald-500',
+        }
+        : {
+            label: 'مصروف', icon: TrendingDown,
+            headerBg: 'bg-red-950/40', headerBorder: 'border-red-900/30', headerText: 'text-red-300',
+            inputBg: 'bg-red-950/20', inputBorder: 'border-red-500/30', inputText: 'text-red-200', inputFocus: 'focus:border-red-500',
+            labelText: 'text-red-400',
+            btnBg: 'bg-red-600', btnHover: 'hover:bg-red-500',
+        };
     const Icon = cfg.icon;
 
     const submit = async (e) => {
@@ -54,7 +68,7 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
         if (!amt || amt <= 0) return alert('أدخل مبلغاً صحيحاً');
         setSaving(true);
         try {
-            await onSave({ title: title.trim(), amount: amt, date, note: note.trim() });
+            await onSave({ title: title.trim(), amount: amt, date, note: note.trim(), method });
             onClose();
         } finally { setSaving(false); }
     };
@@ -62,8 +76,8 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
     return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
-                <div className={`bg-${cfg.color}-950/40 border-b border-${cfg.color}-900/30 px-6 py-4 flex justify-between items-center`}>
-                    <h3 className={`font-black text-lg text-${cfg.color}-300 flex items-center gap-2`}>
+                <div className={`${cfg.headerBg} border-b ${cfg.headerBorder} px-6 py-4 flex justify-between items-center`}>
+                    <h3 className={`font-black text-lg ${cfg.headerText} flex items-center gap-2`}>
                         <Icon size={20}/> تسجيل {cfg.label}
                     </h3>
                     <button onClick={onClose} className="text-slate-500 hover:text-red-400"><X size={20}/></button>
@@ -72,7 +86,7 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
                     <div>
                         <label className="text-xs font-bold text-slate-400 block mb-1.5">البيان (السبب)</label>
                         <input autoFocus required
-                            className={`w-full bg-slate-950 border border-slate-700 text-slate-200 p-2.5 rounded-xl outline-none focus:border-${cfg.color}-500 placeholder-slate-600 text-sm`}
+                            className={`w-full bg-slate-950 border border-slate-700 text-slate-200 p-2.5 rounded-xl outline-none ${cfg.inputFocus} placeholder-slate-600 text-sm`}
                             placeholder={isIncome ? 'مثال: بطولة الأمل، فحص حزام...' : 'مثال: راتب الكابتن، فاتورة كهرباء...'}
                             value={title}
                             onChange={e => setTitle(e.target.value)}
@@ -80,9 +94,9 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className={`text-xs font-bold text-${cfg.color}-400 block mb-1.5`}>المبلغ (JD)</label>
+                            <label className={`text-xs font-bold ${cfg.labelText} block mb-1.5`}>المبلغ (JD)</label>
                             <input type="number" step="0.1" min="0" required
-                                className={`w-full bg-${cfg.color}-950/20 border border-${cfg.color}-500/30 text-${cfg.color}-200 p-2.5 rounded-xl outline-none focus:border-${cfg.color}-500 text-lg font-bold text-center`}
+                                className={`w-full ${cfg.inputBg} border ${cfg.inputBorder} ${cfg.inputText} p-2.5 rounded-xl outline-none ${cfg.inputFocus} text-lg font-bold text-center`}
                                 placeholder="0"
                                 value={amount}
                                 onChange={e => setAmount(e.target.value)}
@@ -98,6 +112,26 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
                         </div>
                     </div>
                     <div>
+                        <label className="text-xs font-bold text-slate-400 block mb-1.5">طريقة الدفع</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button type="button" onClick={() => setMethod('cash')}
+                                className={`py-2.5 rounded-xl text-xs font-bold border transition-all
+                                    ${method === 'cash'
+                                        ? 'bg-green-600 text-white border-green-500 shadow-md shadow-green-900/30'
+                                        : 'bg-slate-950 text-slate-400 border-slate-700 hover:bg-slate-800'}`}>
+                                💵 كاش (Cash)
+                            </button>
+                            <button type="button" onClick={() => setMethod('cliq')}
+                                className={`py-2.5 rounded-xl text-xs font-bold border transition-all
+                                    ${method === 'cliq'
+                                        ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-900/30'
+                                        : 'bg-slate-950 text-slate-400 border-slate-700 hover:bg-slate-800'}`}>
+                                📱 كليك (CliQ)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
                         <label className="text-xs font-bold text-slate-400 block mb-1.5">ملاحظة (اختياري)</label>
                         <input
                             className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2.5 rounded-xl outline-none focus:border-slate-500 placeholder-slate-600 text-sm"
@@ -112,7 +146,7 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
                             إلغاء
                         </button>
                         <button type="submit" disabled={saving}
-                            className={`flex-[2] py-2.5 bg-${cfg.color}-600 hover:bg-${cfg.color}-500 text-white font-bold rounded-xl transition-colors disabled:opacity-50 text-sm shadow-lg`}>
+                            className={`flex-[2] py-2.5 ${cfg.btnBg} ${cfg.btnHover} text-white font-bold rounded-xl transition-colors disabled:opacity-50 text-sm shadow-lg`}>
                             {saving ? 'جاري الحفظ...' : 'حفظ'}
                         </button>
                     </div>
@@ -125,14 +159,17 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
 
 // ─── سطر دخل أو مصروف ────────────────────────────────────────────────────────
 const EntryRow = ({ entry, isIncome, onDelete, isAuto }) => {
-    const color = isIncome ? 'emerald' : 'red';
+    // FIX: classes كاملة بدل ديناميكية
+    const bgClass     = isIncome ? 'bg-emerald-900/20' : 'bg-red-900/20';
+    const borderClass = isIncome ? 'border-emerald-500/20' : 'border-red-500/20';
+    const textClass   = isIncome ? 'text-emerald-400' : 'text-red-400';
     return (
         <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-800/40 group transition-colors">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-${color}-900/20 border border-${color}-500/20 shrink-0`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${bgClass} border ${borderClass} shrink-0`}>
                     {isAuto
-                        ? <Receipt size={15} className={`text-${color}-400`}/>
-                        : (isIncome ? <TrendingUp size={15} className={`text-${color}-400`}/> : <TrendingDown size={15} className={`text-${color}-400`}/>)}
+                        ? <Receipt size={15} className={textClass}/>
+                        : (isIncome ? <TrendingUp size={15} className={textClass}/> : <TrendingDown size={15} className={textClass}/>)}
                 </div>
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -143,14 +180,22 @@ const EntryRow = ({ entry, isIncome, onDelete, isAuto }) => {
                             </span>
                         )}
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                        <Calendar size={9} className="inline ml-0.5"/> {fmtDate(entry.date)}
-                        {entry.note && <span className="mr-2">— {entry.note}</span>}
+                    <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span><Calendar size={9} className="inline ml-0.5"/> {fmtDate(entry.date)}</span>
+                        {entry.method && (
+                            <span className={`px-1.5 py-0.5 rounded font-bold text-[9px] border
+                                ${entry.method === 'cliq'
+                                    ? 'bg-blue-900/30 text-blue-400 border-blue-500/20'
+                                    : 'bg-green-900/30 text-green-400 border-green-500/20'}`}>
+                                {entry.method === 'cliq' ? '📱 كليك' : '💵 كاش'}
+                            </span>
+                        )}
+                        {entry.note && <span>— {entry.note}</span>}
                     </p>
                 </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-                <span className={`font-black text-${color}-400 text-base`}>
+                <span className={`font-black ${textClass} text-base`}>
                     {isIncome ? '+' : '−'}{fmtMoney(entry.amount)} <span className="text-[10px] text-slate-500 font-normal">JD</span>
                 </span>
                 {!isAuto && onDelete && (
@@ -195,8 +240,19 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
             .sort((a, b) => toDateStr(b.date).localeCompare(toDateStr(a.date))),
     [incomeExtraCol.data, selectedBranch, monthPrefix]);
 
-    // مجاميع
-    const totalReceipts    = branchPayments.reduce((a, p) => a + Number(p.amount || 0), 0);
+    // مجاميع — وصولات مقسمة كاش/كليك
+    const cashPayments  = branchPayments.filter(p => !p.method || p.method === 'cash');
+    const cliqPayments  = branchPayments.filter(p => p.method === 'cliq');
+    const totalCash     = cashPayments.reduce((a, p) => a + Number(p.amount || 0), 0);
+    const totalCliq     = cliqPayments.reduce((a, p) => a + Number(p.amount || 0), 0);
+    const totalReceipts = totalCash + totalCliq;
+
+    // المصاريف مقسمة كاش/كليك
+    const cashExpenses     = branchExpenses.filter(e => !e.method || e.method === 'cash');
+    const cliqExpenses     = branchExpenses.filter(e => e.method === 'cliq');
+    const totalCashExp     = cashExpenses.reduce((a, e) => a + Number(e.amount || 0), 0);
+    const totalCliqExp     = cliqExpenses.reduce((a, e) => a + Number(e.amount || 0), 0);
+
     const totalExtraIncome = branchIncomeExtra.reduce((a, p) => a + Number(p.amount || 0), 0);
     const totalIncome      = totalReceipts + totalExtraIncome;
     const totalExpenses    = branchExpenses.reduce((a, e) => a + Number(e.amount || 0), 0);
@@ -246,21 +302,31 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
         const expenseRows = branchExpenses;
 
         let incomeHtml = '';
-        // المجموع التلقائي (الوصولات) سطر واحد
-        if (totalReceipts > 0) {
+        // الوصولات مقسومة كاش/كليك
+        let row = 1;
+        if (totalCash > 0) {
             incomeHtml += `<tr>
-                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;">1</td>
-                <td style="border:1px solid #e5e7eb;padding:8px;font-weight:bold;">إجمالي الوصولات (${branchPayments.length} وصل)</td>
-                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-size:10px;color:#666;">تلقائي من النظام</td>
-                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-weight:900;color:#166534;">${fmtMoney(totalReceipts)} JD</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;">${row++}</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;font-weight:bold;">وصولات كاش (${cashPayments.length} وصل)</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-size:10px;background:#f0fdf4;color:#166534;font-weight:bold;">💵 كاش — تلقائي</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-weight:900;color:#166534;">${fmtMoney(totalCash)} JD</td>
             </tr>`;
         }
-        // الدخل الإضافي اليدوي
-        branchIncomeExtra.forEach((e, i) => {
+        if (totalCliq > 0) {
             incomeHtml += `<tr>
-                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;">${i + 2}</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;">${row++}</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;font-weight:bold;">وصولات كليك (${cliqPayments.length} وصل)</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-size:10px;background:#eff6ff;color:#1e40af;font-weight:bold;">📱 كليك — تلقائي</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-weight:900;color:#166534;">${fmtMoney(totalCliq)} JD</td>
+            </tr>`;
+        }
+        branchIncomeExtra.forEach(e => {
+            const m = e.method === 'cliq' ? '📱 كليك' : '💵 كاش';
+            const mbg = e.method === 'cliq' ? '#eff6ff' : '#f0fdf4';
+            incomeHtml += `<tr>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;">${row++}</td>
                 <td style="border:1px solid #e5e7eb;padding:8px;font-weight:bold;">${e.title}</td>
-                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-family:monospace;font-size:11px;">${fmtDate(e.date)}</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-size:10px;background:${mbg};">${m} — ${fmtDate(e.date)}</td>
                 <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-weight:bold;color:#166534;">${fmtMoney(e.amount)} JD</td>
             </tr>`;
         });
@@ -268,14 +334,29 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
 
         let expenseHtml = '';
         expenseRows.forEach((e, i) => {
+            const m = e.method === 'cliq' ? '📱 كليك' : '💵 كاش';
+            const mbg = e.method === 'cliq' ? '#eff6ff' : '#f0fdf4';
             expenseHtml += `<tr>
                 <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;">${i + 1}</td>
                 <td style="border:1px solid #e5e7eb;padding:8px;font-weight:bold;">${e.title}</td>
-                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-family:monospace;font-size:11px;">${fmtDate(e.date)}</td>
+                <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-size:10px;background:${mbg};">${m} — ${fmtDate(e.date)}</td>
                 <td style="border:1px solid #e5e7eb;padding:8px;text-align:center;font-weight:bold;color:#991b1b;">${fmtMoney(e.amount)} JD</td>
             </tr>`;
         });
         if (!expenseHtml) expenseHtml = `<tr><td colspan="4" style="text-align:center;padding:15px;color:#666;">لا يوجد مصاريف مسجلة</td></tr>`;
+
+        // ملخّص كاش/كليك للطباعة
+        const summaryRowHtml = `
+            <div style="display:flex;gap:10px;margin-top:15px;margin-bottom:5px">
+                <div style="flex:1;border:1px solid #16a34a;border-radius:6px;padding:8px;text-align:center;background:#f0fdf4">
+                    <div style="font-size:10px;font-weight:bold;color:#15803d">💵 إجمالي الكاش (دخل − مصروف)</div>
+                    <div style="font-size:14px;font-weight:900;color:#166534">${fmtMoney(totalCash - totalCashExp)} JD</div>
+                </div>
+                <div style="flex:1;border:1px solid #2563eb;border-radius:6px;padding:8px;text-align:center;background:#eff6ff">
+                    <div style="font-size:10px;font-weight:bold;color:#1e40af">📱 إجمالي الكليك (دخل − مصروف)</div>
+                    <div style="font-size:14px;font-weight:900;color:#1e40af">${fmtMoney(totalCliq - totalCliqExp)} JD</div>
+                </div>
+            </div>`;
 
         const win = window.open('', 'ACC', 'height=900,width=900');
         win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl">
@@ -336,6 +417,8 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
                     <td style="border:2px solid #000;padding:10px;text-align:center;font-weight:900;color:#991b1b;font-size:14px;background:#fef2f2">${fmtMoney(totalExpenses)} JD</td>
                 </tr></tfoot>
             </table>
+
+            ${summaryRowHtml}
 
             <div class="summary">
                 <div class="summary-row" style="background:#f0fdf4;color:#166534">
@@ -470,21 +553,46 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
                         </button>
                     </div>
 
-                    {/* صف ملخّص الوصولات */}
+                    {/* صف ملخّص الوصولات — مقسّم كاش/كليك */}
                     {totalReceipts > 0 && (
-                        <div className="px-4 py-3 bg-blue-950/20 border-b border-slate-800/50 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-blue-900/30 border border-blue-500/30 flex items-center justify-center">
-                                    <Receipt size={15} className="text-blue-400"/>
+                        <div className="bg-blue-950/15 border-b border-slate-800/50">
+                            {/* كاش */}
+                            <div className="px-4 py-2.5 flex items-center justify-between gap-3 border-b border-slate-800/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-green-900/30 border border-green-500/30 flex items-center justify-center">
+                                        <Receipt size={13} className="text-green-400"/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-200">وصولات كاش</p>
+                                        <p className="text-[10px] text-green-400/80">تلقائي • {cashPayments.length} وصل</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold text-slate-200">إجمالي الوصولات</p>
-                                    <p className="text-[10px] text-blue-400">تلقائي • {branchPayments.length} وصل</p>
-                                </div>
+                                <span className="font-black text-emerald-400 text-sm">
+                                    +{fmtMoney(totalCash)} <span className="text-[10px] text-slate-500 font-normal">JD</span>
+                                </span>
                             </div>
-                            <span className="font-black text-emerald-400 text-base">
-                                +{fmtMoney(totalReceipts)} <span className="text-[10px] text-slate-500 font-normal">JD</span>
-                            </span>
+                            {/* كليك */}
+                            <div className="px-4 py-2.5 flex items-center justify-between gap-3 border-b border-slate-800/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-900/30 border border-blue-500/30 flex items-center justify-center">
+                                        <Receipt size={13} className="text-blue-400"/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-200">وصولات كليك (CliQ)</p>
+                                        <p className="text-[10px] text-blue-400/80">تلقائي • {cliqPayments.length} وصل</p>
+                                    </div>
+                                </div>
+                                <span className="font-black text-emerald-400 text-sm">
+                                    +{fmtMoney(totalCliq)} <span className="text-[10px] text-slate-500 font-normal">JD</span>
+                                </span>
+                            </div>
+                            {/* المجموع */}
+                            <div className="px-4 py-2 flex items-center justify-between gap-3 bg-emerald-950/30">
+                                <span className="text-xs font-black text-emerald-300">مجموع الوصولات</span>
+                                <span className="font-black text-emerald-400 text-sm">
+                                    {fmtMoney(totalReceipts)} <span className="text-[10px] text-slate-500 font-normal">JD</span>
+                                </span>
+                            </div>
                         </div>
                     )}
 
@@ -523,12 +631,31 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
                     </div>
 
                     {branchExpenses.length > 0 ? (
-                        <div className="divide-y divide-slate-800/50">
-                            {branchExpenses.map(e => (
-                                <EntryRow key={e.id} entry={e} isIncome={false}
-                                    onDelete={deleteExpense} isAuto={false}/>
-                            ))}
-                        </div>
+                        <>
+                            {/* ملخّص كاش/كليك للمصاريف */}
+                            <div className="bg-red-950/15 border-b border-slate-800/50">
+                                <div className="px-4 py-2 grid grid-cols-3 gap-2 text-center">
+                                    <div>
+                                        <p className="text-[10px] text-green-400/70 font-bold">كاش</p>
+                                        <p className="text-sm font-black text-red-400">−{fmtMoney(totalCashExp)}</p>
+                                    </div>
+                                    <div className="border-x border-slate-800">
+                                        <p className="text-[10px] text-blue-400/70 font-bold">كليك</p>
+                                        <p className="text-sm font-black text-red-400">−{fmtMoney(totalCliqExp)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 font-bold">المجموع</p>
+                                        <p className="text-sm font-black text-red-400">−{fmtMoney(totalExpenses)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="divide-y divide-slate-800/50">
+                                {branchExpenses.map(e => (
+                                    <EntryRow key={e.id} entry={e} isIncome={false}
+                                        onDelete={deleteExpense} isAuto={false}/>
+                                ))}
+                            </div>
+                        </>
                     ) : (
                         <div className="text-center py-10 text-slate-600">
                             <TrendingDown size={32} className="mx-auto mb-2 opacity-30"/>

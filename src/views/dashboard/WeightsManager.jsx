@@ -336,19 +336,23 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
     const [editingEvent, setEditingEvent] = useState(null);
     const [pickingEvent, setPickingEvent] = useState(null);
 
-    // كل الطلاب (نشط + مؤرشف) — الأوزان تبقى للمؤرشفين أيضاً
+    // كل الطلاب: النشطون أولاً (مرتّبين حسب تاريخ الالتحاق — الأقدم أولاً)،
+    // ثم المؤرشفون بالأسفل (مرتّبين حسب تاريخ الالتحاق أيضاً)
     const allStudents = useMemo(() => {
-        const archMapped = archivedStudents.map(s => ({
-            ...s,
-            id: s.originalId || s.id,
-            _archived: true,
-        }));
-        // نتجنب التكرار
+        const sortByJoin = (a, b) => {
+            const ja = a.joinDate || a.createdAt || '';
+            const jb = b.joinDate || b.createdAt || '';
+            return ja.localeCompare(jb); // الأقدم أولاً
+        };
+        const activeSorted = students
+            .map(s => ({ ...s, _archived: false }))
+            .sort(sortByJoin);
         const existingIds = new Set(students.map(s => s.id));
-        return [
-            ...students.map(s => ({ ...s, _archived: false })),
-            ...archMapped.filter(s => !existingIds.has(s.id)),
-        ];
+        const archivedSorted = archivedStudents
+            .map(s => ({ ...s, id: s.originalId || s.id, _archived: true }))
+            .filter(s => !existingIds.has(s.id))
+            .sort(sortByJoin);
+        return [...activeSorted, ...archivedSorted];
     }, [students, archivedStudents]);
 
     // الفعاليات (البطولات) للفرع الحالي
@@ -357,7 +361,8 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
             .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
     [eventsCol.data, selectedBranch]);
 
-    // الطلاب الظاهرين حسب التبويب
+    // الطلاب الظاهرين حسب التبويب — نحافظ على ترتيب allStudents
+    // (نشط أولاً حسب الالتحاق، ثم المؤرشف بالأسفل)
     const displayedStudents = useMemo(() => {
         if (activeView === 'all') return allStudents;
         const ev = branchEvents.find(e => e.id === activeView);
@@ -387,16 +392,15 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
             : [],
     [selectedStudent, allWeights]);
 
-    // بيانات الرسم البياني (مرتبة تصاعدياً للزمن)
+    // بيانات الرسم البياني (مرتبة تصاعدياً للزمن — الأقدم يسار، الأحدث يمين)
     const chartData = useMemo(() => {
-        return [...selectedEntries].reverse().map((e, i, arr) => {
-            const d = new Date(e.createdAt);
-            return {
-                label: fmtDate(e.createdAt),
-                weight: Number(e.weight),
-                idx: i + 1,
-            };
-        });
+        return [...selectedEntries].filter(e => !e._isTarget).reverse().map((e, i) => ({
+            label:    fmtDate(e.createdAt),       // التاريخ على المحور
+            fullDate: `${fmtDate(e.createdAt)} ${fmtTime(e.createdAt)}`,  // عرض كامل في Tooltip
+            weight:   Number(e.weight),
+            note:     e.note || '',
+            idx:      i + 1,
+        }));
     }, [selectedEntries]);
 
     // ─── الـ handlers ──────────────────────────────────────────────────────────
@@ -760,24 +764,48 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
                             {chartData.length > 1 && (
                                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
                                     <p className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                                        <TrendingUp size={14} className="text-blue-400"/> رسم بياني للتطور
+                                        <TrendingUp size={14} className="text-blue-400"/> تطوّر الوزن عبر الزمن
+                                        <span className="text-[10px] text-slate-500 mr-2 font-normal">— اضغط على أي نقطة لرؤية التفاصيل</span>
                                     </p>
-                                    <div style={{ height: 240 }}>
-                                        <ResponsiveContainer width="100%" height={240}>
-                                            <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                    <div style={{ height: 260 }}>
+                                        <ResponsiveContainer width="100%" height={260}>
+                                            <LineChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 5 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false}/>
-                                                <XAxis dataKey="label" stroke="#64748b" fontSize={10} tickLine={false}/>
+                                                <XAxis dataKey="label" stroke="#64748b" fontSize={10} tickLine={false}
+                                                    angle={-15} textAnchor="end" height={50}/>
                                                 <YAxis stroke="#64748b" fontSize={11} tickLine={false}
-                                                    domain={['dataMin - 2', 'dataMax + 2']}/>
+                                                    domain={['dataMin - 2', 'dataMax + 2']}
+                                                    label={{ value:'كغم', angle:-90, position:'insideLeft', fill:'#64748b', fontSize:11 }}/>
                                                 <Tooltip
-                                                    contentStyle={{ background:'#0f172a', border:'1px solid #334155', borderRadius:8, fontSize:12 }}
-                                                    labelStyle={{ color:'#cbd5e1', fontWeight:'bold' }}
-                                                    formatter={(v) => [`${v} kg`, 'الوزن']}
+                                                    content={({ active, payload }) => {
+                                                        if (!active || !payload?.length) return null;
+                                                        const d = payload[0].payload;
+                                                        return (
+                                                            <div style={{
+                                                                background:'#0f172a', border:'1px solid #3b82f6',
+                                                                borderRadius:10, padding:'10px 14px',
+                                                                boxShadow:'0 8px 24px rgba(0,0,0,0.5)',
+                                                                fontFamily:'Cairo,sans-serif', direction:'rtl'
+                                                            }}>
+                                                                <div style={{ fontSize:18, fontWeight:900, color:'#3b82f6' }}>
+                                                                    {d.weight} <span style={{ fontSize:10, color:'#94a3b8', fontWeight:'normal' }}>كغم</span>
+                                                                </div>
+                                                                <div style={{ fontSize:11, color:'#cbd5e1', marginTop:4, fontWeight:'bold' }}>
+                                                                    📅 {d.fullDate}
+                                                                </div>
+                                                                {d.note && (
+                                                                    <div style={{ fontSize:10, color:'#94a3b8', marginTop:3, maxWidth:200 }}>
+                                                                        💬 {d.note}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    }}
                                                 />
                                                 <Line type="monotone" dataKey="weight"
                                                     stroke="#3b82f6" strokeWidth={2.5}
-                                                    dot={{ fill:'#3b82f6', r:4 }}
-                                                    activeDot={{ r:6 }}/>
+                                                    dot={{ fill:'#3b82f6', r:5, strokeWidth:2, stroke:'#0f172a' }}
+                                                    activeDot={{ r:7, fill:'#60a5fa', strokeWidth:3, stroke:'#fff' }}/>
                                             </LineChart>
                                         </ResponsiveContainer>
                                     </div>

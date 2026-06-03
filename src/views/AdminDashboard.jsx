@@ -254,7 +254,6 @@ const AdminDashboard = ({
       groups: branchGroups,
       captains,
       activityLogs: branchActivityLogs,
-      adminNotes: branchAdminNotes,
     };
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backupData, null, 2));
     const a = document.createElement('a');
@@ -525,9 +524,7 @@ const AdminDashboard = ({
             <FinanceManager
               students={branchStudents}
               payments={branchPayments}
-              expenses={branchExpenses}
               paymentsCollection={paymentsCollection}
-              expensesCollection={expensesCollection}
               financeReasons={branchFinanceReasons}
               financeReasonsCollection={financeReasonsCollection}
               selectedBranch={selectedBranch}

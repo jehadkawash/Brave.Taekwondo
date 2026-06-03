@@ -476,7 +476,13 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
             statusBg = '#fef08a';
         }
 
-        const balanceText = s.balance > 0 ? `<span style="color:#991b1b; font-weight:bold;">عليه ${s.balance}</span>` : '<span style="color:#166534;">مدفوع</span>';
+        // FIX: نحسب الذمم من collection الذمم الجديد بدل الحقل القديم s.balance
+        const studentDebts = debts.filter(d => d.studentId === s.id);
+        const totalDebt    = studentDebts.reduce((acc, d) =>
+            acc + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
+        const balanceText  = totalDebt > 0
+            ? `<span style="color:#991b1b; font-weight:bold;">عليه ${totalDebt}</span>`
+            : '<span style="color:#166534;">خالص</span>';
 
         rowsHtml += `
             <tr>
@@ -485,7 +491,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${s.belt || '-'}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${groupDisplay}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${s.phone || '-'}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; background-color:${s.balance > 0 ? '#fee2e2' : 'transparent'};">${balanceText}</td>
+                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; background-color:${totalDebt > 0 ? '#fee2e2' : 'transparent'};">${balanceText}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${formatDate(s.subEnd)}</td>
                 <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-weight:bold; color:${statusColor}; background-color:${statusBg};">${statusText}</td>
             </tr>
