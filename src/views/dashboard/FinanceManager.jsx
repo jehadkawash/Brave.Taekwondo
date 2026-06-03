@@ -4,8 +4,7 @@ import { createPortal } from 'react-dom';
 import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
-import { addDoc, deleteDoc, doc } from "firebase/firestore";
-import { db } from '../../lib/firebase';
+// Firestore imports removed — all writes go through paymentsCollection / financeReasonsCollection
 // FIX: removed jsPDF + html2canvas (caused freezing + white colors)
 // PDF is now generated via the same print HTML — perfect quality, no freezing
 

@@ -4,9 +4,11 @@ import {
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive,
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin,
   Award, Calendar, ChevronDown, X, MessageSquare,
-  AlertTriangle, Scale, Wallet
+  AlertTriangle, Scale, Wallet, Search, BarChart3, Sun, Moon
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore";
+import { sendEmailVerification } from "firebase/auth";
+import { auth } from '../lib/firebase';
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { IMAGES } from '../lib/constants';
@@ -28,6 +30,8 @@ import NotesManager from './dashboard/NotesManager';
 import DebtManager from './dashboard/DebtManager';
 import WeightsManager from './dashboard/WeightsManager';
 import AccountsManager from './dashboard/AccountsManager';
+import AdvancedStats from './dashboard/AdvancedStats';
+import QuickSearch from '../components/QuickSearch';
 // ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker القديمة
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -153,6 +157,16 @@ const AdminDashboard = ({
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Theme toggle (light/dark)
+  const [isLight, setIsLight] = useState(() => {
+    try { return localStorage.getItem('braveTheme') === 'light'; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    document.body.classList.toggle('light-theme', isLight);
+    try { localStorage.setItem('braveTheme', isLight ? 'light' : 'dark'); } catch {}
+  }, [isLight]);
+
   const hasPerm = (permId) => {
     if (user.isSuper) return true;
     return user.permissions && user.permissions.includes(permId);
@@ -188,7 +202,7 @@ const AdminDashboard = ({
 
   // Fully isolated — only loaded when their tab is open
   // archiveCollection also needed for debts + weights tabs
-  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts || activeTab === 'weights' });
+  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts || activeTab === 'weights' || activeTab === 'advanced' });
   // debts collection — needed for dashboard stats card + debts tab + students tab
   const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students' });
   const newsCollection         = useCollection('news',            { enabled: isDashboard || isNews });
@@ -282,6 +296,7 @@ const AdminDashboard = ({
     hasPerm('finance')       && { id: 'accounts',      icon: Wallet,    label: 'حسابات النادي' },
     hasPerm('news')          && { id: 'news',          icon: Megaphone, label: 'الأخبار والعروض' },
     hasPerm('reports')       && { id: 'reports',       icon: FileText,  label: 'التقارير الشاملة' },
+    hasPerm('reports')       && { id: 'advanced',      icon: BarChart3, label: 'إحصائيات متقدمة' },
     user.isSuper             && { id: 'captains',      icon: Shield,    label: 'الكباتن والصلاحيات' },
     user.isSuper             && { id: 'backup',        icon: Database,  label: 'باك اب داتابيس', action: handleBackup, special: true },
   ].filter(Boolean);
@@ -351,6 +366,35 @@ const AdminDashboard = ({
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Email Verification Banner */}
+            {user.email && user.emailVerified === false && (
+              <button
+                onClick={async () => {
+                  try {
+                    if (auth.currentUser) {
+                      await sendEmailVerification(auth.currentUser);
+                      alert(`تم إرسال رابط التفعيل إلى ${user.email}\nافتح بريدك واضغط على الرابط ثم سجّل خروج وعد للدخول.`);
+                    }
+                  } catch (err) {
+                    alert('خطأ في الإرسال: ' + err.message);
+                  }
+                }}
+                title="إيميلك غير مفعّل — اضغط لإرسال رابط التفعيل"
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-orange-900/20 hover:bg-orange-900/40 text-orange-400 border border-orange-500/30 rounded-lg text-xs font-bold transition-colors animate-pulse"
+              >
+                ⚠️ فعّل إيميلك
+              </button>
+            )}
+
+            {/* Quick Search Button (Ctrl+K) */}
+            <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+              className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-lg text-xs transition-colors"
+              title="بحث شامل (Ctrl+K)">
+              <Search size={15}/>
+              <span>بحث...</span>
+              <kbd className="px-1.5 py-0.5 bg-slate-950 border border-slate-700 rounded text-[10px] font-mono">Ctrl+K</kbd>
+            </button>
+
             {onSwitchBranch && (
               <div className="hidden md:block relative group">
                 <div className="p-2 rounded-lg bg-slate-800 border border-slate-700 group-hover:border-yellow-500/50 transition-colors">
@@ -366,6 +410,15 @@ const AdminDashboard = ({
                 </select>
               </div>
             )}
+
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setIsLight(v => !v)}
+              className="p-2 text-slate-400 hover:bg-slate-800 hover:text-yellow-400 rounded-lg transition-colors border border-transparent hover:border-slate-700"
+              title={isLight ? 'تفعيل الوضع الداكن' : 'تفعيل الوضع الفاتح'}
+            >
+              {isLight ? <Moon size={18}/> : <Sun size={18}/>}
+            </button>
 
             <button
               onClick={handleLogout}
@@ -597,8 +650,61 @@ const AdminDashboard = ({
               logActivity={handleLog}
             />
           )}
+          {activeTab === 'advanced' && hasPerm('reports') && (
+            <AdvancedStats
+              students={branchStudents}
+              archivedStudents={archiveCollection.data || []}
+              activityLogs={branchActivityLogs}
+              selectedBranch={selectedBranch}
+            />
+          )}
         </div>
       </main>
+
+      {/* ── Quick Search (Ctrl+K) — يعمل في أي مكان بالـ dashboard ── */}
+      <QuickSearch
+        students={branchStudents}
+        archivedStudents={archiveCollection.data || []}
+        payments={branchPayments}
+        debts={debtsCollection.data || []}
+        onNavigate={(tab) => setActiveTab(tab)}
+      />
+
+      {/* ── Mobile Bottom Nav — يظهر فقط على الموبايل ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+        <div className="grid grid-cols-5 h-16">
+          {[
+            { id: 'dashboard',  icon: Activity,    label: 'الرئيسية', perm: 'dashboard' },
+            { id: 'students',   icon: Users,       label: 'الطلاب',  perm: 'students'  },
+            { id: 'attendance', icon: CheckCircle, label: 'حضور',    perm: 'attendance', highlight: true },
+            { id: 'finance',    icon: DollarSign,  label: 'وصولات',  perm: 'finance'   },
+            { id: '_menu',      icon: Menu,        label: 'المزيد',  perm: null        },
+          ].filter(item => item.perm === null || hasPerm(item.perm)).map(item => {
+            const isActive = activeTab === item.id;
+            const isMenuBtn = item.id === '_menu';
+            return (
+              <button key={item.id}
+                onClick={() => {
+                  if (isMenuBtn) setMobileMenuOpen(true);
+                  else { setActiveTab(item.id); setMobileMenuOpen(false); }
+                }}
+                className={`flex flex-col items-center justify-center gap-0.5 transition-colors relative
+                  ${isActive
+                    ? (item.highlight ? 'text-yellow-400' : 'text-yellow-500')
+                    : 'text-slate-500 hover:text-slate-300'}`}>
+                {isActive && !isMenuBtn && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-yellow-500 rounded-full"></div>
+                )}
+                <item.icon size={20} className={item.highlight && isActive ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]' : ''}/>
+                <span className="text-[10px] font-bold">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* مسافة سفلية على الموبايل حتى لا يغطي الـ nav المحتوى */}
+      <div className="md:hidden h-16"></div>
     </div>
   );
 };

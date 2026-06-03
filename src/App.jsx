@@ -118,7 +118,12 @@ export default function App() {
           const userSnap  = await getDoc(userRef);
 
           if (userSnap.exists()) {
-            const userData = { ...userSnap.data(), email: userEmail, id: firebaseUser.uid };
+            const userData = {
+              ...userSnap.data(),
+              email: userEmail,
+              id: firebaseUser.uid,
+              emailVerified: firebaseUser.emailVerified,  // ← هل الإيميل مُفعّل
+            };
             setUser(userData);
             setDashboardBranch(userData.branch || BRANCHES.SHAFA);
             localStorage.setItem('braveUser', JSON.stringify(userData));

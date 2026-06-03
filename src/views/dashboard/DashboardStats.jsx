@@ -439,6 +439,32 @@ export const DashboardStats = ({
   const expiredStudentsCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'expired').length;
   const soonToExpireCount = nearEndStudentsList.filter(s => calculateStatus(s.subEnd) === 'near_end').length;
 
+  // ── طلاب منتهي اشتراكهم منذ أسبوع أو أكثر (تذكير التجديد) ─────────────────
+  const overdueWeekStudents = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0,0,0,0);
+    return branchStudents.filter(s => {
+      const end = safeDate(s.subEnd);
+      return end && end <= sevenDaysAgo;
+    }).sort((a,b) => toDateString(a.subEnd).localeCompare(toDateString(b.subEnd)));
+  }, [branchStudents]);
+
+  // فتح WhatsApp تذكير
+  const sendRenewalReminder = (s) => {
+    if (!s.phone) return alert('لا يوجد رقم هاتف لهذا الطالب');
+    let clean = s.phone.replace(/\D/g,'');
+    if (clean.startsWith('0')) clean = clean.substring(1);
+    const endStr = s.subEnd ? new Date(s.subEnd).toLocaleDateString('en-GB') : '';
+    const msg =
+      `مرحباً عائلة ${s.name} 👋\n\n` +
+      `نذكّركم بأن اشتراك البطل (${s.name}) في أكاديمية الشجاع للتايكواندو ` +
+      `قد انتهى${endStr ? ' بتاريخ ' + endStr : ''}.\n\n` +
+      `نتمنى رؤيته مجدداً قريباً! 🥋\n\n` +
+      `📞 شفابدران: 0795629606\n📞 أبو نصير: 0790368603`;
+    window.open(`https://wa.me/962${clean}?text=${encodeURIComponent(msg)}`,'_blank');
+  };
+
   const newStudents = useMemo(() => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -681,6 +707,52 @@ export const DashboardStats = ({
         </div>
 
       </div>
+
+      {/* ── تنبيه: طلاب منتهي اشتراكهم +7 أيام ── */}
+      {overdueWeekStudents.length > 0 && (
+        <div className="bg-gradient-to-r from-red-950/40 to-orange-950/30 border border-red-500/30 rounded-2xl p-5 shadow-lg mt-6">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-500/20 rounded-xl border border-red-500/30 animate-pulse">
+                <AlertCircle size={20} className="text-red-400"/>
+              </div>
+              <div>
+                <h3 className="font-black text-red-300 text-base">⏰ تذكير تجديد — تخطّوا أسبوعاً</h3>
+                <p className="text-xs text-slate-400">
+                  {overdueWeekStudents.length} طالب انتهى اشتراكهم منذ أسبوع أو أكثر — قد يستفيدوا من تذكير
+                </p>
+              </div>
+            </div>
+            <button onClick={() => {
+              if (!confirm(`سيُفتح WhatsApp لـ ${overdueWeekStudents.length} طالب الواحد بعد الآخر. متابعة؟`)) return;
+              overdueWeekStudents.forEach((s, i) => setTimeout(() => sendRenewalReminder(s), i * 1200));
+            }}
+              className="flex items-center gap-2 px-4 py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-xs font-bold shadow-lg shadow-green-900/30">
+              <MessageCircle size={14}/> تذكير الكل بالواتساب
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+            {overdueWeekStudents.slice(0, 12).map(s => {
+              const days = Math.floor((new Date() - new Date(s.subEnd)) / 86400000);
+              return (
+                <button key={s.id} onClick={() => sendRenewalReminder(s)}
+                  className="shrink-0 flex items-center gap-2 px-3 py-2 bg-slate-900 border border-red-500/20 hover:border-red-500/50 hover:bg-red-900/20 rounded-xl text-xs transition-colors">
+                  <div className="text-right">
+                    <p className="font-bold text-slate-200">{s.name}</p>
+                    <p className="text-[10px] text-red-400">منذ {days} يوم</p>
+                  </div>
+                  <MessageCircle size={14} className="text-[#25D366]"/>
+                </button>
+              );
+            })}
+            {overdueWeekStudents.length > 12 && (
+              <div className="shrink-0 flex items-center px-3 text-xs text-slate-500 font-bold">
+                + {overdueWeekStudents.length - 12} آخرين...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* --- Bottom Grid (Smart Lists) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
