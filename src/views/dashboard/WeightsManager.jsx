@@ -527,7 +527,7 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
                 <div style="text-align:left;font-size:11px;color:#555">
                     <p style="margin:0"><b>عدد القياسات:</b> ${records.length}</p>
                     ${target ? `<p style="margin:4px 0 0"><b>الوزن الهدف:</b> ${target} كغم</p>` : ''}
-                    <p style="margin:4px 0 0"><b>تاريخ الطباعة:</b> ${new Date().toLocaleDateString('ar-JO')}</p>
+                    <p style="margin:4px 0 0"><b>تاريخ الطباعة:</b> ${new Date().toLocaleDateString('en-GB')}</p>
                 </div>
             </div>
             <table>

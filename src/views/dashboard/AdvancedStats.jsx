@@ -76,7 +76,7 @@ export default function AdvancedStats({ students = [], archivedStudents = [], ac
             { name: 'أكثر من سنة', value: buckets['12+'],  color: '#10b981' },
         ];
 
-        const dropoutMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+        const dropoutMonths = ['يناير - 1','فبراير - 2','مارس - 3','أبريل - 4','مايو - 5','يونيو - 6','يوليو - 7','أغسطس - 8','سبتمبر - 9','أكتوبر - 10','نوفمبر - 11','ديسمبر - 12']
             .map((name, i) => ({ name, count: dropouts[i] || 0 }));
 
         const worstMonth = dropoutMonths.reduce((max, m) => m.count > max.count ? m : max, { count: 0 });
@@ -133,7 +133,7 @@ export default function AdvancedStats({ students = [], archivedStudents = [], ac
             const d = safeDate(s.joinDate);
             if (d) counts[d.getMonth()]++;
         });
-        return ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+        return ['يناير - 1','فبراير - 2','مارس - 3','أبريل - 4','مايو - 5','يونيو - 6','يوليو - 7','أغسطس - 8','سبتمبر - 9','أكتوبر - 10','نوفمبر - 11','ديسمبر - 12']
             .map((name, i) => ({ name, count: counts[i] }));
     }, [students, archivedStudents]);
 

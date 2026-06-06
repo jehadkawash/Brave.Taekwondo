@@ -455,7 +455,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
   const handlePrintStudents = () => {
     const printWin = window.open('', 'PRINT', 'height=800,width=1100');
     const logoUrl = window.location.origin + IMAGES.LOGO;
-    const dateNow = new Date().toLocaleDateString('ar-JO');
+    const dateNow = new Date().toLocaleDateString('en-GB');
 
     let rowsHtml = '';
     processedStudents.forEach((s, i) => {

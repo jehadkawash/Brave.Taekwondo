@@ -421,7 +421,7 @@ export default function InventoryManager({ selectedBranch, logActivity }) {
             <div class="hdr">
                 <div>
                     <h1 style="margin:0;font-size:18px;font-weight:900">كشف المخزون — فرع ${selectedBranch}</h1>
-                    <p style="margin:4px 0 0;font-size:11px;color:#555;font-weight:bold">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')}</p>
+                    <p style="margin:4px 0 0;font-size:11px;color:#555;font-weight:bold">تاريخ الطباعة: ${new Date().toLocaleDateString('en-GB')}</p>
                 </div>
                 <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
             </div>

@@ -48,7 +48,7 @@ const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
         text: `🔴 طلب استعادة كلمة مرور:\n- الطالب: ${forgotForm.studentName}\n- هاتف: ${forgotForm.phone}`,
         type: 'note',
         transactionType: 'expense',
-        date: currentDate.toLocaleDateString('ar-JO'),
+        date: currentDate.toLocaleDateString('en-GB'),
         monthKey: monthKey,
         createdAt: currentDate.toISOString(),
         isUrgent: true,

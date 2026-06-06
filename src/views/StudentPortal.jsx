@@ -27,8 +27,8 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthNames = [
-    "يناير","فبراير","مارس","أبريل","مايو","يونيو",
-    "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"
+    "يناير - 1","فبراير - 2","مارس - 3","أبريل - 4","مايو - 5","يونيو - 6",
+    "يوليو - 7","أغسطس - 8","سبتمبر - 9","أكتوبر - 10","نوفمبر - 11","ديسمبر - 12"
   ];
 
   const paymentsCollection = useCollection('payments');
@@ -251,7 +251,7 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
                                           {n.branch || 'عام'}
                                         </span>
                                         <span className="text-[10px] text-slate-500 font-mono">
-                                          {new Date(n.createdAt).toLocaleDateString('ar-EG')}
+                                          {new Date(n.createdAt).toLocaleDateString('en-GB')}
                                         </span>
                                     </div>
                                     <h3 className="font-bold text-lg text-slate-100 mb-2 line-clamp-2">{n.title}</h3>

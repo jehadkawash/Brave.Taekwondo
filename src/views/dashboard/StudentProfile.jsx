@@ -277,7 +277,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
         ${notesHtml}
 
         <div style="margin-top:30px;text-align:center;font-size:10px;color:#666;border-top:1px solid #eee;padding-top:10px">
-            تم استخراج هذا التقرير من نظام إدارة أكاديمية الشجاع — ${new Date().toLocaleDateString('ar-JO')}
+            تم استخراج هذا التقرير من نظام إدارة أكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
         </div>
         <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close()},600)}</script>
         </body></html>`);

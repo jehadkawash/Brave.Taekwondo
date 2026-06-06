@@ -77,7 +77,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
                     id:     Date.now().toString(),
                     text:   noteText.trim(),
                     type:   activeTab,
-                    date:   new Date().toLocaleDateString('ar-JO'),
+                    date:   new Date().toLocaleDateString('en-GB'),
                     branch: selectedBranch,
                 };
                 if (activeTab === 'private') {
@@ -171,7 +171,7 @@ export default function NotesManager({ students, studentsCollection, logActivity
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:15px">
             <div>
                 <h1 style="margin:0;font-size:20px;font-weight:900">التقرير الإداري — سجل الملاحظات</h1>
-                <p style="margin:4px 0 0;font-size:12px;color:#555;font-weight:bold">الفرع: ${selectedBranch} | ${new Date().toLocaleDateString('ar-JO')}</p>
+                <p style="margin:4px 0 0;font-size:12px;color:#555;font-weight:bold">الفرع: ${selectedBranch} | ${new Date().toLocaleDateString('en-GB')}</p>
             </div>
             <img src="${logo}" style="height:55px;object-fit:contain" onerror="this.style.display='none'"/>
         </div>

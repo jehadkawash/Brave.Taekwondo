@@ -11,8 +11,8 @@ import { IMAGES } from '../../lib/constants';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const monthNames = [
-    'يناير','فبراير','مارس','أبريل','مايو','يونيو',
-    'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'
+    'يناير - 1','فبراير - 2','مارس - 3','أبريل - 4','مايو - 5','يونيو - 6',
+    'يوليو - 7','أغسطس - 8','سبتمبر - 9','أكتوبر - 10','نوفمبر - 11','ديسمبر - 12'
 ];
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -443,7 +443,7 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
             </div>
 
             <div class="footer">
-                تم استخراج هذا الكشف من نظام إدارة أكاديمية الشجاع — ${new Date().toLocaleDateString('ar-JO')}
+                تم استخراج هذا الكشف من نظام إدارة أكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
             </div>
             <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close()},600)}</script>
         </body></html>`);

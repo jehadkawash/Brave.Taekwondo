@@ -711,7 +711,7 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
           </div>
 
           <div class="footer">
-            تم استخراج هذا الكشف من نظام إدارة أكاديمية الشجاع للتايكواندو — ${new Date().toLocaleDateString('ar-JO')}
+            تم استخراج هذا الكشف من نظام إدارة أكاديمية الشجاع للتايكواندو — ${new Date().toLocaleDateString('en-GB')}
           </div>
 
           <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close();},600)}</script>
@@ -769,7 +769,7 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
             <div>
               <h1 style="margin:0;font-size:18px;font-weight:900">كشف الذمم والأقساط الشامل — فرع ${selectedBranch}</h1>
               <p style="margin:4px 0 0;font-size:11px;color:#555;font-weight:bold">
-                تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')} | العدد: ${filtered.length}
+                تاريخ الطباعة: ${new Date().toLocaleDateString('en-GB')} | العدد: ${filtered.length}
               </p>
             </div>
             <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>

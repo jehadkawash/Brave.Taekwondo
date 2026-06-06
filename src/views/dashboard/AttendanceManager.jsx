@@ -100,7 +100,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+  const monthNames = ["يناير - 1", "فبراير - 2", "مارس - 3", "أبريل - 4", "مايو - 5", "يونيو - 6", "يوليو - 7", "أغسطس - 8", "سبتمبر - 9", "أكتوبر - 10", "نوفمبر - 11", "ديسمبر - 12"];
   const daysOfWeek = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
   const yearsRange = Array.from({length: 8}, (_, i) => 2023 + i);
 
@@ -267,7 +267,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
                 </table>
                 
                 <div style="margin-top:5px; font-size:9px; text-align:left; color:#555;">
-                    تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')} | تم الإنشاء بواسطة نظام إدارة الأكاديمية
+                    تاريخ الطباعة: ${new Date().toLocaleDateString('en-GB')} | تم الإنشاء بواسطة نظام إدارة الأكاديمية
                 </div>
             </div>
         </body>
