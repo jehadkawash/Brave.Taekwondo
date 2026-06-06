@@ -1,9 +1,10 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle, Receipt, Layers } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
+import MultiItemReceipt from './MultiItemReceipt';
 // Firestore imports removed — all writes go through paymentsCollection / financeReasonsCollection
 // FIX: removed jsPDF + html2canvas (caused freezing + white colors)
 // PDF is now generated via the same print HTML — perfect quality, no freezing
@@ -127,10 +128,11 @@ const ReportModal = ({ isOpen, onClose, onGenerate }) => {
 
 export default function FinanceManager({
     students, payments,
-    paymentsCollection,
+    paymentsCollection, studentsCollection,
     selectedBranch, logActivity,
     financeReasons = [], financeReasonsCollection
 }) {
+    const [showMultiReceipt, setShowMultiReceipt] = useState(false);
     // ملاحظة: expenses و expensesCollection لم تعد مستخدمة هنا — انتقلت لـ AccountsManager
   // viewMode removed — page is now only for Receipts. Expenses moved to AccountsManager.
   // FIX 2: أضفنا date للفورم — اليوم افتراضياً لكن يمكن تغييره للتاريخ الفعلي
@@ -458,10 +460,43 @@ export default function FinanceManager({
                 <span class="label">طريقة الدفع:</span>
                 <span class="value">${methodText}</span>
               </div>
-              <div class="row">
-                <span class="label">وذلك عن:</span>
-                <span class="value">${payment.reason || '-'}${extraDetails}</span>
-              </div>
+              ${(payment._multiItem && payment.items && payment.items.length > 1) ? `
+                <div class="row" style="align-items: flex-start;">
+                  <span class="label">وذلك عن:</span>
+                  <div class="value" style="border-bottom: none; padding: 0;">
+                    ${payment.items.map(it => `
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #888; padding: 2px 5px; font-size: 14px;">
+                        <span>• ${it.title}</span>
+                        <span style="font-weight: 900;">${it.amount} JD</span>
+                      </div>
+                    `).join('')}
+                    ${(payment.discount && Number(payment.discount) > 0) ? `
+                      <div style="display: flex; justify-content: space-between; padding: 4px 5px; font-size: 13px; color: #b45309;">
+                        <span>المجموع</span><span>${payment.subtotal} JD</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; padding: 2px 5px; font-size: 13px; color: #d97706;">
+                        <span>خصم</span><span>-${payment.discount} JD</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; padding: 4px 5px; font-size: 14px; font-weight: 900; border-top: 2px solid #b45309;">
+                        <span>الإجمالي</span><span>${payment.totalAmount} JD</span>
+                      </div>
+                    ` : ''}
+                    ${(payment.remainingDebt && Number(payment.remainingDebt) > 0) ? `
+                      <div style="display: flex; justify-content: space-between; padding: 2px 5px; font-size: 12px; color: #166534;">
+                        <span>المدفوع نقداً</span><span>${payment.paidAmount} JD</span>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; padding: 2px 5px; font-size: 12px; color: #991b1b; font-weight: bold;">
+                        <span>المتبقي (دين)</span><span>${payment.remainingDebt} JD</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              ` : `
+                <div class="row">
+                  <span class="label">وذلك عن:</span>
+                  <span class="value">${payment.reason || '-'}${extraDetails}</span>
+                </div>
+              `}
             </div>
             <div class="footer">
               <div class="signatures">
@@ -576,7 +611,33 @@ export default function FinanceManager({
               <div class="row"><span class="label">استلمنا من:</span><span class="value">${payment.name}</span></div>
               <div class="row"><span class="label">مبلغ وقدره:</span><span class="value">${payment.amount} دينار أردني</span></div>
               <div class="row"><span class="label">طريقة الدفع:</span><span class="value">${methodText}</span></div>
-              <div class="row"><span class="label">وذلك عن:</span><span class="value">${payment.reason || '-'}${extraDetails}</span></div>
+              ${(payment._multiItem && payment.items && payment.items.length > 1) ? `
+                <div class="row" style="align-items: flex-start;">
+                  <span class="label">وذلك عن:</span>
+                  <div class="value" style="border-bottom: none; padding: 0;">
+                    ${payment.items.map(it => `
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #888; padding: 2px 5px; font-size: 14px;">
+                        <span>• ${it.title}</span>
+                        <span style="font-weight: 900;">${it.amount} JD</span>
+                      </div>
+                    `).join('')}
+                    ${(payment.discount && Number(payment.discount) > 0) ? `
+                      <div style="display: flex; justify-content: space-between; padding: 2px 5px; font-size: 12px; color: #d97706;">
+                        <span>المجموع: ${payment.subtotal} JD — خصم: -${payment.discount} JD</span>
+                        <span style="font-weight: 900;">الإجمالي: ${payment.totalAmount} JD</span>
+                      </div>
+                    ` : ''}
+                    ${(payment.remainingDebt && Number(payment.remainingDebt) > 0) ? `
+                      <div style="display: flex; justify-content: space-between; padding: 2px 5px; font-size: 12px; color: #991b1b; font-weight: bold;">
+                        <span>المدفوع: ${payment.paidAmount} JD</span>
+                        <span>متبقي (دين): ${payment.remainingDebt} JD</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              ` : `
+                <div class="row"><span class="label">وذلك عن:</span><span class="value">${payment.reason || '-'}${extraDetails}</span></div>
+              `}
             </div>
             <div class="footer">
               <div class="signatures">
@@ -652,8 +713,20 @@ export default function FinanceManager({
 
   return (
     <div className="space-y-6 animate-fade-in pb-20 md:pb-0 font-sans">
-      
-      <ReasonsModal 
+
+      {/* ── الوصل المركّب الجديد ── */}
+      {showMultiReceipt && (
+        <MultiItemReceipt
+          students={students}
+          selectedBranch={selectedBranch}
+          paymentsCollection={paymentsCollection}
+          studentsCollection={studentsCollection}
+          logActivity={logActivity}
+          onClose={() => setShowMultiReceipt(false)}
+        />
+      )}
+
+      <ReasonsModal
         isOpen={showReasonsModal} 
         onClose={() => setShowReasonsModal(false)} 
         reasons={financeReasons}
@@ -670,7 +743,11 @@ export default function FinanceManager({
       {/* تم نقل قسم المصاريف إلى صفحة "حسابات النادي" — هنا فقط الوصولات (الإيرادات) */}
       <>
         <>
-           <div className="flex justify-end mb-4">
+           <div className="flex justify-end mb-4 gap-2 flex-wrap">
+              <Button onClick={() => setShowMultiReceipt(true)}
+                className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-600/20 shadow-lg flex items-center gap-2 border-none">
+                 <Layers size={18} /> وصل مركّب
+              </Button>
               <Button onClick={() => setShowReportModal(true)} className="bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20 shadow-lg flex items-center gap-2 border-none">
                  <PieChart size={18} /> التقارير المالية
               </Button>

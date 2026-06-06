@@ -4,7 +4,7 @@ import {
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive,
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin,
   Award, Calendar, ChevronDown, X, MessageSquare,
-  AlertTriangle, Scale, Wallet, Search, BarChart3, Sun, Moon
+  AlertTriangle, Scale, Wallet, Search, BarChart3, Sun, Moon, Package, Gift
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore";
 import { sendEmailVerification } from "firebase/auth";
@@ -31,6 +31,8 @@ import DebtManager from './dashboard/DebtManager';
 import WeightsManager from './dashboard/WeightsManager';
 import AccountsManager from './dashboard/AccountsManager';
 import AdvancedStats from './dashboard/AdvancedStats';
+import InventoryManager from './dashboard/InventoryManager';
+import PackagesManager from './dashboard/PackagesManager';
 import QuickSearch from '../components/QuickSearch';
 // ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker القديمة
 
@@ -285,6 +287,8 @@ const AdminDashboard = ({
     hasPerm('subscriptions') && { id: 'subscriptions', icon: Calendar,     label: 'اشتراكات' },
     hasPerm('tests')         && { id: 'tests',         icon: Award,        label: 'فحص' },
     hasPerm('finance')       && { id: 'finance',       icon: DollarSign,   label: 'وصولات' },
+    hasPerm('finance')       && { id: 'inventory',     icon: Package,      label: 'المخزون' },
+    hasPerm('finance')       && { id: 'packages',      icon: Gift,         label: 'الباقات الجاهزة' },
     hasPerm('finance')       && { id: 'debts',         icon: AlertTriangle,label: 'الذمم والأقساط' },
     hasPerm('students')      && { id: 'weights',       icon: Scale,        label: 'متابعة الأوزان' },
     hasPerm('archive')       && { id: 'archive',       icon: Archive,      label: 'الأرشيف' },
@@ -585,6 +589,7 @@ const AdminDashboard = ({
               students={branchStudents}
               payments={branchPayments}
               paymentsCollection={paymentsCollection}
+              studentsCollection={studentsCollection}
               financeReasons={branchFinanceReasons}
               financeReasonsCollection={financeReasonsCollection}
               selectedBranch={selectedBranch}
@@ -663,6 +668,18 @@ const AdminDashboard = ({
               archivedStudents={archiveCollection.data || []}
               activityLogs={branchActivityLogs}
               selectedBranch={selectedBranch}
+            />
+          )}
+          {activeTab === 'inventory' && hasPerm('finance') && (
+            <InventoryManager
+              selectedBranch={selectedBranch}
+              logActivity={handleLog}
+            />
+          )}
+          {activeTab === 'packages' && hasPerm('finance') && (
+            <PackagesManager
+              selectedBranch={selectedBranch}
+              logActivity={handleLog}
             />
           )}
         </div>
