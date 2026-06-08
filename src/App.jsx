@@ -143,7 +143,6 @@ export default function App() {
             setDashboardBranch(userData.branch || BRANCHES.SHAFA);
             localStorage.setItem('braveUser', JSON.stringify(userData));
             setView('admin_dashboard');
-            window.location.hash = 'admin_dashboard';
           } else {
             alert("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.");
             await signOut(auth);
