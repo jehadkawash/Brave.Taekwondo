@@ -425,17 +425,15 @@ const AdminDashboard = ({
             </button>
 
             {onSwitchBranch && (
-              <div className="hidden md:block relative group">
-                <div className="p-2 rounded-lg bg-slate-800 border border-slate-700 group-hover:border-yellow-500/50 transition-colors">
-                  <MapPin size={20} className="text-slate-400 group-hover:text-yellow-500 cursor-pointer" />
-                </div>
+              <div className="hidden md:flex items-center gap-2 bg-slate-800 border border-slate-700 hover:border-yellow-500/50 rounded-xl px-3 py-1.5 transition-colors cursor-pointer">
+                <MapPin size={15} className="text-yellow-500 shrink-0" />
                 <select
                   value={selectedBranch}
                   onChange={(e) => onSwitchBranch(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  className="bg-transparent text-slate-200 font-bold text-sm outline-none cursor-pointer"
                 >
-                  <option value="شفا بدران">شفا بدران</option>
-                  <option value="أبو نصير">أبو نصير</option>
+                  <option value="شفا بدران" className="bg-slate-900 text-slate-200">شفا بدران</option>
+                  <option value="أبو نصير" className="bg-slate-900 text-slate-200">أبو نصير</option>
                 </select>
               </div>
             )}
