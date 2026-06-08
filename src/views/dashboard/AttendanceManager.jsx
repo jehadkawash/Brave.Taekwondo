@@ -343,7 +343,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
             
             <div className="flex gap-2">
                 <Button 
-                    variant={isReordering ? "default" : "outline"}
+                    variant={isReordering ? "ghost" : "outline"}
                     onClick={() => setIsReordering(!isReordering)}
                     className={`gap-2 whitespace-nowrap ${isReordering ? "bg-yellow-500 text-slate-900 border-none" : "border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white"}`}
                 >

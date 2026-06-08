@@ -1,8 +1,8 @@
+/* Cairo font — must come before @import "tailwindcss" (CSS spec: @import before all rules) */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;700;900&display=swap');
+
 /* Tailwind v4 */
 @import "tailwindcss";
-
-/* Cairo font */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;700;900&display=swap');
 
 /* Global Dark Theme (default) */
 body {

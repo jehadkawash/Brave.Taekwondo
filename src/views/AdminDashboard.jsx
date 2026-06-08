@@ -152,11 +152,15 @@ const AdminDashboard = ({
   handleLogout,
   onSwitchBranch,
 }) => {
-  const [activeTab, setActiveTab] = useState(
-    user.isSuper || (user.permissions && user.permissions.includes('dashboard'))
+  const [activeTab, setActiveTab] = useState(() => {
+    // Read tab from hash on load (handles refresh correctly)
+    const hash = window.location.hash.slice(1);
+    const parts = hash.split('/');
+    if (parts[0] === 'admin_dashboard' && parts[1]) return parts[1];
+    return user.isSuper || (user.permissions && user.permissions.includes('dashboard'))
       ? 'dashboard'
-      : 'attendance'
-  );
+      : 'attendance';
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Theme toggle (light/dark)
@@ -168,6 +172,22 @@ const AdminDashboard = ({
     document.body.classList.toggle('light-theme', isLight);
     try { localStorage.setItem('braveTheme', isLight ? 'light' : 'dark'); } catch {}
   }, [isLight]);
+
+  // Keep URL hash in sync with active tab (enables refresh to same tab)
+  useEffect(() => {
+    window.location.hash = `admin_dashboard/${activeTab}`;
+  }, [activeTab]);
+
+  // Hashchange listener — browser Back/Forward navigates between tabs
+  useEffect(() => {
+    const handler = () => {
+      const hash = window.location.hash.slice(1);
+      const parts = hash.split('/');
+      if (parts[0] === 'admin_dashboard' && parts[1]) setActiveTab(parts[1]);
+    };
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
 
   const hasPerm = (permId) => {
     if (user.isSuper) return true;

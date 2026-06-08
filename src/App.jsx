@@ -25,8 +25,13 @@ export default function App() {
   });
 
   const [view, setView] = useState(() => {
+    // Read hash first — preserves correct page on browser refresh
+    const hash = window.location.hash.slice(1).split('/')[0];
+    const validViews = ['home', 'login', 'student_portal', 'admin_dashboard'];
+    if (hash && validViews.includes(hash)) return hash;
+    // Fall back to localStorage
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('braveUser')) {
+      if (localStorage.getItem('braveUser')) {
         const u = JSON.parse(localStorage.getItem('braveUser'));
         return u.role === 'student' ? 'student_portal' : 'admin_dashboard';
       }
@@ -47,18 +52,28 @@ export default function App() {
 
   const navigateTo = (newView) => {
     setView(newView);
-    window.history.pushState({ view: newView }, '', '');
+    window.location.hash = newView;
   };
 
+  // Back/Forward button support via hash changes
   useEffect(() => {
-    window.history.replaceState({ view }, '', '');
-    const handleBackButton = (event) => {
-      if (event.state && event.state.view) setView(event.state.view);
-      else setView('home');
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1).split('/')[0];
+      const validViews = ['home', 'login', 'student_portal', 'admin_dashboard'];
+      if (validViews.includes(hash)) setView(hash);
+      else if (!hash) setView('home');
     };
-    window.addEventListener('popstate', handleBackButton);
-    return () => window.removeEventListener('popstate', handleBackButton);
-  }, [view]);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Redirect to home if unauthenticated user lands on a protected view
+  useEffect(() => {
+    if (!loadingAuth && !user && (view === 'admin_dashboard' || view === 'student_portal')) {
+      setView('home');
+      window.location.hash = 'home';
+    }
+  }, [loadingAuth, user, view]);
 
   const handleLogin = async (username, password) => {
     // Clear previous errors
@@ -128,6 +143,7 @@ export default function App() {
             setDashboardBranch(userData.branch || BRANCHES.SHAFA);
             localStorage.setItem('braveUser', JSON.stringify(userData));
             setView('admin_dashboard');
+            window.location.hash = 'admin_dashboard';
           } else {
             alert("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.");
             await signOut(auth);

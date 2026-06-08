@@ -41,7 +41,8 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
   const setupNotifications = async () => {
     if (Capacitor.getPlatform() === 'web') return;
     try {
-      await PushNotifications.createChannel({
+      // createChannel is Android-only — skip on iOS to avoid errors
+      if (Capacitor.getPlatform() === 'android') await PushNotifications.createChannel({
         id: 'attendance_notifications',
         name: 'تنبيهات الحضور',
         description: 'إشعارات وصول الأبطال للأكاديمية',
