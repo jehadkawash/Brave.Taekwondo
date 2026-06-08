@@ -167,8 +167,10 @@ export default function App() {
   };
 
   if (loadingAuth && user) return (
-    <div className="flex h-screen items-center justify-center font-bold text-xl text-yellow-600 bg-gray-50">
-      جاري التأكد من الصلاحيات...
+    <div className="flex flex-col h-screen items-center justify-center bg-slate-950 gap-5">
+      <img src="/logo.jpg" alt="Brave Academy" className="w-20 h-20 rounded-2xl shadow-2xl shadow-black/50" />
+      <div className="w-9 h-9 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin" />
+      <p className="text-slate-400 font-bold text-sm tracking-wide">الرجاء الانتظار PLEASE WAIT ...</p>
     </div>
   );
 
