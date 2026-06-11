@@ -1,7 +1,7 @@
 // src/views/dashboard/FinanceManager.jsx
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle, Receipt, Layers } from 'lucide-react';
+import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle, Receipt, Layers, Pencil } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import MultiItemReceipt from './MultiItemReceipt';
@@ -126,6 +126,151 @@ const ReportModal = ({ isOpen, onClose, onGenerate }) => {
     );
 };
 
+// --- مكون تعديل الوصل ---
+const EditReceiptModal = ({ payment, financeReasons, onSave, onClose }) => {
+    const isMulti = !!payment._multiItem;
+    const [form, setForm] = useState({
+        name:         payment.name || '',
+        amount:       payment.amount || '',
+        reason:       payment.reason || '',
+        customReason: '',
+        details:      payment.details || '',
+        method:       payment.method || 'cash',
+        date:         toDateString(payment.date) || todayString(),
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const finalReason = form.reason === 'أخرى' ? form.customReason : form.reason;
+        const updates = {
+            method:  form.method,
+            date:    form.date,
+            details: form.details,
+        };
+        if (!isMulti) {
+            updates.name   = form.name;
+            updates.amount = Number(form.amount);
+            updates.reason = finalReason;
+        }
+        onSave(updates);
+    };
+
+    return createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-lg p-6 animate-fade-in">
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-slate-100">
+                        <Pencil size={20} className="text-yellow-400"/> تعديل الوصل
+                    </h3>
+                    <button onClick={onClose}><X size={20} className="text-slate-500 hover:text-red-500"/></button>
+                </div>
+
+                {isMulti && (
+                    <div className="mb-4 flex items-start gap-2 bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-3 text-xs text-yellow-300">
+                        <AlertCircle size={14} className="mt-0.5 shrink-0"/>
+                        <span>وصل مركّب — يمكن تعديل طريقة الدفع والتاريخ والتفاصيل فقط. لتعديل البنود، يرجى حذف الوصل وإعادة الإنشاء.</span>
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {!isMulti && (
+                        <>
+                            <div>
+                                <label className="text-xs font-bold text-slate-400 block mb-1">اسم المشترك</label>
+                                <input
+                                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500"
+                                    value={form.name}
+                                    onChange={e => setForm({...form, name: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-400 block mb-1">المبلغ (JD)</label>
+                                <input
+                                    type="number"
+                                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500"
+                                    value={form.amount}
+                                    onChange={e => setForm({...form, amount: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-400 block mb-1">السبب</label>
+                                <select
+                                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500 h-[42px]"
+                                    value={form.reason}
+                                    onChange={e => setForm({...form, reason: e.target.value})}
+                                >
+                                    <option value="" disabled>اختر السبب...</option>
+                                    {financeReasons.map((r, i) => (
+                                        <option key={i} value={r.title}>{r.title}</option>
+                                    ))}
+                                    <option value="أخرى">أخرى (كتابة يدوية)</option>
+                                </select>
+                                {form.reason === 'أخرى' && (
+                                    <input
+                                        className="w-full mt-2 bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500"
+                                        placeholder="وضح السبب..."
+                                        value={form.customReason}
+                                        onChange={e => setForm({...form, customReason: e.target.value})}
+                                        required
+                                    />
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 block mb-1">طريقة الدفع</label>
+                            <select
+                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500 h-[42px]"
+                                value={form.method}
+                                onChange={e => setForm({...form, method: e.target.value})}
+                            >
+                                <option value="cash">كاش (Cash)</option>
+                                <option value="cliq">كليك (CliQ)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 block mb-1">التاريخ</label>
+                            <input
+                                type="date"
+                                className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500"
+                                value={form.date}
+                                onChange={e => setForm({...form, date: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 block mb-1">تفاصيل إضافية</label>
+                        <input
+                            className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl outline-none focus:border-yellow-500"
+                            value={form.details}
+                            onChange={e => setForm({...form, details: e.target.value})}
+                            placeholder="مثال: عن شهر 12 + 1"
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={onClose}
+                            className="flex-1 border border-slate-700 text-slate-400 py-2.5 rounded-xl hover:bg-slate-800 transition-colors font-bold text-sm">
+                            إلغاء
+                        </button>
+                        <button type="submit"
+                            className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-slate-900 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-yellow-500/20">
+                            حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
 export default function FinanceManager({
     students, payments,
     paymentsCollection, studentsCollection,
@@ -142,8 +287,9 @@ export default function FinanceManager({
     date: todayString()   // ← قابل للتعديل
   });
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
-  const [showReasonsModal, setShowReasonsModal] = useState(false); 
+  const [showReasonsModal, setShowReasonsModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
 
   const branchPayments = payments.filter(p => p.branch === selectedBranch);
 
@@ -227,6 +373,12 @@ export default function FinanceManager({
     if (!confirmed) return;
     await paymentsCollection.remove(payment.id);
     logActivity("حذف وصل", `حذف وصل بمبلغ ${payment.amount} JD من ${payment.name}`);
+  };
+
+  const handleUpdatePayment = async (updates) => {
+    await paymentsCollection.update(editingPayment.id, updates);
+    logActivity("تعديل وصل", `تعديل وصل بمبلغ ${updates.amount ?? editingPayment.amount} JD من ${updates.name ?? editingPayment.name}`);
+    setEditingPayment(null);
   };
 
   // --- تقرير الطباعة ---
@@ -740,6 +892,15 @@ export default function FinanceManager({
         onGenerate={handlePrintReport}
       />
 
+      {editingPayment && (
+        <EditReceiptModal
+          payment={editingPayment}
+          financeReasons={financeReasons}
+          onSave={handleUpdatePayment}
+          onClose={() => setEditingPayment(null)}
+        />
+      )}
+
       {/* تم نقل قسم المصاريف إلى صفحة "حسابات النادي" — هنا فقط الوصولات (الإيرادات) */}
       <>
         <>
@@ -888,6 +1049,7 @@ export default function FinanceManager({
                             <th className="p-3">التاريخ</th>
                             <th className="p-3">المبلغ</th>
                             <th className="p-3">طباعة</th>
+                            <th className="p-3">تعديل</th>
                             <th className="p-3">حذف</th>
                         </tr>
                     </thead>
@@ -925,11 +1087,16 @@ export default function FinanceManager({
                                     </button>
                                   </div>
                                 </td>
+                                <td className="p-3">
+                                  <button onClick={() => setEditingPayment(p)} title="تعديل الوصل" className="p-2 bg-yellow-900/20 rounded-lg hover:bg-yellow-600 text-yellow-400 hover:text-white border border-yellow-500/20 transition-colors">
+                                    <Pencil size={15}/>
+                                  </button>
+                                </td>
                                 {/* يدوي فقط — الوصل لا يُحذف إلا من هنا */}
                                 <td className="p-3"><button onClick={()=>deletePayment(p)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
                             </tr>
                         ))}
-                         {filteredPayments.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-slate-600">لا يوجد سندات</td></tr>}
+                         {filteredPayments.length === 0 && <tr><td colSpan="9" className="p-8 text-center text-slate-600">لا يوجد سندات</td></tr>}
                     </tbody>
                 </table>
             </Card>
@@ -981,6 +1148,10 @@ export default function FinanceManager({
                           {/* WhatsApp */}
                           <button onClick={()=>sendReceiptWhatsApp(p)} title="WhatsApp" className="flex items-center gap-1 text-xs bg-green-900/20 text-[#25D366] px-3 py-2 rounded-lg font-bold border border-green-500/20 hover:bg-[#25D366] hover:text-white transition-colors">
                               <MessageCircle size={14}/> واتساب
+                          </button>
+                          {/* تعديل */}
+                          <button onClick={() => setEditingPayment(p)} title="تعديل الوصل" className="flex items-center gap-1 text-xs bg-yellow-900/20 text-yellow-400 px-3 py-2 rounded-lg font-bold border border-yellow-500/20 hover:bg-yellow-600 hover:text-white transition-colors">
+                              <Pencil size={14}/> تعديل
                           </button>
                           {/* يدوي فقط */}
                           <button onClick={()=>deletePayment(p)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30" title="حذف يدوي فقط">
