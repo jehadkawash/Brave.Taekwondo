@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useCollection } from '../../hooks/useCollection';
 import { IMAGES } from '../../lib/constants';
+import { toast } from '../../lib/toast';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const nowIso = () => new Date().toISOString();
@@ -90,7 +91,7 @@ const ProductModal = ({ editing, categories, defaultCategoryId, onClose, onSave 
     const addVariant = () => {
         const sz = newSize.trim();
         if (!sz) return;
-        if (variants.some(v => v.size === sz)) return alert('هذا المقاس موجود مسبقاً');
+        if (variants.some(v => v.size === sz)) return toast('هذا المقاس موجود مسبقاً', 'error');
         setVariants([...variants, { size: sz, stock: Number(newStock) || 0 }]);
         setNewSize(''); setNewStock('');
     };
@@ -99,9 +100,9 @@ const ProductModal = ({ editing, categories, defaultCategoryId, onClose, onSave 
 
     const submit = async (e) => {
         e.preventDefault();
-        if (!name.trim()) return alert('أدخل اسم المنتج');
-        if (!categoryId) return alert('اختر فئة');
-        if (!price || Number(price) <= 0) return alert('أدخل سعراً صحيحاً');
+        if (!name.trim()) return toast('أدخل اسم المنتج', 'error');
+        if (!categoryId) return toast('اختر فئة', 'error');
+        if (!price || Number(price) <= 0) return toast('أدخل سعراً صحيحاً', 'error');
         await onSave({
             name: name.trim(),
             categoryId,
@@ -227,7 +228,7 @@ const StockAdjustModal = ({ product, variantIndex, onClose, onSave }) => {
     const submit = async (e) => {
         e.preventDefault();
         const qty = Number(delta);
-        if (!qty || qty <= 0) return alert('أدخل كمية صحيحة');
+        if (!qty || qty <= 0) return toast('أدخل كمية صحيحة', 'error');
         const newStock = mode === 'in' ? v.stock + qty : Math.max(0, v.stock - qty);
         await onSave(newStock, { type: mode, quantity: qty, reason: reason.trim() || (mode === 'in' ? 'إضافة' : 'تعديل') });
         onClose();
@@ -340,7 +341,7 @@ export default function InventoryManager({ selectedBranch, logActivity }) {
 
     const deleteCategory = async (cat) => {
         const used = products.some(p => p.categoryId === cat.id);
-        if (used) return alert('لا يمكن حذف فئة فيها منتجات');
+        if (used) return toast('لا يمكن حذف فئة فيها منتجات', 'error');
         if (!confirm(`حذف الفئة "${cat.name}"؟`)) return;
         await categoriesCol.remove(cat.id);
     };

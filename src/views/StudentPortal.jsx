@@ -11,7 +11,8 @@ import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: removed duplicate hashPassword — now imported from shared utils
-import { hashPassword } from '../lib/utils';
+import { hashPassword, calculateStatus } from '../lib/utils';
+import { toast } from '../lib/toast';
 
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -124,18 +125,6 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }, [news, myStudents]);
 
-  const calculateStatus = (dateString) => {
-    if (!dateString) return 'expired';
-    const today = new Date();
-    const end = new Date(dateString);
-    today.setHours(0, 0, 0, 0); 
-    end.setHours(0, 0, 0, 0);
-    const diffTime = end - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 'expired';
-    if (diffDays <= 7) return 'near_end';
-    return 'active';
-  };
 
   const [showSettings, setShowSettings] = useState(false);
   const [creds, setCreds] = useState({ username: '', password: '' });
@@ -143,8 +132,8 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
 
   const handleUpdateCredentials = async (e) => {
     e.preventDefault();
-    if (!creds.username || !creds.password) return alert("الرجاء تعبئة جميع الحقول");
-    if (creds.password.length < 6) return alert("يجب أن تكون كلمة المرور 6 أحرف أو أكثر");
+    if (!creds.username || !creds.password) return toast("الرجاء تعبئة جميع الحقول", 'error');
+    if (creds.password.length < 6) return toast("يجب أن تكون كلمة المرور 6 أحرف أو أكثر", 'error');
 
     setIsUpdating(true);
     try {
@@ -164,11 +153,11 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
       };
       localStorage.setItem('braveUser', JSON.stringify(updatedUserLocal));
       
-      alert("تم تحديث وحماية بيانات الدخول بنجاح!");
+      toast("تم تحديث وحماية بيانات الدخول بنجاح!", 'success');
       setShowSettings(false);
     } catch (error) { 
         console.error(error); 
-        alert("حدث خطأ أثناء التحديث"); 
+        toast("حدث خطأ أثناء التحديث", 'error');
     } finally { 
         setIsUpdating(false); 
     }

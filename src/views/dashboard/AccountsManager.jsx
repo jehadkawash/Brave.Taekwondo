@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useCollection } from '../../hooks/useCollection';
 import { IMAGES } from '../../lib/constants';
+import { toast } from '../../lib/toast';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const monthNames = [
@@ -63,9 +64,9 @@ const EntryModal = ({ type, monthKey, onClose, onSave }) => {
 
     const submit = async (e) => {
         e.preventDefault();
-        if (!title.trim()) return alert('أدخل البيان');
+        if (!title.trim()) return toast('أدخل البيان', 'error');
         const amt = Number(amount);
-        if (!amt || amt <= 0) return alert('أدخل مبلغاً صحيحاً');
+        if (!amt || amt <= 0) return toast('أدخل مبلغاً صحيحاً', 'error');
         setSaving(true);
         try {
             await onSave({ title: title.trim(), amount: amt, date, note: note.trim(), method });

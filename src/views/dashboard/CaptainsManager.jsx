@@ -8,6 +8,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, appId, firebaseConfig } from '../../lib/firebase';
+import { toast } from '../../lib/toast';
 
 // قائمة جميع الصلاحيات المتاحة في النظام مقسمة لمجموعات
 const PERMISSIONS_LIST = [
@@ -78,7 +79,7 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                 }, { merge: true });
 
                 setEditingId(null); 
-                alert("تم تعديل بيانات وصلاحيات المستخدم بنجاح!");
+                toast("تم تعديل بيانات وصلاحيات المستخدم بنجاح!", 'success');
             } else { 
                 const secondaryAppName = "SecondaryApp_" + Date.now();
                 const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
@@ -105,16 +106,16 @@ export default function CaptainsManager({ captains, captainsCollection }) {
                 
                 await signOut(secondaryAuth);
                 
-                alert("تم إضافة المستخدم وحسابه بنجاح!");
+                toast("تم إضافة المستخدم وحسابه بنجاح!", 'success');
             }
             
             // تصفير النموذج
             setForm({ name: '', branch: BRANCHES.SHAFA, username: '', password: '', salary: '', permissions: [], isSuper: false });
         } catch (error) {
             console.error("Error saving user:", error);
-            if (error.code === 'auth/email-already-in-use') alert("اسم المستخدم أو الإيميل هذا مستخدم مسبقاً لشخص آخر!");
-            else if (error.code === 'auth/weak-password') alert("كلمة المرور ضعيفة جداً (يجب أن تكون 6 أحرف أو أرقام على الأقل).");
-            else alert("حدث خطأ أثناء حفظ البيانات: " + error.message);
+            if (error.code === 'auth/email-already-in-use') toast("اسم المستخدم أو الإيميل هذا مستخدم مسبقاً لشخص آخر!", 'error');
+            else if (error.code === 'auth/weak-password') toast("كلمة المرور ضعيفة جداً (يجب أن تكون 6 أحرف أو أرقام على الأقل).", 'error');
+            else toast("حدث خطأ أثناء حفظ البيانات: " + error.message, 'error');
         } finally {
             setIsSubmitting(false);
         }

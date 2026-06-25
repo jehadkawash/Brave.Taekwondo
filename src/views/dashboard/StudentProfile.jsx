@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { useCollection } from '../../hooks/useCollection';
 import { BELTS, IMAGES } from '../../lib/constants';
+import { toast } from '../../lib/toast';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const fmtDate = (v) => {
@@ -165,7 +166,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     };
 
     const promoteBelt = async () => {
-        if (!nextBelt) return alert('الطالب في أعلى حزام');
+        if (!nextBelt) return toast('الطالب في أعلى حزام', 'error');
         if (!confirm(`ترقية ${student.name} من ${student.belt} إلى ${nextBelt}؟`)) return;
         await studentsCollection.update(student.id, { belt: nextBelt });
         if (logActivity) logActivity('ترقية حزام', `${student.name}: ${student.belt} → ${nextBelt}`);

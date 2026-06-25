@@ -12,6 +12,9 @@ import LoginView from './views/LoginView';
 import StudentPortal from './views/StudentPortal';
 import AdminDashboard from './views/AdminDashboard';
 import { BRANCHES } from './lib/constants';
+import ToastContainer from './components/ToastContainer';
+import { toast } from './lib/toast';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const [user, setUser] = useState(() => {
@@ -144,7 +147,7 @@ export default function App() {
             localStorage.setItem('braveUser', JSON.stringify(userData));
             setView('admin_dashboard');
           } else {
-            alert("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.");
+            toast("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.", 'error');
             await signOut(auth);
           }
         } catch (err) {
@@ -166,7 +169,9 @@ export default function App() {
     navigateTo('home');
   };
 
-  if (loadingAuth && user) return (
+  // FIX: also show spinner when landing directly on a protected route with no
+  // cached session yet — avoids a blank screen flash before the redirect-home effect fires
+  if (loadingAuth && (user || view === 'admin_dashboard' || view === 'student_portal')) return (
     <div className="flex flex-col h-screen items-center justify-center bg-slate-950 gap-5">
       <img src="/logo.jpg" alt="Brave Academy" className="w-20 h-20 rounded-2xl shadow-2xl shadow-black/50" />
       <div className="w-9 h-9 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin" />
@@ -176,36 +181,39 @@ export default function App() {
 
   return (
     <>
-      {view === 'home' && (
-        <HomeView setView={navigateTo} schedule={scheduleCollection.data} />
-      )}
-      {view === 'login' && (
-        <LoginView
-          setView={navigateTo}
-          handleLogin={handleLogin}
-          loginError={loginError}        // FIX: now properly passed
-          setLoginError={setLoginError}  // so LoginView can clear it on change
-        />
-      )}
-      {view === 'student_portal' && user && (
-        <StudentPortal
-          user={user}
-          students={studentsCollection.data}
-          schedule={scheduleCollection.data}
-          news={newsCollection.data}
-          handleLogout={handleLogout}
-        />
-      )}
-      {view === 'admin_dashboard' && user && (
-        <AdminDashboard
-          user={user}
-          selectedBranch={dashboardBranch}
-          onSwitchBranch={user.isSuper ? setDashboardBranch : null}
-          studentsCollection={studentsCollection}
-          scheduleCollection={scheduleCollection}
-          handleLogout={handleLogout}
-        />
-      )}
+      <ToastContainer />
+      <ErrorBoundary>
+        {view === 'home' && (
+          <HomeView setView={navigateTo} schedule={scheduleCollection.data} />
+        )}
+        {view === 'login' && (
+          <LoginView
+            setView={navigateTo}
+            handleLogin={handleLogin}
+            loginError={loginError}        // FIX: now properly passed
+            setLoginError={setLoginError}  // so LoginView can clear it on change
+          />
+        )}
+        {view === 'student_portal' && user && (
+          <StudentPortal
+            user={user}
+            students={studentsCollection.data}
+            schedule={scheduleCollection.data}
+            news={newsCollection.data}
+            handleLogout={handleLogout}
+          />
+        )}
+        {view === 'admin_dashboard' && user && (
+          <AdminDashboard
+            user={user}
+            selectedBranch={dashboardBranch}
+            onSwitchBranch={user.isSuper ? setDashboardBranch : null}
+            studentsCollection={studentsCollection}
+            scheduleCollection={scheduleCollection}
+            handleLogout={handleLogout}
+          />
+        )}
+      </ErrorBoundary>
     </>
   );
 }

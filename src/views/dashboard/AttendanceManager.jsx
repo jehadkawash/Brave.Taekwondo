@@ -7,6 +7,7 @@ import {
 import { Button, Card } from '../../components/UIComponents';
 import { createPortal } from 'react-dom';
 import { IMAGES } from '../../lib/constants';
+import { toast } from '../../lib/toast';
 
 // --- Groups Management Modal ---
 const GroupsModal = ({ isOpen, onClose, groups, onAdd, onDelete }) => {
@@ -84,7 +85,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
   };
 
   const handleAddGroup = async (name) => {
-      if (groupsList.includes(name)) return alert("هذه الفترة موجودة مسبقاً");
+      if (groupsList.includes(name)) return toast("هذه الفترة موجودة مسبقاً", 'error');
       await groupsCollection.add({
           name: name,
           branch: selectedBranch || (students?.branch || 'عام')

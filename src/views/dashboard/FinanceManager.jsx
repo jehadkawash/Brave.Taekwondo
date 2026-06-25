@@ -5,6 +5,7 @@ import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, 
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import MultiItemReceipt from './MultiItemReceipt';
+import { toast } from '../../lib/toast';
 // Firestore imports removed — all writes go through paymentsCollection / financeReasonsCollection
 // FIX: removed jsPDF + html2canvas (caused freezing + white colors)
 // PDF is now generated via the same print HTML — perfect quality, no freezing
@@ -309,7 +310,7 @@ export default function FinanceManager({
       });
 
   const handleAddReason = async (title) => {
-      if (financeReasons.some(r => r.title === title)) return alert("هذا البند موجود مسبقاً");
+      if (financeReasons.some(r => r.title === title)) return toast("هذا البند موجود مسبقاً", 'error');
       await financeReasonsCollection.add({ title: title, branch: selectedBranch, createdAt: new Date().toISOString() });
   };
 
@@ -320,11 +321,11 @@ export default function FinanceManager({
 
   const handleAddPayment = async (e) => { 
     e.preventDefault(); 
-    if(!payForm.studentObjId) return alert('اختر طالباً'); 
-    const selectedStudent = students.find(s => s.id === payForm.studentObjId); 
-    if(!selectedStudent) return alert('طالب غير موجود'); 
-    
-    if (!payForm.reason && financeReasons.length > 0) return alert("الرجاء اختيار سبب الدفع");
+    if(!payForm.studentObjId) return toast('اختر طالباً', 'error');
+    const selectedStudent = students.find(s => s.id === payForm.studentObjId);
+    if(!selectedStudent) return toast('طالب غير موجود', 'error');
+
+    if (!payForm.reason && financeReasons.length > 0) return toast("الرجاء اختيار سبب الدفع", 'error');
 
     const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
     
@@ -822,7 +823,7 @@ export default function FinanceManager({
     `;
 
     const pdfWin = window.open('', fileName, 'height=700,width=1000');
-    if (!pdfWin) { alert('يرجى السماح للنوافذ المنبثقة في المتصفح'); return; }
+    if (!pdfWin) { toast('يرجى السماح للنوافذ المنبثقة في المتصفح', 'error'); return; }
     pdfWin.document.write(htmlContent);
     pdfWin.document.close();
   };

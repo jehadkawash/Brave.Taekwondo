@@ -11,6 +11,8 @@ import { BELTS, IMAGES } from '../../lib/constants';
 import { writeBatch, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, appId } from '../../lib/firebase';
 import StudentProfile from './StudentProfile';
+import { formatDate, calculateStatus } from '../../lib/utils';
+import { toast } from '../../lib/toast';
 
 // --- Helper Functions ---
 const generateCredentials = () => {
@@ -22,30 +24,6 @@ const generateCredentials = () => {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return { username, password };
-};
-
-const formatDate = (dateString) => {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  if (isNaN(d.getTime())) return dateString;
-  
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  
-  return `${day}/${month}/${year}`;
-};
-
-const calculateStatus = (dateString) => {
-    if (!dateString) return 'expired';
-    const today = new Date();
-    const end = new Date(dateString);
-    today.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
-    const diffTime = end - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 'expired';
-    if (diffDays <= 7) return 'near_end';
-    return 'active';
 };
 
 const isNewStudent = (joinDate) => {
@@ -97,8 +75,8 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
     };
 
     const handleSend = async () => {
-        if (!message.trim()) return alert("الرجاء كتابة الرسالة");
-        if (target === 'custom' && selectedStudentIds.length === 0) return alert("الرجاء اختيار طالب واحد على الأقل");
+        if (!message.trim()) return toast("الرجاء كتابة الرسالة", 'error');
+        if (target === 'custom' && selectedStudentIds.length === 0) return toast("الرجاء اختيار طالب واحد على الأقل", 'error');
 
         setLoading(true);
         await onSend(target, selectedGroup, message, selectedStudentIds);
@@ -724,7 +702,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       if (logActivity) logActivity("أرشفة", `أرشفة الطالب ${student.name}`);
     } catch (err) {
       console.error("Archive error:", err);
-      alert("حدث خطأ أثناء الأرشفة. الطالب لم يُحذف.");
+      toast("حدث خطأ أثناء الأرشفة. الطالب لم يُحذف.", 'error');
     }
   };
 
@@ -756,7 +734,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       else if (target === 'group') targets = students.filter(s => s.group === groupName);
       else if (target === 'custom') targets = students.filter(s => customIds.includes(s.id));
 
-      if (targets.length === 0) return alert("لا يوجد طلاب مستهدفين");
+      if (targets.length === 0) return toast("لا يوجد طلاب مستهدفين", 'error');
       if (!confirm(`سيتم إرسال الإعلان لـ ${targets.length} طالب. هل أنت متأكد؟`)) return;
 
       const newNote = {
@@ -779,11 +757,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
 
           if (count > 0) {
               await batch.commit();
-              alert("تم نشر الإعلان بنجاح!");
+              toast("تم نشر الإعلان بنجاح!", 'success');
           }
       } catch (e) {
           console.error("Broadcast Error:", e);
-          alert("حدث خطأ أثناء النشر الجماعي. تأكد من الصلاحيات.");
+          toast("حدث خطأ أثناء النشر الجماعي. تأكد من الصلاحيات.", 'error');
       }
   };
 
@@ -810,7 +788,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
             isPasswordHashed: false 
         });
         if(logActivity) logActivity("إعادة تعيين كلمة مرور", `تم توليد كلمة مرور جديدة للطالب ${student.name}`);
-        alert(`تم تعيين كلمة مرور جديدة للطالب: ${newPass}`);
+        toast(`تم تعيين كلمة مرور جديدة للطالب: ${newPass}`, 'success');
     }
   };
 
@@ -818,7 +796,7 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
     if (!student.phone) return;
 
     if (student.isPasswordHashed || (student.password && student.password.length > 30)) {
-        alert("لا يمكن إرسال كلمة المرور لأنها مشفرة وسرية. الطالب يعرف كلمة مروره، وإذا نسيها يمكنك استخدام زر (Reset) لتوليد واحدة جديدة.");
+        toast("لا يمكن إرسال كلمة المرور لأنها مشفرة وسرية. الطالب يعرف كلمة مروره، وإذا نسيها يمكنك استخدام زر (Reset) لتوليد واحدة جديدة.", 'info');
         return;
     }
 

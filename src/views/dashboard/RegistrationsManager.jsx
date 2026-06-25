@@ -3,27 +3,17 @@ import { createPortal } from 'react-dom'; // ✅ Import Portal to escape parent 
 import { Inbox, Trash2, Phone, MapPin, Calendar, Check, UserPlus, X } from 'lucide-react';
 import { Button, Card } from '../../components/UIComponents';
 import { BELTS } from '../../lib/constants';
+import { formatDate } from '../../lib/utils';
+import { toast } from '../../lib/toast';
 
 // --- دوال مساعدة ---
 const generateCredentials = () => {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const username = `student${randomNum}`;
-    let password = ""; 
+    let password = "";
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
     for (let i = 0; i < 8; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
     return { username, password };
-};
-
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString; 
-    
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    
-    return `${day}/${month}/${year}`;
 };
 
 // --- مكون النافذة المنبثقة (Portal Modal) ---
@@ -176,7 +166,7 @@ export default function RegistrationsManager({ registrations, students, registra
     await studentsCollection.add(newStudent); 
     await registrationsCollection.remove(confirmModalData.id); 
     logActivity("تسجيل طالب", `تم قبول الطالب ${finalData.name}`); 
-    alert(`تم إضافة الطالب بنجاح!\nUser: ${username}\nPass: ${password}`); 
+    toast(`تم إضافة الطالب بنجاح! User: ${username} / Pass: ${password}`, 'success');
     setConfirmModalData(null);
   };
 

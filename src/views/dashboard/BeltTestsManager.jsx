@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, ArrowUp, Calendar, CheckCircle, Award, Edit3, Printer } from 'lucide-react';
 import { Card, Button } from '../../components/UIComponents';
-import { BELTS, IMAGES } from '../../lib/constants'; 
+import { BELTS, IMAGES } from '../../lib/constants';
+import { toast } from '../../lib/toast';
 
 // دالة مساعدة لتلوين الأحزمة
 const getBeltColor = (beltName) => {
@@ -37,7 +38,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
     // 1. ترفيع الطالب للحزام التالي (الزر الذكي)
     const handlePromote = async (student) => {
         const currentIdx = BELTS.indexOf(student.belt);
-        if (currentIdx === -1 || currentIdx >= BELTS.length - 1) return alert("هذا الطالب في أعلى حزام مسجل أو الحزام غير معروف");
+        if (currentIdx === -1 || currentIdx >= BELTS.length - 1) return toast("هذا الطالب في أعلى حزام مسجل أو الحزام غير معروف", 'error');
         
         const nextBelt = BELTS[currentIdx + 1];
         if (confirm(`هل أنت متأكد من ترفيع ${student.name} إلى الحزام (${nextBelt})؟`)) {

@@ -6,6 +6,7 @@ import {
     CalendarClock, Receipt, DollarSign, ShoppingBag, Boxes
 } from 'lucide-react';
 import { useCollection } from '../../hooks/useCollection';
+import { toast } from '../../lib/toast';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const calcTotal = (items) =>
@@ -25,7 +26,7 @@ const PackageModal = ({ editing, products, onClose, onSave }) => {
         setItems([...items, { type: 'subscription', title: 'اشتراك', months: 1, price: 0 }]);
     };
     const addProduct = () => {
-        if (products.length === 0) return alert('لا يوجد منتجات في المخزون');
+        if (products.length === 0) return toast('لا يوجد منتجات في المخزون', 'error');
         const p = products[0];
         setItems([...items, {
             type: 'product',
@@ -43,8 +44,8 @@ const PackageModal = ({ editing, products, onClose, onSave }) => {
 
     const submit = async (e) => {
         e.preventDefault();
-        if (!name.trim()) return alert('أدخل اسم الباقة');
-        if (items.length === 0) return alert('أضف بنداً واحداً على الأقل');
+        if (!name.trim()) return toast('أدخل اسم الباقة', 'error');
+        if (items.length === 0) return toast('أضف بنداً واحداً على الأقل', 'error');
         setSaving(true);
         try {
             await onSave({ name: name.trim(), items });

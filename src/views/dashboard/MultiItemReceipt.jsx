@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useCollection } from '../../hooks/useCollection';
 import { StudentSearch } from '../../components/UIComponents';
+import { toast } from '../../lib/toast';
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -141,12 +142,12 @@ export default function MultiItemReceipt({ students, selectedBranch, paymentsCol
     // ── الحفظ ────────────────────────────────────────────────────────────────
     const handleSave = async (e) => {
         e.preventDefault();
-        if (!primaryStudent) return alert('اختر الطالب الرئيسي');
-        if (items.length === 0) return alert('أضف بنداً واحداً على الأقل');
+        if (!primaryStudent) return toast('اختر الطالب الرئيسي', 'error');
+        if (items.length === 0) return toast('أضف بنداً واحداً على الأقل', 'error');
 
         // تحقق من المنتجات اللي بدون مقاس
         const missingSize = items.some(it => it.type === 'product' && !it.variantSize);
-        if (missingSize) return alert('يرجى اختيار المقاس لكل منتج');
+        if (missingSize) return toast('يرجى اختيار المقاس لكل منتج', 'error');
 
         setSaving(true);
         try {
@@ -239,7 +240,7 @@ export default function MultiItemReceipt({ students, selectedBranch, paymentsCol
             onClose();
         } catch (err) {
             console.error(err);
-            alert('خطأ في الحفظ: ' + err.message);
+            toast('خطأ في الحفظ: ' + err.message, 'error');
         } finally {
             setSaving(false);
         }

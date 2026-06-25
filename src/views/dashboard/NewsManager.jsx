@@ -4,7 +4,8 @@ import { Trash2, Plus, Image as ImageIcon, Megaphone, Loader2, X } from 'lucide-
 import { Button, Card } from '../../components/UIComponents';
 import { addDoc, deleteDoc, doc, collection } from "firebase/firestore"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; 
-import { db, appId, storage } from '../../lib/firebase'; 
+import { db, appId, storage } from '../../lib/firebase';
+import { toast } from '../../lib/toast';
 
 const NewsManager = ({ news, newsCollection, selectedBranch }) => {
   const [showModal, setShowModal] = useState(false);
@@ -48,13 +49,13 @@ const NewsManager = ({ news, newsCollection, selectedBranch }) => {
             createdAt: new Date().toISOString()
         });
 
-        alert("تم نشر الخبر بنجاح!");
+        toast("تم نشر الخبر بنجاح!", 'success');
         setShowModal(false);
         setNewItem({ title: '', desc: '', image: '', branch: selectedBranch });
         setImageFile(null);
     } catch (error) {
         console.error("Error adding news:", error);
-        alert("حدث خطأ أثناء النشر، تأكد من الصلاحيات والاتصال.");
+        toast("حدث خطأ أثناء النشر، تأكد من الصلاحيات والاتصال.", 'error');
     }
     setLoading(false);
   };

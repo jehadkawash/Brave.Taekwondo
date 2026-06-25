@@ -11,7 +11,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { useCollection } from '../../hooks/useCollection'; 
+import { useCollection } from '../../hooks/useCollection';
+import { toast } from '../../lib/toast';
 
 // ✅ دالة مساعدة مركزية لتحويل أي قيمة تاريخ إلى String آمن
 const toDateString = (value) => {
@@ -453,7 +454,7 @@ export const DashboardStats = ({
 
   // فتح WhatsApp تذكير
   const sendRenewalReminder = (s) => {
-    if (!s.phone) return alert('لا يوجد رقم هاتف لهذا الطالب');
+    if (!s.phone) return toast('لا يوجد رقم هاتف لهذا الطالب', 'error');
     let clean = s.phone.replace(/\D/g,'');
     if (clean.startsWith('0')) clean = clean.substring(1);
     const endStr = s.subEnd ? new Date(s.subEnd).toLocaleDateString('en-GB') : '';

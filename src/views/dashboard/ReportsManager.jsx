@@ -3,9 +3,11 @@ import React, { useState, useMemo } from 'react';
 import {
     Printer, Calendar, DollarSign, Users,
     TrendingUp, TrendingDown, CheckCircle, XCircle,
-    AlertCircle, BarChart3, FileText, ChevronLeft, ChevronRight
+    AlertCircle, BarChart3, FileText, ChevronLeft, ChevronRight,
+    Download
 } from 'lucide-react';
 import { IMAGES } from '../../lib/constants';
+import * as XLSX from 'xlsx';
 
 // ─── مساعدات ────────────────────────────────────────────────────────────────
 const toDateStr = (v) => {
@@ -224,6 +226,42 @@ export default function ReportsManager({ students = [], payments = [], expenses 
         win.document.close();
     };
 
+    // ── تصدير الوصولات لملف Excel ─────────────────────────────────────────────
+    const exportFinanceExcel = () => {
+        const rows = income.map((p, i) => ({
+            '#': i + 1,
+            'الاسم': p.name || '-',
+            'البيان': p.reason || '-',
+            'التاريخ': fmt(p.date),
+            'الطريقة': p.method === 'cliq' ? 'كليك' : 'كاش',
+            'المبلغ (JD)': Number(p.amount || 0),
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'الوصولات');
+        XLSX.writeFile(wb, `التقرير_المالي_${selectedBranch}_${startDate}_${endDate}.xlsx`);
+    };
+
+    // ── تصدير تقرير الطلاب لملف Excel ─────────────────────────────────────────
+    const exportStudentsExcel = () => {
+        const rows = studentRows.map((s, i) => {
+            const st = calcStatus(s.subEnd);
+            return {
+                '#': i + 1,
+                'الطالب': s.name,
+                'الحزام': s.belt || '-',
+                'حالة الاشتراك': st === 'active' ? 'نشط' : st === 'near_end' ? 'قرب الانتهاء' : 'منتهي',
+                'الحضور': s.attInRange,
+                'مدفوع (JD)': s.totalPaid,
+                'آخر دفعة': fmt(s.lastPayDate),
+            };
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+        XLSX.writeFile(wb, `تقرير_الطلاب_${selectedBranch}_${startDate}_${endDate}.xlsx`);
+    };
+
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <div className="space-y-6 animate-fade-in font-sans pb-20 md:pb-0">
@@ -284,10 +322,16 @@ export default function ReportsManager({ students = [], payments = [], expenses 
                             <h3 className="font-bold text-slate-200 flex items-center gap-2">
                                 <TrendingUp size={18} className="text-emerald-500"/> الوصولات ({income.length})
                             </h3>
-                            <button onClick={printFinance}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-colors">
-                                <Printer size={14}/> طباعة التقرير
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={exportFinanceExcel}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-900/20 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors">
+                                    <Download size={14}/> تصدير Excel
+                                </button>
+                                <button onClick={printFinance}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-colors">
+                                    <Printer size={14}/> طباعة التقرير
+                                </button>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-right">
@@ -373,10 +417,16 @@ export default function ReportsManager({ students = [], payments = [], expenses 
                             <h3 className="font-bold text-slate-200 flex items-center gap-2">
                                 <Users size={18} className="text-blue-500"/> سجل الطلاب ({students.length})
                             </h3>
-                            <button onClick={printStudents}
-                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-colors">
-                                <Printer size={14}/> طباعة التقرير
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={exportStudentsExcel}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-900/20 hover:bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors">
+                                    <Download size={14}/> تصدير Excel
+                                </button>
+                                <button onClick={printStudents}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-colors">
+                                    <Printer size={14}/> طباعة التقرير
+                                </button>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-right">

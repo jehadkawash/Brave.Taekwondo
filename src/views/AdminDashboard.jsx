@@ -12,6 +12,8 @@ import { auth } from '../lib/firebase';
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { IMAGES } from '../lib/constants';
+import { calculateStatus } from '../lib/utils';
+import { toast } from '../lib/toast';
 
 // Import Managers
 import { DashboardStats } from './dashboard/DashboardStats';
@@ -37,18 +39,6 @@ import QuickSearch from '../components/QuickSearch';
 // ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker القديمة
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-
-const calculateStatus = (dateString) => {
-  if (!dateString) return 'expired';
-  const today = new Date();
-  const end   = new Date(dateString);
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diffDays = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0)  return 'expired';
-  if (diffDays <= 7) return 'near_end';
-  return 'active';
-};
 
 const logActivity = async (action, details, branch, user) => {
   try {
@@ -394,17 +384,17 @@ const AdminDashboard = ({
             {user.email && user.emailVerified === false && (
               <button
                 onClick={async () => {
-                  if (!auth.currentUser) { alert('سجّل الدخول مرة أخرى'); return; }
+                  if (!auth.currentUser) { toast('سجّل الدخول مرة أخرى', 'error'); return; }
                   try {
                     await sendEmailVerification(auth.currentUser);
-                    alert(`✅ تم إرسال رابط التفعيل إلى ${user.email}\n\nافتح بريدك واضغط على الرابط، ثم سجّل خروج وعد للدخول.`);
+                    toast(`✅ تم إرسال رابط التفعيل إلى ${user.email}. افتح بريدك واضغط على الرابط، ثم سجّل خروج وعد للدخول.`, 'success');
                   } catch (err) {
                     if (err.code === 'auth/too-many-requests') {
-                      alert('⏰ تم إرسال طلبات كثيرة. حاول بعد عدة دقائق.');
+                      toast('⏰ تم إرسال طلبات كثيرة. حاول بعد عدة دقائق.', 'error');
                     } else if (err.code === 'auth/invalid-recipient-email' || err.code === 'auth/internal-error') {
-                      alert('⚠️ التفعيل بالبريد غير مفعّل في Firebase.\n\nلتفعيله: Firebase Console → Authentication → Templates → Email address verification → Enable');
+                      toast('⚠️ التفعيل بالبريد غير مفعّل في Firebase. لتفعيله: Firebase Console → Authentication → Templates → Email address verification → Enable', 'error');
                     } else {
-                      alert('خطأ: ' + (err.message || err.code));
+                      toast('خطأ: ' + (err.message || err.code), 'error');
                     }
                   }
                 }}

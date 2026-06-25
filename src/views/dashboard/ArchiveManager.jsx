@@ -7,14 +7,7 @@ import {
 } from 'lucide-react';
 import { Card, Button } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
-
-// ─── مساعد: تنسيق التاريخ ────────────────────────────────────────────────────
-const formatDate = (val) => {
-    if (!val) return '-';
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return String(val);
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-};
+import { formatDate } from '../../lib/utils';
 
 // ─── مساعد: WhatsApp ──────────────────────────────────────────────────────────
 const openWhatsApp = (phone) => {

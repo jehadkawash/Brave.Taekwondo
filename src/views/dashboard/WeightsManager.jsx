@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { useCollection } from '../../hooks/useCollection';
 import { IMAGES } from '../../lib/constants';
+import { toast } from '../../lib/toast';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const nowIso = () => new Date().toISOString();
@@ -50,7 +51,7 @@ const WeightEntryModal = ({ student, editing, onClose, onSave }) => {
     const submit = async (e) => {
         e.preventDefault();
         const w = Number(weight);
-        if (!w || w <= 0 || w > 300) return alert('أدخل وزناً صحيحاً بين 1 و 300 كغم');
+        if (!w || w <= 0 || w > 300) return toast('أدخل وزناً صحيحاً بين 1 و 300 كغم', 'error');
         setSaving(true);
         try {
             await onSave({ weight: w, note: note.trim() });

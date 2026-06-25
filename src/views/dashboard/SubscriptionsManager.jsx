@@ -3,31 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, CheckCircle, AlertCircle, XCircle, Clock, Edit3, Printer, Calendar, Save, RefreshCw } from 'lucide-react';
 import { Card, StatusBadge, StudentSearch, Button } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
-
-// --- Helper: Date Formatter (dd/mm/yyyy) ---
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    
-    return `${day}/${month}/${year}`;
-};
-
-const calculateStatus = (dateString) => {
-    if (!dateString) return 'expired';
-    const today = new Date();
-    const end = new Date(dateString);
-    today.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
-    const diffTime = end - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 'expired';
-    if (diffDays <= 7) return 'near_end';
-    return 'active';
-};
+import { formatDate, calculateStatus } from '../../lib/utils';
 
 const getStatusLabel = (status) => {
     switch (status) {

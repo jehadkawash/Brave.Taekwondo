@@ -10,15 +10,10 @@ import {
 import { StudentSearch, Button } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import { useCollection } from '../../hooks/useCollection';
+import { formatDate } from '../../lib/utils';
+import { toast } from '../../lib/toast';
 
 // ─── مساعدات ────────────────────────────────────────────────────────────────
-
-const formatDate = (val) => {
-    if (!val) return '-';
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return String(val);
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-};
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -97,9 +92,9 @@ const AddDebtModal = ({ onClose, students, archivedStudents, onSave }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.studentId) return alert('اختر طالباً');
-        if (!form.reason.trim()) return alert('أدخل سبب الدين');
-        if (!Number(form.totalAmount) || Number(form.totalAmount) <= 0) return alert('أدخل مبلغاً صحيحاً');
+        if (!form.studentId) return toast('اختر طالباً', 'error');
+        if (!form.reason.trim()) return toast('أدخل سبب الدين', 'error');
+        if (!Number(form.totalAmount) || Number(form.totalAmount) <= 0) return toast('أدخل مبلغاً صحيحاً', 'error');
         setSaving(true);
         try {
             await onSave({
@@ -118,7 +113,7 @@ const AddDebtModal = ({ onClose, students, archivedStudents, onSave }) => {
             onClose();
         } catch (err) {
             console.error(err);
-            alert('حدث خطأ أثناء الحفظ');
+            toast('حدث خطأ أثناء الحفظ', 'error');
         } finally {
             setSaving(false);
         }
@@ -235,8 +230,8 @@ const PaymentModal = ({ debt, onClose, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const amt = Number(amount);
-        if (!amt || amt <= 0)  return alert('أدخل مبلغاً صحيحاً');
-        if (amt > remaining)   return alert(`المبلغ المدخل (${amt} JD) أكبر من المتبقي (${remaining} JD)`);
+        if (!amt || amt <= 0)  return toast('أدخل مبلغاً صحيحاً', 'error');
+        if (amt > remaining)   return toast(`المبلغ المدخل (${amt} JD) أكبر من المتبقي (${remaining} JD)`, 'error');
         setSaving(true);
         try {
             const newPaidAmount = Number(debt.paidAmount || 0) + amt;

@@ -5,6 +5,7 @@ import { IMAGES } from '../lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, addDoc } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
+import { toast } from '../lib/toast';
 
 // FIX: loginError and setLoginError are now received from App.jsx
 const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
@@ -54,12 +55,12 @@ const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
         isUrgent: true,
       });
 
-      alert("تم إرسال الطلب للإدارة! سيتم التواصل معك وتزويدك بالبيانات.");
+      toast("تم إرسال الطلب للإدارة! سيتم التواصل معك وتزويدك بالبيانات.", 'success');
       setShowForgotModal(false);
       setForgotForm({ studentName: '', phone: '' });
     } catch (error) {
       console.error("Error sending request:", error);
-      alert("حدث خطأ، حاول مرة أخرى.");
+      toast("حدث خطأ، حاول مرة أخرى.", 'error');
     } finally {
       setIsSubmittingForgot(false);
     }
