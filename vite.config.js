@@ -40,7 +40,18 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+            const pkg = id.toString().split('node_modules/')[1].split('/')[0];
+            // Keep React + the React Three Fiber ecosystem in one chunk.
+            // Splitting these into separate chunks breaks load order — its-fine
+            // reads React.useLayoutEffect at module-eval time and crashes if its
+            // chunk loads before react's chunk has finished initializing.
+            const reactCore = [
+              'react', 'react-dom', 'scheduler', 'react-reconciler',
+              'use-sync-external-store', 'react-is', 'its-fine',
+              '@react-three', 'three', 'react-use-measure',
+            ];
+            if (reactCore.includes(pkg)) return 'react-vendor';
+            return pkg;
           }
         },
       },
