@@ -1,5 +1,5 @@
 // all working completly and good 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X, MapPin, Phone, Clock, Calendar, Activity, Trophy, Shield, Users, MessageCircle, Megaphone, ChevronRight, ChevronLeft, Navigation, Play, Star, CheckCircle, ArrowDown } from 'lucide-react';
 import { Button, Card } from '../components/UIComponents';
 import { IMAGES, BRANCHES, INITIAL_SCHEDULE } from '../lib/constants';
@@ -9,9 +9,6 @@ import { db, appId } from '../lib/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDate } from '../lib/utils';
 import { toast } from '../lib/toast';
-
-// Lazy-loaded so the 3D engine never blocks the page's initial paint
-const Hero3D = lazy(() => import('../components/Hero3D'));
 
 const HomeView = ({ setView, schedule }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -166,13 +163,6 @@ const HomeView = ({ setView, schedule }) => {
             alt="Hero"
             className="w-full h-full object-cover"
           />
-        </div>
-
-        {/* Ambient 3D scene — desktop only, lazy-loaded, purely decorative (no interaction) */}
-        <div className="absolute inset-y-0 left-0 w-full md:w-1/2 z-[15] hidden md:block">
-          <Suspense fallback={null}>
-            <Hero3D className="w-full h-full" />
-          </Suspense>
         </div>
 
         <div className="container mx-auto px-4 md:px-6 relative z-20 pt-20 md:pt-0">
