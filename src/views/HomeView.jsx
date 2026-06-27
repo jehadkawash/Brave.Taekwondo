@@ -161,7 +161,7 @@ const HomeView = ({ setView, schedule }) => {
             transition={{ duration: 20, ease: "linear" }}
             src={IMAGES.HERO_BG}
             alt="Hero"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-left"
           />
         </div>
 
