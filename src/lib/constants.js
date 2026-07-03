@@ -2,8 +2,10 @@
 
 export const IMAGES = {
   LOGO: "/logo.jpg",
-  // FIX: was "/hero.jpg" (lowercase) — actual file is Hero.jpg (capital H)
-  // On Linux / Firebase Hosting paths are case-sensitive.
+  // Must match the filename git actually tracks exactly — "Hero.jpg" (capital H).
+  // Windows' filesystem AND git's core.ignorecase had silently let a stale
+  // lowercase "hero.jpg" stay tracked while the real file was "Hero.jpg" —
+  // forced a real rename (see git history) so disk + git + this path all agree.
   HERO_BG: "/Hero.jpg",
   BRANCH_SHAFA: "/shafa.jpg",
   BRANCH_ABU_NSEIR: "/abunseir.jpg",
