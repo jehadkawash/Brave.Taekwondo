@@ -369,7 +369,11 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
                   };
               }
               
-              const nameParts = s.name.trim().split(/\s+/);
+              // FIX: Add type check — s.name might be undefined, null, or not a string
+              const nameStr = (s.name && typeof s.name === 'string' ? s.name.trim() : '');
+              if (!nameStr) return; // Skip if name is invalid
+              
+              const nameParts = nameStr.split(/\s+/);
               const firstName = nameParts[0];
               const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
@@ -386,17 +390,20 @@ const StudentsManager = ({ students, studentsCollection, archiveCollection, sele
       return Object.entries(familiesMap).map(([id, data]) => {
           let finalName = data.name || 'عائلة';
           
-          const isGenericName = !finalName || finalName.trim() === 'عائلة' || finalName.trim().toLowerCase() === 'family';
+          // FIX: Ensure finalName is a string before calling trim()
+const finalNameStr = (finalName && typeof finalName === 'string' ? finalName.trim() : 'عائلة');
+const isGenericName = !finalNameStr || finalNameStr === 'عائلة' || finalNameStr.toLowerCase() === 'family';
           
-          if (isGenericName) {
-              const entries = Object.entries(data.lastNames);
-              if (entries.length > 0) {
-                  const bestLastName = entries.sort((a,b) => b[1] - a[1])[0][0];
-                  finalName = `عائلة ${bestLastName}`;
-              }
-          }
+         let displayName = finalNameStr;
+if (isGenericName) {
+    const entries = Object.entries(data.lastNames);
+    if (entries.length > 0) {
+        const bestLastName = entries.sort((a,b) => b[1] - a[1])[0][0];
+        displayName = `عائلة ${bestLastName}`;
+    }
+}
 
-          return { id, displayName: `${finalName} (يشمل: ${data.members.join('، ')}...)` };
+return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}...)` };
       });
   }, [students]);
 
