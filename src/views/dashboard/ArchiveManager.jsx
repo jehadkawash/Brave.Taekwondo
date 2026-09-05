@@ -31,14 +31,16 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
     const [restoreCandidate, setRestoreCandidate] = useState(null);
     const [restoreForm, setRestoreForm] = useState({ subStart: '', subEnd: '', group: '' });
 
+    const ammanDate = (date = new Date()) => date.toLocaleDateString('en-CA', { timeZone: 'Asia/Amman' });
+
     const openRestoreModal = (student) => {
         const today = new Date();
         const end = new Date(today);
         end.setMonth(end.getMonth() + 1);
         setRestoreCandidate(student);
         setRestoreForm({
-            subStart: today.toISOString().split('T')[0],
-            subEnd: end.toISOString().split('T')[0],
+            subStart: ammanDate(today),
+            subEnd: ammanDate(end),
             group: '',
         });
     };
@@ -181,6 +183,12 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
             window.alert('تاريخ نهاية الاشتراك يجب أن يكون بعد تاريخ البداية.');
             return false;
         }
+        const studentId = archivedStudent.originalId || archivedStudent.id;
+        const alreadyActive = studentsCollection.data.some(student => (student._docId || student.id) === studentId);
+        if (alreadyActive) {
+            window.alert('يوجد سجل نشط لهذا الطالب بالفعل. استخدم أداة تنظيف التكرار حتى لا يتم استبدال بياناته.');
+            return false;
+        }
         setRestoringId(archivedStudent.id);
 
         try {
@@ -204,7 +212,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
                 group: restoreForm.group,
                 membershipHistory: [...previousHistory, {
                     archivedAt: archivedAt || null,
-                    restoredAt: new Date().toISOString().split('T')[0],
+                    restoredAt: ammanDate(),
                     sourceArchiveId: archivedStudent._docId || archivedStudent.id,
                     previousStudentId: studentId,
                     subStart: restoreForm.subStart,
