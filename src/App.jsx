@@ -1,10 +1,10 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword, signInWithCustomToken } from "firebase/auth";
 import { getDoc, doc, collection, query, where, getDocs } from "firebase/firestore";
-import { auth, db, appId } from './lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { auth, db, appId, functions } from './lib/firebase';
 import { useCollection } from './hooks/useCollection';
-import { hashPassword } from './lib/utils';
 
 // Import Views
 import HomeView from './views/HomeView';
@@ -48,8 +48,14 @@ export default function App() {
   const [loadingAuth, setLoadingAuth]         = useState(true);
   // FIX: loginError state so the UI shows it inside the card (not just alert)
   const [loginError, setLoginError]           = useState('');
+  const [authUid, setAuthUid]                 = useState(null);
 
-  const studentsCollection = useCollection('students');
+  const isFamily = user?.role === 'student';
+  const studentsCollection = useCollection('students', {
+    enabled: Boolean(authUid),
+    where: isFamily ? [['familyUid', '==', authUid]] :
+      (user && !user.isSuper ? [['branch', '==', dashboardBranch]] : []),
+  });
   const scheduleCollection = useCollection('schedule');
   const newsCollection     = useCollection('news');
 
@@ -82,32 +88,19 @@ export default function App() {
     // Clear previous errors
     setLoginError('');
     try {
-      // 1. Student login via Firestore query
-      const hashedPassword = await hashPassword(password);
-      const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
-
-      const qStudent = query(
-        studentsRef,
-        where("username", "==", username),
-        // Check both plain and hashed — supports legacy plain-text passwords
-        where("password", "in", [password, hashedPassword])
-      );
-
-      const studentSnap = await getDocs(qStudent);
-
-      if (!studentSnap.empty) {
-        const studentDoc  = studentSnap.docs[0];
-        const studentData = studentDoc.data();
-        const userData = {
-          role:     'student',
-          familyId: studentData.familyId,
-          name:     studentData.familyName || studentData.name,
-          id:       studentDoc.id,
-        };
-        setUser(userData);
-        localStorage.setItem('braveUser', JSON.stringify(userData));
-        navigateTo('student_portal');
+      // 1. Family login is verified server-side; the students collection is no
+      // longer queried publicly from the browser.
+      try {
+        const familyLogin = httpsCallable(functions, 'familyLogin');
+        const result = await familyLogin({ username: username.trim().toLowerCase(), password });
+        if (result.data?.email) await signInWithEmailAndPassword(auth, result.data.email, password);
+        else if (result.data?.customToken) await signInWithCustomToken(auth, result.data.customToken);
+        else throw new Error('Missing family authentication result');
         return;
+      } catch (familyError) {
+        if (!['functions/unauthenticated', 'functions/invalid-argument'].includes(familyError.code)) {
+          console.warn('Family login unavailable, trying staff login:', familyError.code);
+        }
       }
 
       // 2. Admin / Captain login via Firebase Auth
@@ -131,6 +124,25 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          setAuthUid(firebaseUser.uid);
+          const token = await firebaseUser.getIdTokenResult(true);
+          if (token.claims.role === 'family') {
+            const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
+            const familySnap = await getDocs(query(studentsRef, where('familyUid', '==', firebaseUser.uid)));
+            if (familySnap.empty) throw new Error('Family has no linked students');
+            const first = familySnap.docs[0];
+            const studentData = first.data();
+            const familyUser = {
+              role: 'student', familyId: studentData.familyId,
+              name: studentData.familyName || studentData.name,
+              id: first.id, familyUid: firebaseUser.uid,
+            };
+            setUser(familyUser);
+            localStorage.setItem('braveUser', JSON.stringify(familyUser));
+            setView('student_portal');
+            setLoadingAuth(false);
+            return;
+          }
           const userEmail = firebaseUser.email.toLowerCase().trim();
           const userRef   = doc(db, 'artifacts', appId, 'public', 'data', 'users', userEmail);
           const userSnap  = await getDoc(userRef);
@@ -154,7 +166,11 @@ export default function App() {
           console.error("Error fetching user profile:", err);
         }
       } else {
-        if (!localStorage.getItem('braveUser')) setUser(null);
+        setAuthUid(null);
+        // Local storage is only a UI cache; Firebase Auth is now required for
+        // both staff and families. Old legacy-only sessions are signed out once.
+        localStorage.removeItem('braveUser');
+        setUser(null);
       }
       setLoadingAuth(false);
     });

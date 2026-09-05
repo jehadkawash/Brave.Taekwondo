@@ -47,6 +47,15 @@ service cloud.firestore {
       return branch in ['شفا بدران', 'أبو نصير', 'الكل', 'مشترك', 'الفرع الرئيسي'];
     }
 
+    function isFamily() {
+      return request.auth != null && request.auth.token.role == 'family';
+    }
+
+    function ownsStudent(appId, studentId) {
+      return isFamily() &&
+        get(/databases/$(database)/documents/artifacts/$(appId)/public/data/students/$(studentId)).data.familyUid == request.auth.uid;
+    }
+
     function canCreateInBranch(appId) {
       return request.resource.data.branch is string &&
         validBranch(request.resource.data.branch) &&
@@ -104,10 +113,10 @@ service cloud.firestore {
       allow read, update, delete: if hasPermission(appId, 'password_resets');
     }
 
-    // Transitional push registration for the legacy student login. Tokens are
-    // write-only from the client and are consumed only by the Admin SDK function.
+    // A signed-in family may register multiple devices for its own students.
     match /artifacts/{appId}/public/data/device_tokens/{tokenId} {
       allow create, update: if
+        ownsStudent(appId, request.resource.data.studentId) &&
         request.resource.data.keys().hasOnly(['studentId', 'token', 'platform', 'updatedAt']) &&
         request.resource.data.studentId is string &&
         request.resource.data.studentId.size() >= 1 && request.resource.data.studentId.size() <= 128 &&
@@ -118,10 +127,15 @@ service cloud.firestore {
       allow read, delete: if false;
     }
 
-    // Transitional exception: the legacy family login still queries this collection.
-    // Remove public read immediately after family accounts move to Firebase Auth.
     match /artifacts/{appId}/public/data/students/{docId} {
-      allow read: if true;
+      allow read: if
+        (isFamily() && resource.data.familyUid == request.auth.uid) ||
+        isSuperAdmin(appId) ||
+        (userExists(appId) && canUseBranch(appId, resource.data.branch) &&
+          userData(appId).get('permissions', []).hasAny([
+            'students', 'attendance', 'subscriptions', 'finance', 'tests',
+            'student_notes', 'dashboard', 'reports', 'archive'
+          ]));
       allow create: if hasPermission(appId, 'students') && canCreateInBranch(appId);
       allow delete: if hasPermission(appId, 'students') && canDeleteInBranch(appId);
       allow update: if signedIn() && canChangeInBranch(appId) && (
@@ -200,7 +214,9 @@ service cloud.firestore {
     }
 
     match /artifacts/{appId}/public/data/payments/{docId} {
-      allow read: if hasPermission(appId, 'finance') || hasPermission(appId, 'dashboard') || hasPermission(appId, 'reports');
+      allow read: if hasPermission(appId, 'finance') || hasPermission(appId, 'dashboard') ||
+        hasPermission(appId, 'reports') ||
+        (resource.data.studentId is string && ownsStudent(appId, resource.data.studentId));
       allow create: if hasPermission(appId, 'finance') && canCreateInBranch(appId);
       allow update: if hasPermission(appId, 'finance') && canChangeInBranch(appId);
       allow delete: if hasPermission(appId, 'finance') && canDeleteInBranch(appId);

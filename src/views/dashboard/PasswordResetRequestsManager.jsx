@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Copy, KeyRound, MessageCircle, Phone, ShieldAlert, Trash2, User } from 'lucide-react';
-import { hashPassword } from '../../lib/utils';
 import { toast } from '../../lib/toast';
-import { doc, writeBatch } from 'firebase/firestore';
-import { appId, db } from '../../lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../lib/firebase';
 
 const digits = (value = '') => String(value).replace(/\D/g, '');
 const normalizePhone = (value = '') => {
@@ -61,23 +60,8 @@ export default function PasswordResetRequestsManager({
     setWorkingId(request.id);
     try {
       const temporaryPassword = createTemporaryPassword();
-      const hashed = await hashPassword(temporaryPassword);
-      const batch = writeBatch(db);
-      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
-      const requestRef = doc(db, 'artifacts', appId, 'public', 'data', 'password_reset_requests', request.id);
-
-      batch.update(studentRef, {
-        password: hashed,
-        isPasswordHashed: true,
-        passwordResetAt: new Date().toISOString(),
-      });
-      batch.update(requestRef, {
-        status: 'completed',
-        matchedStudentId: student.id,
-        handledAt: new Date().toISOString(),
-        handledBy: user?.email || user?.name || 'admin',
-      });
-      await batch.commit();
+      const adminReset = httpsCallable(functions, 'adminResetFamilyPassword');
+      await adminReset({ studentId: student.id, requestId: request.id, password: temporaryPassword });
 
       setGenerated({ student, password: temporaryPassword });
       logActivity?.('إعادة تعيين كلمة مرور', `تم إصدار كلمة مؤقتة للطالب ${student.name}`);

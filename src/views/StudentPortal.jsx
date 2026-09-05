@@ -7,11 +7,12 @@ import {
 import { Button, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
 import { setDoc, doc, serverTimestamp } from "firebase/firestore";
-import { db, appId } from '../lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, appId, functions } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: removed duplicate hashPassword — now imported from shared utils
-import { hashPassword, calculateStatus } from '../lib/utils';
+import { calculateStatus } from '../lib/utils';
 import { toast } from '../lib/toast';
 
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -32,7 +33,11 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
     "يوليو - 7","أغسطس - 8","سبتمبر - 9","أكتوبر - 10","نوفمبر - 11","ديسمبر - 12"
   ];
 
-  const paymentsCollection = useCollection('payments');
+  const familyStudentIds = useMemo(() => students.map(s => s.id).filter(Boolean).slice(0, 30), [students]);
+  const paymentsCollection = useCollection('payments', {
+    enabled: familyStudentIds.length > 0,
+    where: familyStudentIds.length > 0 ? [['studentId', 'in', familyStudentIds]] : [],
+  });
   const payments = paymentsCollection.data || [];
 
   const currentUserData = students.find(s => s.id === user.id) || user;
@@ -146,19 +151,12 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
 
     setIsUpdating(true);
     try {
-      const hashedNewPassword = await hashPassword(creds.password);
-      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
-      
-      await updateDoc(studentRef, { 
-          username: creds.username.trim(), 
-          password: hashedNewPassword,
-          isPasswordHashed: true
-      });
+      const updateFamilyCredentials = httpsCallable(functions, 'updateFamilyCredentials');
+      await updateFamilyCredentials({ username: creds.username.trim().toLowerCase(), password: creds.password });
       
       const updatedUserLocal = { 
         ...user, 
-        username: creds.username.trim(), 
-        password: hashedNewPassword 
+        username: creds.username.trim().toLowerCase()
       };
       localStorage.setItem('braveUser', JSON.stringify(updatedUserLocal));
       

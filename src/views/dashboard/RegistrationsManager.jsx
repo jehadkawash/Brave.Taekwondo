@@ -136,7 +136,7 @@ export default function RegistrationsManager({ registrations, students, registra
   };
   
   const handleConfirmStudent = async (finalData) => {
-    const { username, password } = generateCredentials();
+    let { username, password } = generateCredentials();
     let finalFamilyId, finalFamilyName;
     
     if (finalData.linkFamily === 'new') { 
@@ -144,7 +144,10 @@ export default function RegistrationsManager({ registrations, students, registra
         finalFamilyName = `عائلة ${finalData.name.split(' ').slice(-1)[0]}`; 
     } else { 
         finalFamilyId = parseInt(finalData.linkFamily); 
-        finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || "عائلة"; 
+        const familyAccount = students.find(s => s.familyId === finalFamilyId);
+        finalFamilyName = familyAccount?.familyName || "عائلة";
+        username = familyAccount?.username || username;
+        password = familyAccount?.password || password;
     }
     
     const newStudent = { 
@@ -155,11 +158,17 @@ export default function RegistrationsManager({ registrations, students, registra
         attendance: {}, 
         username, 
         password, 
+        isPasswordHashed: students.find(s => s.familyId === finalFamilyId)?.isPasswordHashed === true,
         familyId: finalFamilyId, 
         familyName: finalFamilyName, 
         customOrder: Date.now(), 
         ...finalData 
     };
+    const linkedAccount = students.find(s => s.familyId === finalFamilyId && s.familyUid);
+    if (linkedAccount) {
+      newStudent.familyUid = linkedAccount.familyUid;
+      newStudent.familyAuthEmail = linkedAccount.familyAuthEmail || null;
+    }
     delete newStudent.linkFamily; 
     delete newStudent.id; // حذف معرف طلب التسجيل من بيانات الطالب الجديد
 

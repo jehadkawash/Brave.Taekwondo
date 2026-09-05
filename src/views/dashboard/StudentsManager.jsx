@@ -571,17 +571,23 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
         finalPass = creds.password;
       }
 
-      let finalFamilyId, finalFamilyName;
+      let finalFamilyId, finalFamilyName, linkedFamilyAccount = null;
       if (linkFamily === 'new') {
         finalFamilyId  = Math.floor(Date.now() / 1000);
         finalFamilyName = `عائلة ${newS.name.trim().split(/\s+/).pop()}`;
       } else {
         finalFamilyId = parseInt(linkFamily);
+        const familyAccount = students.find(s => String(s.familyId) === String(linkFamily));
+        linkedFamilyAccount = familyAccount || null;
         const existingFamily = uniqueFamilies.find(f => f.id === linkFamily.toString());
         if (existingFamily) {
           finalFamilyName = existingFamily.displayName.split(' (')[0];
         } else {
           finalFamilyName = students.find(s => s.familyId === finalFamilyId)?.familyName || 'عائلة';
+        }
+        if (familyAccount) {
+          finalUser = familyAccount.username || finalUser;
+          finalPass = familyAccount.password || finalPass;
         }
       }
 
@@ -609,7 +615,11 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
         group:           finalGroup,
         username:        finalUser,
         password:        finalPass,
-        isPasswordHashed: false,
+        isPasswordHashed: linkedFamilyAccount?.isPasswordHashed === true,
+        ...(linkedFamilyAccount?.familyUid
+          ? { familyUid: linkedFamilyAccount.familyUid,
+              familyAuthEmail: linkedFamilyAccount.familyAuthEmail || null }
+          : {}),
       };
 
       const result = await studentsCollection.add(student);
