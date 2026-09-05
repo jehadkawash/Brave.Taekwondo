@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { ChevronRight, User, Lock, ArrowRight, ShieldCheck, Eye, EyeOff, Send, Phone, AlertCircle } from 'lucide-react';
 import { IMAGES } from '../lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 import { toast } from '../lib/toast';
 
@@ -42,17 +42,11 @@ const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
     e.preventDefault();
     setIsSubmittingForgot(true);
     try {
-      const currentDate = new Date();
-      const monthKey = `${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
-
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'admin_notes'), {
-        text: `🔴 طلب استعادة كلمة مرور:\n- الطالب: ${forgotForm.studentName}\n- هاتف: ${forgotForm.phone}`,
-        type: 'note',
-        transactionType: 'expense',
-        date: currentDate.toLocaleDateString('en-GB'),
-        monthKey: monthKey,
-        createdAt: currentDate.toISOString(),
-        isUrgent: true,
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'password_reset_requests'), {
+        studentName: forgotForm.studentName.trim(),
+        phone: forgotForm.phone.replace(/\D/g, ''),
+        status: 'new',
+        createdAt: serverTimestamp(),
       });
 
       toast("تم إرسال الطلب للإدارة! سيتم التواصل معك وتزويدك بالبيانات.", 'success');

@@ -27,6 +27,7 @@ const PERMISSIONS_LIST = [
     { id: 'archive', label: 'الأرشيف', category: 'المالية والتقارير' },
     
     { id: 'registrations', label: 'طلبات التسجيل الجديدة', category: 'الإدارة والتواصل' },
+    { id: 'password_resets', label: 'طلبات استعادة الدخول', category: 'الإدارة والتواصل' },
     { id: 'student_notes', label: 'ملاحظات ورسائل الطلاب', category: 'الإدارة والتواصل' },
     { id: 'notes', label: 'ملاحظات الإدارة الداخلية', category: 'الإدارة والتواصل' },
     { id: 'news', label: 'الأخبار والعروض', category: 'الإدارة والتواصل' },

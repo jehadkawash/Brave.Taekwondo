@@ -4,7 +4,7 @@ import {
   Activity, Users, DollarSign, CheckCircle, Inbox, Clock, Archive,
   Shield, Menu, LogOut, Megaphone, Database, FileText, MapPin,
   Award, Calendar, ChevronDown, X, MessageSquare,
-  AlertTriangle, Scale, Wallet, Search, BarChart3, Sun, Moon, Package, Gift
+  AlertTriangle, Scale, Wallet, Search, BarChart3, Sun, Moon, Package, Gift, KeyRound
 } from 'lucide-react';
 import { addDoc, collection } from "firebase/firestore";
 import { sendEmailVerification } from "firebase/auth";
@@ -35,6 +35,7 @@ import AccountsManager from './dashboard/AccountsManager';
 import AdvancedStats from './dashboard/AdvancedStats';
 import InventoryManager from './dashboard/InventoryManager';
 import PackagesManager from './dashboard/PackagesManager';
+import PasswordResetRequestsManager from './dashboard/PasswordResetRequestsManager';
 import QuickSearch from '../components/QuickSearch';
 // ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker القديمة
 
@@ -192,15 +193,16 @@ const AdminDashboard = ({
   const isArchive      = activeTab === 'archive';
   const isNews         = activeTab === 'news';
   const isDebts        = activeTab === 'debts';
+  const isPasswordResets = activeTab === 'password_resets';
 
   // ── Collections ─────────────────────────────────────────────────────────────
   // Always loaded (lightweight)
   const groupsCollection   = useCollection('groups');
-  const captainsCollection = useCollection('captains');
+  const captainsCollection = useCollection('captains', { enabled: user.isSuper === true });
 
   // Lazy-loaded heavy collections — use { enabled: bool } options
   const paymentsCollection = useCollection(
-    'payments', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts' }
+    'payments', { enabled: isDashboard || isFinance || isReports || isArchive || activeTab === 'accounts' }
   );
   const expensesCollection = useCollection(
     'expenses', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts' }
@@ -219,6 +221,11 @@ const AdminDashboard = ({
   const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students' });
   const newsCollection         = useCollection('news',            { enabled: isDashboard || isNews });
   const financeReasonsCollection = useCollection('finance_reasons', { enabled: isFinance });
+  const passwordResetRequestsCollection = useCollection(
+    'password_reset_requests', {
+      enabled: hasPerm('password_resets') && (isPasswordResets || isDashboard),
+    }
+  );
 
   // ── Safe data accessors ─────────────────────────────────────────────────────
   const students       = studentsCollection?.data    || [];
@@ -231,6 +238,7 @@ const AdminDashboard = ({
   const newsData       = newsCollection.data         || [];
   const financeReasonsData    = financeReasonsCollection.data    || [];
   const activityLogsData      = activityLogsCollection.data      || [];
+  const passwordResetRequests = passwordResetRequestsCollection.data || [];
 
   // ── Branch-filtered memos ───────────────────────────────────────────────────
   const branchStudents      = useMemo(() => students.filter(s => s.branch === selectedBranch),      [students, selectedBranch]);
@@ -303,6 +311,7 @@ const AdminDashboard = ({
   ].filter(Boolean);
 
   const adminGroups = [
+    hasPerm('password_resets') && { id: 'password_resets', icon: KeyRound, label: 'طلبات استعادة الدخول', badge: passwordResetRequests.filter(r => r.status === 'new').length },
     hasPerm('registrations') && { id: 'registrations', icon: Inbox,     label: 'طلبات التسجيل', badge: branchRegistrations.length },
     hasPerm('schedule')      && { id: 'schedule',      icon: Clock,     label: 'جدول الحصص' },
     hasPerm('finance')       && { id: 'accounts',      icon: Wallet,    label: 'حسابات النادي' },
@@ -623,6 +632,15 @@ const AdminDashboard = ({
               logActivity={handleLog}
             />
           )}
+          {activeTab === 'password_resets' && hasPerm('password_resets') && (
+            <PasswordResetRequestsManager
+              requestsCollection={passwordResetRequestsCollection}
+              students={students}
+              selectedBranch={selectedBranch}
+              user={user}
+              logActivity={handleLog}
+            />
+          )}
           {activeTab === 'schedule'       && hasPerm('schedule')       && (
             <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />
           )}
@@ -632,6 +650,7 @@ const AdminDashboard = ({
               studentsCollection={studentsCollection}
               payments={payments}
               logActivity={handleLog}
+              canCleanDuplicates={user.isSuper}
             />
           )}
           {activeTab === 'captains'       && user.isSuper              && (

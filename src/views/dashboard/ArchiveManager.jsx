@@ -1,13 +1,16 @@
 // src/views/dashboard/ArchiveManager.jsx
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { doc, writeBatch } from 'firebase/firestore';
 import {
     Archive, DollarSign, Printer, MessageCircle,
     CheckCircle, FileText, ArrowRight, Trash2, Eye,
     User, Calendar, MapPin, Lock, Shield, Search, X
+    , AlertTriangle, GitMerge, Loader2
 } from 'lucide-react';
 import { Card, Button } from '../../components/UIComponents';
 import { IMAGES } from '../../lib/constants';
 import { formatDate } from '../../lib/utils';
+import { db, appId } from '../../lib/firebase';
 
 // ─── مساعد: WhatsApp ──────────────────────────────────────────────────────────
 const openWhatsApp = (phone) => {
@@ -19,10 +22,123 @@ const openWhatsApp = (phone) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logActivity }) => {
+const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logActivity, canCleanDuplicates = false }) => {
     const [selectedStudentForFinance, setSelectedStudentForFinance] = useState(null);
     const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [restoringId, setRestoringId] = useState(null);
+    const [cleaningId, setCleaningId] = useState(null);
+
+    const normalizePhone = value => String(value || '').replace(/\D/g, '').replace(/^962/, '0');
+    const normalizeName = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const duplicateGroups = useMemo(() => {
+        const activeStudents = studentsCollection.data || [];
+        return activeStudents.map(active => {
+            const phone = normalizePhone(active.phone);
+            const name = normalizeName(active.name);
+            const username = String(active.username || '').trim().toLowerCase();
+            const matches = archiveCollection.data.filter(archived => {
+                // A phone alone is not enough because siblings often share it.
+                const samePhoneAndName = phone && name &&
+                    normalizePhone(archived.phone) === phone && normalizeName(archived.name) === name;
+                const sameUsername = username && String(archived.username || '').trim().toLowerCase() === username;
+                return samePhoneAndName || sameUsername;
+            });
+            return matches.length ? { active, archived: matches } : null;
+        }).filter(Boolean);
+    }, [studentsCollection.data, archiveCollection.data]);
+
+    const mergeNotes = (...lists) => {
+        const result = [];
+        const seen = new Set();
+        lists.flat().filter(Boolean).forEach(note => {
+            const key = note?.id || `${note?.date || ''}|${note?.text || String(note)}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                result.push(note);
+            }
+        });
+        return result;
+    };
+
+    const cleanDuplicateGroup = async ({ active, archived }) => {
+        if (cleaningId) return;
+
+        const linkedIds = new Set([active.id]);
+        archived.forEach(item => {
+            [item.id, item.originalId, item._docId].filter(Boolean).forEach(value => linkedIds.add(value));
+        });
+        const affectedPayments = (payments || []).filter(payment =>
+            linkedIds.has(payment.studentId) ||
+            (payment.studentIds || []).some(id => linkedIds.has(id))
+        );
+        const operationCount = 1 + archived.length + affectedPayments.length;
+
+        if (operationCount > 450) {
+            window.alert('هذه الحالة تحتوي سجلات كثيرة جدًا للتنظيف الآمن دفعة واحدة. لم يتم تغيير أي بيانات.');
+            return;
+        }
+
+        const message = `سيتم تنظيف تكرار الطالب ${active.name}:\n\n` +
+            `• النسخة النشطة التي ستبقى: ${active.id}\n` +
+            `• نسخ الأرشيف التي ستزال: ${archived.length}\n` +
+            `• الوصولات التي سيتم توحيد ارتباطها: ${affectedPayments.length}\n` +
+            `• سيتم دمج الحضور والملاحظات وحفظ تاريخ الأرشفة.\n\nهل أنت متأكد؟`;
+        if (!window.confirm(message)) return;
+
+        setCleaningId(active.id);
+        try {
+            const mergedAttendance = Object.assign({}, ...archived.map(a => a.attendance || {}), active.attendance || {});
+            const mergedNotes = mergeNotes(...archived.map(a => a.notes || []), active.notes || []);
+            const mergedInternalNotes = mergeNotes(...archived.map(a => a.internalNotes || []), active.internalNotes || []);
+            const previousHistory = Array.isArray(active.membershipHistory) ? active.membershipHistory : [];
+            const historyKeys = new Set(previousHistory.map(h => `${h.archivedAt || ''}|${h.sourceArchiveId || ''}`));
+            const addedHistory = archived.map(a => ({
+                archivedAt: a.archivedAt || null,
+                restoredAt: new Date().toISOString().split('T')[0],
+                sourceArchiveId: a._docId || a.id,
+                previousStudentId: a.originalId || a.id,
+            })).filter(h => {
+                const key = `${h.archivedAt || ''}|${h.sourceArchiveId || ''}`;
+                if (historyKeys.has(key)) return false;
+                historyKeys.add(key);
+                return true;
+            });
+
+            const batch = writeBatch(db);
+            const activeRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', active.id);
+            batch.set(activeRef, {
+                attendance: mergedAttendance,
+                notes: mergedNotes,
+                internalNotes: mergedInternalNotes,
+                membershipHistory: [...previousHistory, ...addedHistory],
+            }, { merge: true });
+
+            affectedPayments.forEach(payment => {
+                const paymentRef = doc(db, 'artifacts', appId, 'public', 'data', 'payments', payment._docId || payment.id);
+                const updates = {};
+                if (linkedIds.has(payment.studentId)) updates.studentId = active.id;
+                if (Array.isArray(payment.studentIds)) {
+                    updates.studentIds = [...new Set(payment.studentIds.map(id => linkedIds.has(id) ? active.id : id))];
+                }
+                batch.update(paymentRef, updates);
+            });
+
+            archived.forEach(item => {
+                const archiveRef = doc(db, 'artifacts', appId, 'public', 'data', 'archive', item._docId || item.id);
+                batch.delete(archiveRef);
+            });
+
+            await batch.commit();
+            if (logActivity) logActivity('تنظيف تكرار', `تم دمج ${archived.length} نسخة مؤرشفة للطالب ${active.name}`);
+            window.alert(`تم تنظيف سجل ${active.name} بنجاح مع الحفاظ على الحضور والملاحظات والوصولات.`);
+        } catch (err) {
+            console.error('Duplicate cleanup error:', err);
+            window.alert('فشل التنظيف. العملية ذرّية، لذلك لم يتم تغيير أو حذف أي بيانات.');
+        } finally {
+            setCleaningId(null);
+        }
+    };
 
     const filteredArchive = archiveCollection.data
         .filter(s => s.name?.includes(searchTerm))
@@ -42,15 +158,38 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
     };
 
     const restoreStudent = async (archivedStudent) => {
-        if (!window.confirm(`هل تريد إعادة تفعيل اشتراك الطالب ${archivedStudent.name}؟\n\n(سيتم الحفاظ على تاريخ الالتحاق الأصلي)`)) return;
-        const { archivedAt, originalId, id, ...studentData } = archivedStudent;
-        await studentsCollection.add({
-            ...studentData,
-            status: 'active',
-            joinDate: studentData.joinDate || new Date().toISOString().split('T')[0],
-        });
-        await archiveCollection.remove(archivedStudent.id);
-        if (logActivity) logActivity('استعادة', `تمت استعادة الطالب ${archivedStudent.name} من الأرشيف`);
+        if (restoringId) return false;
+        if (!window.confirm(`هل تريد إعادة تفعيل اشتراك الطالب ${archivedStudent.name}؟\n\n(سيتم الحفاظ على تاريخ الالتحاق الأصلي)`)) return false;
+        setRestoringId(archivedStudent.id);
+
+        try {
+            const { archivedAt, originalId, id, _docId, ...studentData } = archivedStudent;
+            const studentId = originalId || id;
+
+            // Keep the original document ID so receipts and any records linked by
+            // studentId continue to point to the restored student. Both writes are
+            // committed together, preventing an active/archive duplicate.
+            const batch = writeBatch(db);
+            const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId);
+            const archiveRef = doc(db, 'artifacts', appId, 'public', 'data', 'archive', archivedStudent._docId || archivedStudent.id);
+
+            batch.set(studentRef, {
+                ...studentData,
+                status: 'active',
+                joinDate: studentData.joinDate || new Date().toISOString().split('T')[0],
+            });
+            batch.delete(archiveRef);
+            await batch.commit();
+
+            if (logActivity) logActivity('استعادة', `تمت استعادة الطالب ${archivedStudent.name} من الأرشيف`);
+            return true;
+        } catch (err) {
+            console.error('Restore student error:', err);
+            window.alert('تعذرت استعادة الطالب. لم يتم تغيير أو حذف أي بيانات، يرجى المحاولة مرة أخرى.');
+            return false;
+        } finally {
+            setRestoringId(null);
+        }
     };
 
     // ─── طباعة وصل دفعة واحدة ────────────────────────────────────────────────
@@ -327,7 +466,11 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                             <Button onClick={() => setSelectedStudentForDetails(null)} variant="ghost" className="text-slate-400 hover:text-white hover:bg-slate-800">إغلاق</Button>
                             <Button
                                 className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
-                                onClick={() => { restoreStudent(selectedStudentForDetails); setSelectedStudentForDetails(null); }}
+                                disabled={restoringId === selectedStudentForDetails.id}
+                                onClick={async () => {
+                                    const restored = await restoreStudent(selectedStudentForDetails);
+                                    if (restored) setSelectedStudentForDetails(null);
+                                }}
                             >
                                 <ArrowRight size={16} className="ml-2"/> استعادة الطالب
                             </Button>
@@ -391,6 +534,46 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                         </div>
                     </Card>
                 </div>
+            )}
+
+            {/* ── فحص التكرارات القديمة ── */}
+            {canCleanDuplicates && duplicateGroups.length > 0 && (
+                <Card className="border border-amber-500/30 bg-amber-950/10 p-4">
+                    <div className="flex items-start gap-3 mb-4">
+                        <AlertTriangle className="text-amber-400 shrink-0 mt-1" size={22}/>
+                        <div>
+                            <h3 className="font-black text-amber-300">تم اكتشاف {duplicateGroups.length} طالب نشط ما زال في الأرشيف</h3>
+                            <p className="text-xs text-slate-400 mt-1">التطابق يعتمد على رقم الهاتف أو اسم المستخدم. راجع كل طالب ثم نظّف سجله بشكل مستقل.</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
+                        {duplicateGroups.map(group => {
+                            const linkedIds = new Set([group.active.id]);
+                            group.archived.forEach(a => [a.id, a.originalId, a._docId].filter(Boolean).forEach(id => linkedIds.add(id)));
+                            const receiptCount = (payments || []).filter(p =>
+                                linkedIds.has(p.studentId) || (p.studentIds || []).some(id => linkedIds.has(id))
+                            ).length;
+                            return (
+                                <div key={group.active.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                                    <div>
+                                        <p className="font-bold text-slate-200">{group.active.name}</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            {group.active.phone || 'بدون هاتف'} • {group.archived.length} نسخة أرشيف • {receiptCount} وصولات مرتبطة
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => cleanDuplicateGroup(group)}
+                                        disabled={Boolean(cleaningId)}
+                                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-bold"
+                                    >
+                                        {cleaningId === group.active.id ? <Loader2 size={15} className="animate-spin"/> : <GitMerge size={15}/>}
+                                        مراجعة وتنظيف
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
             )}
 
             {/* ── شريط البحث والإجراءات ── */}
@@ -494,6 +677,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                                                     <FileText size={15}/>
                                                 </button>
                                                 <button onClick={() => restoreStudent(s)}
+                                                    disabled={restoringId === s.id}
                                                     className="p-2 bg-blue-900/20 text-blue-500 rounded-lg hover:bg-blue-600 hover:text-white border border-blue-500/20 transition-colors"
                                                     title="استعادة الطالب">
                                                     <ArrowRight size={15}/>

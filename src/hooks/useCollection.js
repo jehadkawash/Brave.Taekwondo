@@ -118,7 +118,10 @@ export const useCollection = (collectionName, options = {}) => {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Keep the real Firestore document ID even when legacy documents contain
+        // their own `id` field. `_docId` is required for safely updating/removing
+        // those old records without targeting the wrong document.
+        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data(), _docId: d.id }));
         lastGoodDataRef.current = docs;
         setData(docs);
         setLoading(false);

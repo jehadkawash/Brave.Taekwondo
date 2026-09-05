@@ -1,0 +1,266 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userPath(appId) {
+      return /databases/$(database)/documents/artifacts/$(appId)/public/data/users/$(request.auth.token.email);
+    }
+
+    function userExists(appId) {
+      return signedIn() && exists(userPath(appId));
+    }
+
+    function userData(appId) {
+      return get(userPath(appId)).data;
+    }
+
+    function isSuperAdmin(appId) {
+      return signedIn() && (
+        request.auth.token.email == 'admin@brave.com' ||
+        request.auth.token.email == 'jehad234kawash@yahoo.com' ||
+        (userExists(appId) && userData(appId).get('isSuper', false) == true)
+      );
+    }
+
+    function hasPermission(appId, permission) {
+      return isSuperAdmin(appId) ||
+        (userExists(appId) && userData(appId).get('permissions', []).hasAny([permission]));
+    }
+
+    function staffBranch(appId) {
+      return userExists(appId) ? userData(appId).get('branch', '') : '';
+    }
+
+    function canUseBranch(appId, branch) {
+      return isSuperAdmin(appId) ||
+        (signedIn() && (
+          (branch == 'شفا بدران' && request.auth.token.email == 'shafa@brave.com') ||
+          (branch == 'أبو نصير' && request.auth.token.email in ['abunseir@brave.com', 'nseir@brave.com']) ||
+          staffBranch(appId) == branch
+        ));
+    }
+
+    function validBranch(branch) {
+      return branch in ['شفا بدران', 'أبو نصير', 'الكل', 'مشترك', 'الفرع الرئيسي'];
+    }
+
+    function canCreateInBranch(appId) {
+      return request.resource.data.branch is string &&
+        validBranch(request.resource.data.branch) &&
+        canUseBranch(appId, request.resource.data.branch);
+    }
+
+    function canChangeInBranch(appId) {
+      return resource.data.branch is string &&
+        request.resource.data.branch == resource.data.branch &&
+        canUseBranch(appId, resource.data.branch);
+    }
+
+    function canDeleteInBranch(appId) {
+      return resource.data.branch is string && canUseBranch(appId, resource.data.branch);
+    }
+
+    // Staff profiles. A staff member may read only their own profile.
+    match /artifacts/{appId}/public/data/users/{userEmail} {
+      allow read: if signedIn() &&
+        (request.auth.token.email == userEmail || isSuperAdmin(appId));
+      allow create, update, delete: if isSuperAdmin(appId);
+    }
+
+    // Public registration form: create-only, with a strict shape and size limits.
+    match /artifacts/{appId}/public/data/registrations/{docId} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'name', 'phone', 'dob', 'address', 'branch', 'status', 'createdAt'
+        ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 100 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() >= 8 && request.resource.data.phone.size() <= 20 &&
+        request.resource.data.dob is string && request.resource.data.dob.size() <= 20 &&
+        request.resource.data.address is string && request.resource.data.address.size() <= 250 &&
+        request.resource.data.status == 'new' &&
+        request.resource.data.createdAt is string &&
+        request.resource.data.createdAt.size() <= 40 &&
+        request.resource.data.branch in ['شفا بدران', 'أبو نصير'];
+      allow read: if hasPermission(appId, 'registrations');
+      allow update: if hasPermission(appId, 'registrations') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'registrations') && canDeleteInBranch(appId);
+    }
+
+    // Public recovery request. The public may create but can never list requests.
+    match /artifacts/{appId}/public/data/password_reset_requests/{docId} {
+      allow create: if
+        request.resource.data.keys().hasOnly(['studentName', 'phone', 'status', 'createdAt']) &&
+        request.resource.data.studentName is string &&
+        request.resource.data.studentName.size() >= 3 && request.resource.data.studentName.size() <= 100 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() >= 8 && request.resource.data.phone.size() <= 20 &&
+        request.resource.data.status == 'new' &&
+        request.resource.data.createdAt == request.time;
+      allow read, update, delete: if hasPermission(appId, 'password_resets');
+    }
+
+    // Transitional exception: the legacy family login still queries this collection.
+    // Remove public read immediately after family accounts move to Firebase Auth.
+    match /artifacts/{appId}/public/data/students/{docId} {
+      allow read: if true;
+      allow create: if hasPermission(appId, 'students') && canCreateInBranch(appId);
+      allow delete: if hasPermission(appId, 'students') && canDeleteInBranch(appId);
+      allow update: if signedIn() && canChangeInBranch(appId) && (
+        hasPermission(appId, 'students') ||
+        (hasPermission(appId, 'attendance') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'attendance', 'customOrder', 'group'
+          ])) ||
+        (hasPermission(appId, 'subscriptions') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['subEnd', 'status'])) ||
+        (hasPermission(appId, 'finance') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['subEnd', 'status'])) ||
+        (hasPermission(appId, 'tests') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'belt', 'lastTestDate', 'nextTestDate'
+          ])) ||
+        (hasPermission(appId, 'student_notes') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'internalNotes', 'note'])) ||
+        (hasPermission(appId, 'password_resets') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'password', 'isPasswordHashed', 'passwordResetAt'
+          ]))
+      );
+    }
+
+    // Public content.
+    match /artifacts/{appId}/public/data/news/{docId} {
+      allow read: if true;
+      allow create: if hasPermission(appId, 'news') && canCreateInBranch(appId);
+      allow update: if hasPermission(appId, 'news') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'news') && canDeleteInBranch(appId);
+    }
+
+    match /artifacts/{appId}/public/data/schedule/{docId} {
+      allow read: if true;
+      allow create: if hasPermission(appId, 'schedule') && canCreateInBranch(appId);
+      allow update: if hasPermission(appId, 'schedule') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'schedule') && canDeleteInBranch(appId);
+    }
+
+    // Legacy administrative notes are no longer writable by the public.
+    match /artifacts/{appId}/public/data/admin_notes/{docId} {
+      // Temporary compatibility for the currently deployed forgot-password form.
+      // Remove this public create path after the new frontend is deployed.
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'text', 'type', 'transactionType', 'date', 'monthKey',
+          'createdAt', 'isUrgent'
+        ]) &&
+        request.resource.data.text is string &&
+        request.resource.data.text.size() >= 10 && request.resource.data.text.size() <= 500 &&
+        request.resource.data.type == 'note' &&
+        request.resource.data.transactionType == 'expense' &&
+        request.resource.data.date is string && request.resource.data.date.size() <= 20 &&
+        request.resource.data.monthKey is string && request.resource.data.monthKey.size() <= 20 &&
+        request.resource.data.createdAt is string && request.resource.data.createdAt.size() <= 40 &&
+        request.resource.data.isUrgent == true;
+      allow read, update, delete: if isSuperAdmin(appId);
+    }
+
+    match /artifacts/{appId}/public/data/captains/{docId} {
+      allow read, create, update, delete: if isSuperAdmin(appId);
+    }
+
+    match /artifacts/{appId}/public/data/groups/{docId} {
+      allow read: if signedIn();
+      allow create: if hasPermission(appId, 'attendance') && canCreateInBranch(appId);
+      allow update: if hasPermission(appId, 'attendance') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'attendance') && canDeleteInBranch(appId);
+    }
+
+    match /artifacts/{appId}/public/data/activity_logs/{docId} {
+      allow read: if hasPermission(appId, 'dashboard') || hasPermission(appId, 'reports');
+      allow create: if signedIn() && canCreateInBranch(appId);
+      allow update, delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/payments/{docId} {
+      allow read: if hasPermission(appId, 'finance') || hasPermission(appId, 'dashboard') || hasPermission(appId, 'reports');
+      allow create: if hasPermission(appId, 'finance') && canCreateInBranch(appId);
+      allow update: if hasPermission(appId, 'finance') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'finance') && canDeleteInBranch(appId);
+    }
+
+    match /artifacts/{appId}/public/data/expenses/{docId} {
+      allow read: if hasPermission(appId, 'finance') || hasPermission(appId, 'dashboard') || hasPermission(appId, 'reports');
+      allow create: if hasPermission(appId, 'finance') && canCreateInBranch(appId);
+      allow update: if hasPermission(appId, 'finance') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'finance') && canDeleteInBranch(appId);
+    }
+
+    match /artifacts/{appId}/public/data/{collectionName}/{docId} {
+      allow read: if
+        collectionName in ['debts', 'finance_reasons', 'income_extra', 'products',
+          'product_categories', 'inventory_log', 'packages'] &&
+        hasPermission(appId, 'finance');
+      allow create: if
+        collectionName in ['debts', 'finance_reasons', 'income_extra', 'products',
+          'product_categories', 'inventory_log', 'packages'] &&
+        hasPermission(appId, 'finance') && canCreateInBranch(appId);
+      allow update: if
+        collectionName in ['debts', 'finance_reasons', 'income_extra', 'products',
+          'product_categories', 'inventory_log', 'packages'] &&
+        hasPermission(appId, 'finance') && canChangeInBranch(appId);
+      allow delete: if
+        collectionName in ['debts', 'finance_reasons', 'income_extra', 'products',
+          'product_categories', 'inventory_log', 'packages'] &&
+        hasPermission(appId, 'finance') && canDeleteInBranch(appId);
+    }
+
+    // Product categories are shared between branches and legacy records do not
+    // contain a branch field.
+    match /artifacts/{appId}/public/data/product_categories/{docId} {
+      allow read, create, update, delete: if hasPermission(appId, 'finance');
+    }
+
+    match /artifacts/{appId}/public/data/{collectionName}/{docId} {
+      allow read: if
+        collectionName in ['weights', 'weight_events'] &&
+        hasPermission(appId, 'students');
+      allow create: if
+        collectionName in ['weights', 'weight_events'] &&
+        hasPermission(appId, 'students') && canCreateInBranch(appId);
+      allow update: if
+        collectionName in ['weights', 'weight_events'] &&
+        hasPermission(appId, 'students') && canChangeInBranch(appId);
+      allow delete: if
+        collectionName in ['weights', 'weight_events'] &&
+        hasPermission(appId, 'students') && canDeleteInBranch(appId);
+    }
+
+    match /artifacts/{appId}/public/data/belt_tests/{docId} {
+      allow read: if hasPermission(appId, 'tests') || hasPermission(appId, 'dashboard');
+      allow create, update, delete: if hasPermission(appId, 'tests');
+    }
+
+    match /artifacts/{appId}/public/data/archive/{docId} {
+      allow read: if hasPermission(appId, 'archive') || hasPermission(appId, 'students') || hasPermission(appId, 'finance') || hasPermission(appId, 'reports');
+      allow create: if
+        (hasPermission(appId, 'archive') || hasPermission(appId, 'students')) &&
+        canCreateInBranch(appId);
+      allow update: if hasPermission(appId, 'archive') && canChangeInBranch(appId);
+      allow delete: if hasPermission(appId, 'archive') && canDeleteInBranch(appId);
+    }
+
+    // Historical collections retained for compatibility.
+    match /artifacts/{appId}/public/data/events/{docId} {
+      allow read: if true;
+      allow write: if hasPermission(appId, 'events');
+    }
+
+    match /artifacts/{appId}/public/data/fitness_tracking/{docId} {
+      allow read, write: if hasPermission(appId, 'weight');
+    }
+  }
+}
