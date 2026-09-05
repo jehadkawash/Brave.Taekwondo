@@ -202,25 +202,25 @@ const AdminDashboard = ({
 
   // Lazy-loaded heavy collections — use { enabled: bool } options
   const paymentsCollection = useCollection(
-    'payments', { enabled: isDashboard || isFinance || isReports || isArchive || activeTab === 'accounts' }
+    'payments', { enabled: isDashboard || isFinance || isReports || isArchive || activeTab === 'accounts', where: [['branch', '==', selectedBranch]] }
   );
   const expensesCollection = useCollection(
-    'expenses', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts' }
+    'expenses', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts', where: [['branch', '==', selectedBranch]] }
   );
   const registrationsCollection = useCollection(
-    'registrations', { enabled: isDashboard || isRegistration || isReports }
+    'registrations', { enabled: isDashboard || isRegistration || isReports, where: [['branch', '==', selectedBranch]] }
   );
   const activityLogsCollection = useCollection(
-    'activity_logs', { enabled: isDashboard || isReports }
+    'activity_logs', { enabled: isDashboard || isReports, where: [['branch', '==', selectedBranch]] }
   );
 
   // Fully isolated — only loaded when their tab is open
   // archiveCollection also needed for debts + weights tabs
-  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts || activeTab === 'weights' || activeTab === 'advanced' });
+  const archiveCollection      = useCollection('archive',         { enabled: isArchive || isDebts || activeTab === 'weights' || activeTab === 'advanced', where: [['branch', '==', selectedBranch]] });
   // debts collection — needed for dashboard stats card + debts tab + students tab
-  const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students' });
+  const debtsCollection        = useCollection('debts',           { enabled: isDashboard || isDebts || activeTab === 'students', where: [['branch', '==', selectedBranch]] });
   const newsCollection         = useCollection('news',            { enabled: isDashboard || isNews });
-  const financeReasonsCollection = useCollection('finance_reasons', { enabled: isFinance });
+  const financeReasonsCollection = useCollection('finance_reasons', { enabled: isFinance, where: [['branch', '==', selectedBranch]] });
   const passwordResetRequestsCollection = useCollection(
     'password_reset_requests', {
       enabled: hasPerm('password_resets') && (isPasswordResets || isDashboard),
@@ -649,6 +649,7 @@ const AdminDashboard = ({
               archiveCollection={archiveCollection}
               studentsCollection={studentsCollection}
               payments={payments}
+              groups={groupsData}
               logActivity={handleLog}
               canCleanDuplicates={user.isSuper}
             />

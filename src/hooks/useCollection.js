@@ -1,7 +1,7 @@
 // src/hooks/useCollection.js
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  collection, onSnapshot, query, orderBy,
+  collection, onSnapshot, query, orderBy, where as whereClause, limit as limitClause,
   addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore';
 import { db, appId } from '../lib/firebase';
@@ -23,6 +23,8 @@ export const useCollection = (collectionName, options = {}) => {
     orderByField = null,
     orderDirection = 'asc',
     enabled = true,
+    where = [],
+    limit: resultLimit = null,
   } = typeof options === 'object' && options !== null ? options : {};
 
   const [data, setData]       = useState([]);
@@ -35,6 +37,7 @@ export const useCollection = (collectionName, options = {}) => {
   const retryTimerRef   = useRef(null);
   const retryCountRef   = useRef(0);
   const MAX_RETRIES     = 6;
+  const whereKey = JSON.stringify(where);
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -111,9 +114,10 @@ export const useCollection = (collectionName, options = {}) => {
     }
 
     const ref = collectionRef();
-    const q   = orderByField
-      ? query(ref, orderBy(orderByField, orderDirection))
-      : ref;
+    const constraints = where.map(([field, operator, value]) => whereClause(field, operator, value));
+    if (orderByField) constraints.push(orderBy(orderByField, orderDirection));
+    if (Number.isInteger(resultLimit) && resultLimit > 0) constraints.push(limitClause(resultLimit));
+    const q = constraints.length ? query(ref, ...constraints) : ref;
 
     const unsub = onSnapshot(
       q,
@@ -146,7 +150,7 @@ export const useCollection = (collectionName, options = {}) => {
     );
 
     unsubscribeRef.current = unsub;
-  }, [collectionName, orderByField, orderDirection, enabled, collectionRef, scheduleRetry]);
+  }, [collectionName, orderByField, orderDirection, enabled, whereKey, resultLimit, collectionRef, scheduleRetry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     subscribe();

@@ -22,12 +22,26 @@ const openWhatsApp = (phone) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logActivity, canCleanDuplicates = false }) => {
+const ArchiveManager = ({ archiveCollection, studentsCollection, payments, groups = [], logActivity, canCleanDuplicates = false }) => {
     const [selectedStudentForFinance, setSelectedStudentForFinance] = useState(null);
     const [selectedStudentForDetails, setSelectedStudentForDetails] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [restoringId, setRestoringId] = useState(null);
     const [cleaningId, setCleaningId] = useState(null);
+    const [restoreCandidate, setRestoreCandidate] = useState(null);
+    const [restoreForm, setRestoreForm] = useState({ subStart: '', subEnd: '', group: '' });
+
+    const openRestoreModal = (student) => {
+        const today = new Date();
+        const end = new Date(today);
+        end.setMonth(end.getMonth() + 1);
+        setRestoreCandidate(student);
+        setRestoreForm({
+            subStart: today.toISOString().split('T')[0],
+            subEnd: end.toISOString().split('T')[0],
+            group: '',
+        });
+    };
 
     const normalizePhone = value => String(value || '').replace(/\D/g, '').replace(/^962/, '0');
     const normalizeName = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -159,7 +173,14 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
 
     const restoreStudent = async (archivedStudent) => {
         if (restoringId) return false;
-        if (!window.confirm(`هل تريد إعادة تفعيل اشتراك الطالب ${archivedStudent.name}؟\n\n(سيتم الحفاظ على تاريخ الالتحاق الأصلي)`)) return false;
+        if (!restoreForm.subStart || !restoreForm.subEnd || !restoreForm.group) {
+            window.alert('يرجى تحديد بداية الاشتراك ونهايته والمجموعة الجديدة.');
+            return false;
+        }
+        if (restoreForm.subEnd < restoreForm.subStart) {
+            window.alert('تاريخ نهاية الاشتراك يجب أن يكون بعد تاريخ البداية.');
+            return false;
+        }
         setRestoringId(archivedStudent.id);
 
         try {
@@ -173,15 +194,29 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
             const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId);
             const archiveRef = doc(db, 'artifacts', appId, 'public', 'data', 'archive', archivedStudent._docId || archivedStudent.id);
 
+            const previousHistory = Array.isArray(studentData.membershipHistory) ? studentData.membershipHistory : [];
             batch.set(studentRef, {
                 ...studentData,
                 status: 'active',
                 joinDate: studentData.joinDate || new Date().toISOString().split('T')[0],
+                subStart: restoreForm.subStart,
+                subEnd: restoreForm.subEnd,
+                group: restoreForm.group,
+                membershipHistory: [...previousHistory, {
+                    archivedAt: archivedAt || null,
+                    restoredAt: new Date().toISOString().split('T')[0],
+                    sourceArchiveId: archivedStudent._docId || archivedStudent.id,
+                    previousStudentId: studentId,
+                    subStart: restoreForm.subStart,
+                    subEnd: restoreForm.subEnd,
+                    group: restoreForm.group,
+                }],
             });
             batch.delete(archiveRef);
             await batch.commit();
 
             if (logActivity) logActivity('استعادة', `تمت استعادة الطالب ${archivedStudent.name} من الأرشيف`);
+            setRestoreCandidate(null);
             return true;
         } catch (err) {
             console.error('Restore student error:', err);
@@ -404,6 +439,41 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
     return (
         <div className="space-y-6 font-sans">
 
+            {/* نافذة تحديد الاشتراك الجديد عند عودة الطالب */}
+            {restoreCandidate && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[80] p-4 backdrop-blur-sm">
+                    <Card className="w-full max-w-lg bg-slate-900 border-slate-700 shadow-2xl" title={`إعادة تفعيل: ${restoreCandidate.name}`}>
+                        <p className="text-sm text-slate-400 mb-5">سيبقى تاريخ الالتحاق وكل الحضور والوصولات والملاحظات محفوظًا، وستُستبدل فقط بيانات الاشتراك الحالي.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label className="text-sm text-slate-300 font-bold">بداية الاشتراك الجديد
+                                <input type="date" value={restoreForm.subStart} onChange={e => setRestoreForm(f => ({ ...f, subStart: e.target.value }))}
+                                    className="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white" />
+                            </label>
+                            <label className="text-sm text-slate-300 font-bold">نهاية الاشتراك الجديد
+                                <input type="date" value={restoreForm.subEnd} onChange={e => setRestoreForm(f => ({ ...f, subEnd: e.target.value }))}
+                                    className="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white" />
+                            </label>
+                            <label className="text-sm text-slate-300 font-bold md:col-span-2">المجموعة الجديدة
+                                <select value={restoreForm.group} onChange={e => setRestoreForm(f => ({ ...f, group: e.target.value }))}
+                                    className="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white">
+                                    <option value="">اختر المجموعة</option>
+                                    {groups.filter(g => !g.branch || g.branch === restoreCandidate.branch).map(g => (
+                                        <option key={g._docId || g.id || g.name} value={g.name}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-800">
+                            <Button variant="ghost" onClick={() => setRestoreCandidate(null)} disabled={Boolean(restoringId)}>إلغاء</Button>
+                            <Button onClick={() => restoreStudent(restoreCandidate)} disabled={Boolean(restoringId)} className="bg-blue-600 hover:bg-blue-500 text-white">
+                                {restoringId ? <Loader2 size={16} className="ml-2 animate-spin"/> : <ArrowRight size={16} className="ml-2"/>}
+                                تأكيد الاستعادة
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
             {/* ── مودال: بطاقة الطالب الكاملة ── */}
             {selectedStudentForDetails && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
@@ -467,9 +537,9 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                             <Button
                                 className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
                                 disabled={restoringId === selectedStudentForDetails.id}
-                                onClick={async () => {
-                                    const restored = await restoreStudent(selectedStudentForDetails);
-                                    if (restored) setSelectedStudentForDetails(null);
+                                onClick={() => {
+                                    openRestoreModal(selectedStudentForDetails);
+                                    setSelectedStudentForDetails(null);
                                 }}
                             >
                                 <ArrowRight size={16} className="ml-2"/> استعادة الطالب
@@ -676,7 +746,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, logAc
                                                     title="الملف المالي">
                                                     <FileText size={15}/>
                                                 </button>
-                                                <button onClick={() => restoreStudent(s)}
+                                                <button onClick={() => openRestoreModal(s)}
                                                     disabled={restoringId === s.id}
                                                     className="p-2 bg-blue-900/20 text-blue-500 rounded-lg hover:bg-blue-600 hover:text-white border border-blue-500/20 transition-colors"
                                                     title="استعادة الطالب">

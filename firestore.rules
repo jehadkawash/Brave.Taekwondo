@@ -104,6 +104,20 @@ service cloud.firestore {
       allow read, update, delete: if hasPermission(appId, 'password_resets');
     }
 
+    // Transitional push registration for the legacy student login. Tokens are
+    // write-only from the client and are consumed only by the Admin SDK function.
+    match /artifacts/{appId}/public/data/device_tokens/{tokenId} {
+      allow create, update: if
+        request.resource.data.keys().hasOnly(['studentId', 'token', 'platform', 'updatedAt']) &&
+        request.resource.data.studentId is string &&
+        request.resource.data.studentId.size() >= 1 && request.resource.data.studentId.size() <= 128 &&
+        request.resource.data.token is string &&
+        request.resource.data.token.size() >= 20 && request.resource.data.token.size() <= 4096 &&
+        request.resource.data.platform in ['android', 'ios'] &&
+        request.resource.data.updatedAt == request.time;
+      allow read, delete: if false;
+    }
+
     // Transitional exception: the legacy family login still queries this collection.
     // Remove public read immediately after family accounts move to Firebase Auth.
     match /artifacts/{appId}/public/data/students/{docId} {

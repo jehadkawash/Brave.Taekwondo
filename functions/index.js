@@ -24,8 +24,17 @@ exports.sendAttendanceNotification = onDocumentUpdated(
     const wasAlreadyPresent = oldData.attendance?.[today] === true;
 
     if (isMarkedPresentNow && !wasAlreadyPresent) {
-      // إذا وجدنا عنوان الجهاز (Token)
-      if (newData.fcmToken) {
+      // Keep supporting the old single token while also notifying every device
+      // registered for this student.
+      const tokenSnapshot = await admin.firestore()
+        .collection(`artifacts/${event.params.appId}/public/data/device_tokens`)
+        .where('studentId', '==', event.params.studentId)
+        .get();
+      const tokenDocs = new Map(tokenSnapshot.docs.map(doc => [doc.data().token, doc]));
+      if (newData.fcmToken && !tokenDocs.has(newData.fcmToken)) tokenDocs.set(newData.fcmToken, null);
+      const tokens = [...tokenDocs.keys()].filter(Boolean).slice(0, 500);
+
+      if (tokens.length) {
         const message = {
           notification: {
             title: "بطل التايكواندو وصل! 🥋",
@@ -40,17 +49,29 @@ exports.sendAttendanceNotification = onDocumentUpdated(
               visibility: "public",
             },
           },
-          token: newData.fcmToken,
+          tokens,
         };
 
         try {
-          const response = await admin.messaging().send(message);
-          console.log("تم إرسال الإشعار بنجاح:", response);
+          const response = await admin.messaging().sendEachForMulticast(message);
+          console.log(`تم إرسال ${response.successCount} إشعار، وفشل ${response.failureCount}`);
+          const invalidCodes = new Set([
+            'messaging/invalid-registration-token',
+            'messaging/registration-token-not-registered',
+          ]);
+          const cleanup = [];
+          response.responses.forEach((result, index) => {
+            if (!result.success && invalidCodes.has(result.error?.code)) {
+              const tokenDoc = tokenDocs.get(tokens[index]);
+              if (tokenDoc) cleanup.push(tokenDoc.ref.delete());
+            }
+          });
+          await Promise.all(cleanup);
         } catch (error) {
           console.error("خطأ في إرسال الإشعار:", error);
         }
       } else {
-        console.log("الطالب ليس لديه توكن مسجل");
+        console.log("الطالب ليس لديه أجهزة إشعارات مسجلة");
       }
     }
     return null;

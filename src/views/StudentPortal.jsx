@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Button, StatusBadge } from '../components/UIComponents';
 import { IMAGES } from '../lib/constants';
-import { updateDoc, doc } from "firebase/firestore";
+import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db, appId } from '../lib/firebase';
 import { useCollection } from '../hooks/useCollection';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,17 +62,26 @@ const StudentPortal = ({ user, students, schedule, news, handleLogout }) => {
     }
     if (permStatus.receive !== 'granted') return;
 
-    await PushNotifications.register();
-
-    PushNotifications.addListener('registration', async (token) => {
-      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', currentUserData.id);
+    // Register the listener before calling register(), otherwise fast devices can
+    // emit the token before the listener exists.
+    await PushNotifications.addListener('registration', async (token) => {
       try {
-        await updateDoc(studentRef, { 
-          fcmToken: token.value,
-          lastTokenSync: new Date().toISOString()
+        const bytes = new TextEncoder().encode(`${currentUserData.id}:${token.value}`);
+        const digest = await crypto.subtle.digest('SHA-256', bytes);
+        const tokenId = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const tokenRef = doc(db, 'artifacts', appId, 'public', 'data', 'device_tokens', tokenId);
+        await setDoc(tokenRef, {
+          studentId: currentUserData.id,
+          token: token.value,
+          platform: Capacitor.getPlatform(),
+          updatedAt: serverTimestamp(),
         });
-      } catch (e) {}
+      } catch (e) {
+        console.error('تعذر حفظ جهاز الإشعارات:', e);
+      }
     });
+
+    await PushNotifications.register();
   };
 
   useEffect(() => {

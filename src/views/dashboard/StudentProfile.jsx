@@ -6,7 +6,7 @@ import {
     AlertTriangle, MessageCircle, Lock, Bell, Users, CheckCircle,
     Printer, Edit3, Plus, Clock, TrendingUp, TrendingDown, Minus,
     Send, Trash2, RefreshCw, ChevronLeft, ChevronRight,
-    FileText, ArrowUp, CalendarClock, CreditCard, Receipt
+    FileText, ArrowUp, CalendarClock, CreditCard, Receipt, Archive
 } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -450,6 +450,22 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                             </div>
                         </div>
                     </Section>
+
+                    {Array.isArray(student.membershipHistory) && student.membershipHistory.length > 0 && (
+                        <Section id="membership-history" icon={Archive} title="سجل العضويات والعودة" color="text-cyan-400" count={student.membershipHistory.length}>
+                            <div className="space-y-2">
+                                {[...student.membershipHistory].reverse().map((entry, index) => (
+                                    <div key={`${entry.sourceArchiveId || 'history'}-${index}`} className="bg-slate-950 border border-slate-800 rounded-xl p-3 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                                        <div><p className="text-[10px] text-slate-500 font-bold">تاريخ الأرشفة</p><p className="font-bold text-slate-300">{fmtDate(entry.archivedAt)}</p></div>
+                                        <div><p className="text-[10px] text-slate-500 font-bold">تاريخ العودة</p><p className="font-bold text-cyan-400">{fmtDate(entry.restoredAt)}</p></div>
+                                        <div><p className="text-[10px] text-slate-500 font-bold">بداية الاشتراك</p><p className="font-bold text-slate-300">{fmtDate(entry.subStart)}</p></div>
+                                        <div><p className="text-[10px] text-slate-500 font-bold">نهاية الاشتراك</p><p className="font-bold text-slate-300">{fmtDate(entry.subEnd)}</p></div>
+                                        <div><p className="text-[10px] text-slate-500 font-bold">المجموعة</p><p className="font-bold text-slate-300">{entry.group || '-'}</p></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                    )}
 
                     {/* ── 4. الحزام والفحوصات ── */}
                     <Section id="belt" icon={Award} title="الحزام والفحص" color="text-yellow-400"

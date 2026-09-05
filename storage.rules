@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userData() {
+      return firestore.get(
+        /databases/(default)/documents/artifacts/brave-academy-live-data/public/data/users/$(request.auth.token.email)
+      ).data;
+    }
+
+    function canManageNews() {
+      return signedIn() && (
+        request.auth.token.email == 'admin@brave.com' ||
+        request.auth.token.email == 'jehad234kawash@yahoo.com' ||
+        userData().get('isSuper', false) == true ||
+        userData().get('permissions', []).hasAny(['news'])
+      );
+    }
+
+    match /news/{fileName} {
+      allow read: if true;
+      allow create, update: if canManageNews() &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow delete: if canManageNews();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
