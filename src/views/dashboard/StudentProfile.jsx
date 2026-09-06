@@ -162,7 +162,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     const saveEdit = async () => {
         setSavingEdit(true);
         try {
-            const fields = Object.fromEntries(['name', 'phone', 'dob', 'joinDate', 'address'].map(key => [key, editForm[key] || '']));
+            const fields = Object.fromEntries(['name', 'phone', 'phoneLabel', 'secondaryPhone', 'secondaryPhoneLabel', 'dob', 'joinDate', 'address'].map(key => [key, editForm[key] || '']));
             if (!fields.name.trim()) return toast('اسم الطالب مطلوب', 'error');
             if (!await studentsCollection.update(student.id, fields)) throw new Error('Save failed');
             if (logActivity) logActivity('تعديل طالب', `تعديل بيانات ${student.name}`);
@@ -365,7 +365,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                                 <div className="flex items-center gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
                                     <Phone size={14} className="text-blue-400 shrink-0"/>
-                                    <span className="text-slate-500 font-bold">الهاتف:</span>
+                                    <span className="text-slate-500 font-bold">{student.phoneLabel || "الرقم الأساسي"}:</span>
                                     <a href={`tel:${student.phone}`} className="text-slate-200 font-mono ml-auto hover:text-blue-400">{student.phone || '-'}</a>
                                     {student.phone && (
                                         <button onClick={() => openWhatsApp(student.phone)} className="text-green-500 hover:bg-green-900/20 p-1 rounded">
@@ -373,6 +373,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                                         </button>
                                     )}
                                 </div>
+                                {student.secondaryPhone && <div className="flex items-center gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800"><Phone size={14}/><span className="text-slate-500">{student.secondaryPhoneLabel || 'الرقم الثانوي'}:</span><a dir="ltr" href={`tel:${student.secondaryPhone}`}>{student.secondaryPhone}</a></div>}
                                 <div className="flex items-center gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
                                     <Calendar size={14} className="text-emerald-400 shrink-0"/>
                                     <span className="text-slate-500 font-bold">تاريخ الميلاد:</span>
@@ -398,7 +399,10 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                                 {[
                                     { k:'name',    l:'الاسم',          type:'text' },
-                                    { k:'phone',   l:'الهاتف',         type:'tel' },
+                                    { k:'phone', l:'الرقم الأساسي', type:'tel' },
+                                    { k:'phoneLabel', l:'صاحب الرقم الأساسي', type:'text' },
+                                    { k:'secondaryPhone', l:'الرقم الثانوي (اختياري)', type:'tel' },
+                                    { k:'secondaryPhoneLabel', l:'صاحب الرقم الثانوي', type:'text' },
                                     { k:'dob',     l:'تاريخ الميلاد',  type:'date' },
                                     { k:'joinDate',l:'تاريخ الالتحاق', type:'date' },
                                     { k:'address', l:'العنوان',        type:'text', full:true },

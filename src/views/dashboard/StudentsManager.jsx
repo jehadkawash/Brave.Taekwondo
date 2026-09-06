@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone,
+  AlertTriangle, UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone,
   X, Search, MoreHorizontal, KeyRound, Send, Sparkles,
   Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer, RefreshCw,
   User
@@ -12,6 +12,8 @@ import { writeBatch, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, appId } from '../../lib/firebase';
 import StudentProfile from './StudentProfile';
 import NotesManager from './NotesManager';
+import { registrationComparator } from '../../lib/studentOrdering';
+import { printStudentReport } from '../../lib/studentReport';
 import { formatDate, calculateStatus } from '../../lib/utils';
 import { toast } from '../../lib/toast';
 
@@ -239,7 +241,7 @@ const StudentsManager = ({ initialStudentId, students, studentsCollection, archi
   }, [groups]);
 
   const defaultForm = { 
-      name: '', phone: '', belt: 'أبيض', group: '', 
+      name: '', phone: '', phoneLabel: '', secondaryPhone: '', secondaryPhoneLabel: '', belt: 'أبيض', group: '', 
       joinDate: new Date().toISOString().split('T')[0], 
       dob: '', address: '', balance: 0, subEnd: '', username: '', password: '' 
   };
@@ -338,7 +340,7 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
           const lowerSearch = search.trim().toLowerCase();
           result = result.filter(s => 
             (s.name || '').toLowerCase().includes(lowerSearch) || 
-            (s.phone || '').includes(lowerSearch) ||
+            (s.phone || '').includes(lowerSearch) || (s.secondaryPhone || '').includes(lowerSearch) ||
             (s.username || '').toLowerCase().includes(lowerSearch)
                 );
       }
@@ -350,10 +352,12 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
       if (groupFilter !== 'all') result = result.filter(s => formatGroupName(s.group) === groupFilter);
       if (beltFilter !== 'all') result = result.filter(s => s.belt === beltFilter);
 
+      const newest = registrationComparator(students, -1);
+      const oldest = registrationComparator(students, 1);
       result.sort((a, b) => {
           switch (sortOption) {
-              case 'joinDateDesc': return new Date(b.joinDate || 0) - new Date(a.joinDate || 0);
-              case 'joinDateAsc': return new Date(a.joinDate || 0) - new Date(b.joinDate || 0);
+              case 'joinDateDesc': return newest(a, b);
+              case 'joinDateAsc': return oldest(a, b);
               case 'beltDesc': return BELTS.indexOf(b.belt) - BELTS.indexOf(a.belt);
               case 'beltAsc': return BELTS.indexOf(a.belt) - BELTS.indexOf(b.belt);
               case 'balanceDesc': return (debtTotals[b.id] || 0) - (debtTotals[a.id] || 0);
@@ -365,117 +369,7 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
       return result;
   }, [students, search, statusFilter, sortOption, groupFilter, beltFilter, debtTotals]);
 
-  const handlePrintStudents = () => {
-    const printWin = window.open('', 'PRINT', 'height=800,width=1100');
-    const logoUrl = window.location.origin + IMAGES.LOGO;
-    const dateNow = new Date().toLocaleDateString('en-GB');
-
-    let rowsHtml = '';
-    processedStudents.forEach((s, i) => {
-        let displayName = s.name ? s.name.trim() : "-";
-        
-        // تم الإصلاح: تنظيف عرض المجموعة في الطباعة
-        let groupDisplay = formatGroupName(s.group);
-
-        const status = calculateStatus(s.subEnd);
-        let statusText = 'فعال';
-        let statusColor = '#166534';
-        let statusBg = '#dcfce7';
-
-        if (status === 'expired') {
-            statusText = 'منتهي';
-            statusColor = '#991b1b';
-            statusBg = '#fee2e2';
-        } else if (status === 'near_end') {
-            statusText = 'قارب الانتهاء';
-            statusColor = '#854d0e';
-            statusBg = '#fef08a';
-        }
-
-        // FIX: نحسب الذمم من collection الذمم الجديد بدل الحقل القديم s.balance
-        const studentDebts = debts.filter(d => d.studentId === s.id);
-        const totalDebt    = studentDebts.reduce((acc, d) =>
-            acc + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
-        const balanceText  = totalDebt > 0
-            ? `<span style="color:#991b1b; font-weight:bold;">عليه ${totalDebt}</span>`
-            : '<span style="color:#166534;">خالص</span>';
-
-        rowsHtml += `
-            <tr>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${i + 1}</td>
-                <td style="border:1px solid #000; padding:6px; font-weight:bold; font-size:13px;">${displayName}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${s.belt || '-'}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px;">${groupDisplay}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${s.phone || '-'}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; background-color:${totalDebt > 0 ? '#fee2e2' : 'transparent'};">${balanceText}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-family:monospace;">${formatDate(s.subEnd)}</td>
-                <td style="border:1px solid #000; padding:6px; text-align:center; font-size:12px; font-weight:bold; color:${statusColor}; background-color:${statusBg};">${statusText}</td>
-            </tr>
-        `;
-    });
-
-    if (processedStudents.length === 0) {
-        rowsHtml = `<tr><td colspan="8" style="text-align:center; padding:20px;">لا يوجد طلاب مطابقين لخيارات البحث.</td></tr>`;
-    }
-
-    const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>كشف بيانات الطلاب - ${selectedBranch || 'عام'}</title>
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-                @page { size: A4 landscape; margin: 10mm; }
-                body { font-family: 'Cairo', sans-serif; margin: 0; padding: 0; background: #fff; color: #000; }
-                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-                .header-info h1 { margin: 0; font-size: 20px; color: #000; font-weight: 900; }
-                .header-info p { margin: 5px 0 0 0; font-size: 13px; font-weight: bold; color: #444; }
-                .logo { height: 60px; object-fit: contain; }
-                table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                th { background-color: #f3f4f6; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: center; }
-                td { border: 1px solid #000; }
-                @media print {
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    th, td { border: 1px solid #000 !important; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <div class="header-info">
-                    <h1>كشف سجلات الطلاب الشامل</h1>
-                    <p>الفرع: ${selectedBranch || 'عام'} | تاريخ الطباعة: ${dateNow} | العدد: ${processedStudents.length}</p>
-                </div>
-                <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 30px;">#</th>
-                        <th style="width: 180px;">اسم الطالب</th>
-                        <th style="width: 80px;">الحزام</th>
-                        <th style="width: 100px;">المجموعة / الفترة</th>
-                        <th style="width: 120px;">رقم الهاتف</th>
-                        <th style="width: 100px;">الرصيد/المديونية</th>
-                        <th style="width: 120px;">نهاية الاشتراك</th>
-                        <th style="width: 100px;">حالة الاشتراك</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-            <div style="font-size:10px; color:#666; text-align:left; margin-top:15px;">
-                تم الإنشاء بواسطة نظام إدارة أكاديمية الشجاع للتايكواندو
-            </div>
-            <script>window.onload = function() { window.print(); window.close(); }</script>
-        </body>
-        </html>
-    `;
-    printWin.document.write(htmlContent);
-    printWin.document.close();
-  };
+  const handlePrintStudents = () => printStudentReport({ students: processedStudents, selectedBranch, debtTotals, filterDescription: [search && `بحث: ${search}`, statusFilter !== 'all' && `الحالة: ${{active:'نشط',near_end:'قرب الانتهاء',expired:'منتهي'}[statusFilter]}`, groupFilter !== 'all' && `المجموعة: ${groupFilter}`, beltFilter !== 'all' && `الحزام: ${beltFilter}`].filter(Boolean).join(' · ') });
 
   const addStudent = async (e) => {
     e.preventDefault();
@@ -531,6 +425,7 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
 
       const student = {
         ...newS,
+        createdAt:       new Date().toISOString(),
         branch:          selectedBranch,
         status:          'active',
         subEnd:          subEnd,
@@ -574,7 +469,10 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
       setEditingStudent(student); 
       setNewS({ 
           name: student.name, 
-          phone: student.phone, 
+          phone: student.phone,
+          phoneLabel: student.phoneLabel || '',
+          secondaryPhone: student.secondaryPhone || '',
+          secondaryPhoneLabel: student.secondaryPhoneLabel || '', 
           belt: student.belt, 
           group: student.group || '', 
           joinDate: student.joinDate, 
@@ -851,7 +749,6 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={handlePrintStudents} className="bg-slate-800 text-slate-300 border border-slate-700"><Printer size={16}/> طباعة النتائج</Button>
-            <Button variant="secondary" onClick={() => setShowBroadcast(true)} className="bg-slate-800 text-slate-300 border border-slate-700"><Megaphone size={16}/> إرسال إعلان</Button>
             <Button onClick={() => {setEditingStudent(null); setShowModal(true);}} className="bg-yellow-500 text-slate-900 hover:bg-yellow-400 font-bold"><UserPlus size={18}/> طالب جديد</Button>
           </div>
         </div>
@@ -906,8 +803,8 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
               <thead className="bg-slate-950 text-slate-400 border-b border-slate-800"><tr>{['الطالب والمجموعة', 'التواصل', 'الحزام', 'الذمم', 'الاشتراك', 'الإجراءات'].map(label => <th scope="col" key={label} className="p-4 font-bold">{label}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-800">
                 {processedStudents.map(student => <tr key={student.id} className="hover:bg-slate-800/50 transition-colors align-top">
-                  <td className="p-4"><button onClick={() => setProfileStudent(student)} className="text-right text-base font-bold text-slate-200 hover:text-yellow-500">{student.name}</button><p className="text-xs text-slate-400 mt-2">{formatGroupName(student.group)}</p><div className="flex flex-wrap gap-2 mt-2">{isNewStudent(student.joinDate) && <span className="text-xs text-blue-400">طالب جديد</span>}{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 flex items-center gap-1"><FileWarning size={14}/> ملاحظات خاصة</button>}</div></td>
-                  <td className="p-4"><div className="flex flex-col items-start gap-2">{student.phone ? <><a dir="ltr" href={`tel:${student.phone}`} className="text-slate-300 font-mono min-h-11 inline-flex items-center gap-2"><Phone size={14}/>{student.phone}</a><button onClick={() => openWhatsAppChat(student.phone)} className="text-emerald-400 text-xs flex items-center gap-2 min-h-11"><MessageCircle size={16}/> واتساب</button></> : <span className="text-slate-500">غير محدد</span>}</div></td>
+                  <td className="p-4"><button onClick={() => setProfileStudent(student)} className="text-right text-base font-bold text-slate-200 hover:text-yellow-500">{student.name}</button><p className="text-xs text-slate-400 mt-2">{formatGroupName(student.group)}</p><div className="flex flex-wrap gap-2 mt-2">{isNewStudent(student.joinDate) && <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-900/20 px-2 py-1 text-xs font-bold text-red-400"><AlertTriangle size={14}/> طالب جديد</span>}{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 flex items-center gap-1"><FileWarning size={14}/> ملاحظات خاصة</button>}</div></td>
+                  <td className="p-4"><div className="flex flex-col items-start gap-2">{student.phone ? <><a dir="ltr" href={`tel:${student.phone}`} className="text-slate-300 font-mono min-h-11 inline-flex items-center gap-2"><Phone size={14}/>{student.phone}</a><span className="text-xs text-slate-400">{student.phoneLabel || "الرقم الأساسي"}</span>{student.secondaryPhone && <a href={`tel:${student.secondaryPhone}`} className="text-xs text-slate-400 min-h-11">{student.secondaryPhoneLabel || "رقم ثانوي"}: <bdi>{student.secondaryPhone}</bdi></a>}<button onClick={() => openWhatsAppChat(student.phone)} className="text-emerald-400 text-xs flex items-center gap-2 min-h-11"><MessageCircle size={16}/> واتساب</button></> : <span className="text-slate-500">غير محدد</span>}</div></td>
                   <td className="p-4"><span className="inline-block px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">{student.belt || 'غير محدد'}</span></td>
                   <td className="p-4 whitespace-nowrap">{renderDebt(student)}</td>
                   <td className="p-4 whitespace-nowrap">{renderSubscription(student)}</td>
@@ -919,9 +816,10 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
         </Card>
         <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
           {processedStudents.map(student => <article key={student.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 min-w-0">
-            <div><button onClick={() => setProfileStudent(student)} className="text-right font-bold text-lg text-slate-100 hover:text-yellow-500 break-words">{student.name}</button><p className="text-sm text-slate-400 mt-1">{formatGroupName(student.group)} · الحزام {student.belt || 'غير محدد'}</p>{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 mt-2 min-h-8 flex items-center gap-1"><FileWarning size={14}/> توجد ملاحظات خاصة</button>}</div>
+            <div>{isNewStudent(student.joinDate) && <span className="inline-flex items-center gap-1 mb-2 px-2 py-1 rounded-lg border border-red-500/40 bg-red-900/20 text-red-400 text-xs font-bold"><AlertTriangle size={14}/> طالب جديد</span>}<button onClick={() => setProfileStudent(student)} className="text-right font-bold text-lg text-slate-100 hover:text-yellow-500 break-words">{student.name}</button><p className="text-sm text-slate-400 mt-1">{formatGroupName(student.group)} · الحزام {student.belt || 'غير محدد'}</p>{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 mt-2 min-h-8 flex items-center gap-1"><FileWarning size={14}/> توجد ملاحظات خاصة</button>}</div>
             <div className="grid grid-cols-2 gap-3 bg-slate-950 border border-slate-800 rounded-xl p-3"><div><p className="text-xs text-slate-400 mb-2">الاشتراك</p>{renderSubscription(student)}</div><div><p className="text-xs text-slate-400 mb-2">الذمم المالية</p>{renderDebt(student)}</div></div>
             {student.phone && <div className="flex flex-wrap items-center justify-between gap-2"><a dir="ltr" href={`tel:${student.phone}`} className="min-h-11 flex items-center gap-2 text-sm text-slate-300 font-mono"><Phone size={16}/>{student.phone}</a><button onClick={() => openWhatsAppChat(student.phone)} className="min-h-11 px-3 rounded-lg text-emerald-400 bg-emerald-900/20 flex items-center gap-2 text-sm"><MessageCircle size={16}/> واتساب</button></div>}
+            <p className="text-xs text-slate-400">الأساسي: {student.phoneLabel || "غير محدد"}</p>{student.secondaryPhone && <a href={`tel:${student.secondaryPhone}`} className="text-sm text-slate-300 min-h-11">{student.secondaryPhoneLabel || "رقم ثانوي"}: <bdi>{student.secondaryPhone}</bdi></a>}
             <div className="border-t border-slate-800 pt-3 mt-auto">{renderActions(student)}</div>
           </article>)}
         </div>
@@ -988,10 +886,10 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
                                 </div>
                             )}
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1">رقم الهاتف</label>
-                                <input required className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.phone} onChange={e=>setNewS({...newS, phone:e.target.value})} placeholder="079xxxxxxx" />
-                            </div>
+                            <fieldset className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3 border border-slate-700 rounded-xl p-4">
+                                <legend className="px-2 font-bold text-slate-200">أرقام التواصل</legend>
+                                {[{key:'phone',label:'الرقم الأساسي — واتساب واتصال',required:true,type:'tel'}, {key:'phoneLabel',label:'صاحب الرقم الأساسي',placeholder:'الأب، الأم، الأخت، أو وصف آخر'}, {key:'secondaryPhone',label:'الرقم الثانوي (اختياري)',type:'tel'}, {key:'secondaryPhoneLabel',label:'صاحب الرقم الثانوي (اختياري)',placeholder:'الأب، الأم، الأخت، أو وصف آخر'}].map(field => <label key={field.key} className="text-xs text-slate-400">{field.label}<input type={field.type || 'text'} dir={field.type === 'tel' ? 'ltr' : 'rtl'} required={field.required} className="mt-2 w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl focus:outline-yellow-500" value={newS[field.key] || ''} onChange={e => setNewS({...newS,[field.key]:e.target.value})} placeholder={field.placeholder || '079xxxxxxx'}/></label>)}
+                            </fieldset>
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 mb-1">الحزام الحالي</label>
                                 <select className="w-full bg-slate-950 border border-slate-700 text-slate-200 focus:border-yellow-500 p-2.5 rounded-xl outline-none" value={newS.belt} onChange={e=>setNewS({...newS, belt:e.target.value})}>

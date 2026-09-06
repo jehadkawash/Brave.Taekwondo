@@ -59,7 +59,7 @@ export default function QuickSearch({
         // طلاب نشطين
         students.forEach(s => {
             if (s.name?.toLowerCase().includes(q) ||
-                s.phone?.includes(q) ||
+                s.phone?.includes(q) || s.secondaryPhone?.includes(q) ||
                 s.username?.toLowerCase().includes(q)) {
                 items.push({ type: 'student', icon: User, color: 'text-blue-400', bg: 'bg-blue-900/20', border: 'border-blue-500/20',
                     title: s.name, subtitle: `${s.belt || '—'} • ${s.phone || ''}`,
