@@ -153,6 +153,15 @@ const AdminDashboard = ({
       : 'attendance';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [studentRequest, setStudentRequest] = useState(null);
+  const navigateForStudent = (tab, studentId) => {
+    setStudentRequest(studentId ? { tab, studentId, key: Date.now() } : null);
+    setActiveTab(tab);
+  };
+  useEffect(() => { setStudentRequest(null); }, [selectedBranch]);
+  useEffect(() => {
+    setStudentRequest(request => request && request.tab !== activeTab ? null : request);
+  }, [activeTab]);
 
   // Theme toggle (light/dark)
   const [isLight, setIsLight] = useState(() => {
@@ -414,13 +423,13 @@ const AdminDashboard = ({
               </button>
             )}
 
-            {/* Quick Search Button (Ctrl+K) */}
+            {/* Quick Search Button (Ctrl+F) */}
             <button onClick={() => window.__openQuickSearch && window.__openQuickSearch()}
-              className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-lg text-xs transition-colors"
-              title="بحث شامل (Ctrl+K)">
+              className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-lg text-xs transition-colors"
+              title="بحث عن طالب (Ctrl+F)">
               <Search size={15}/>
-              <span>بحث...</span>
-              <kbd className="px-1.5 py-0.5 bg-slate-950 border border-slate-700 rounded text-[10px] font-mono">Ctrl+K</kbd>
+              <span>بحث عن طالب</span>
+              <kbd className="px-1.5 py-0.5 bg-slate-950 border border-slate-700 rounded text-[10px] font-mono">Ctrl+F</kbd>
             </button>
 
             {onSwitchBranch && (
@@ -568,6 +577,8 @@ const AdminDashboard = ({
           )}
           {activeTab === 'students'       && hasPerm('students')       && (
             <StudentsManager
+              key={studentRequest?.tab === "students" ? studentRequest.key : "students"}
+              initialStudentId={studentRequest?.tab === "students" ? studentRequest.studentId : null}
               students={branchStudents}
               groups={branchGroups}
               studentsCollection={studentsCollection}
@@ -575,9 +586,9 @@ const AdminDashboard = ({
               selectedBranch={selectedBranch}
               logActivity={handleLog}
               debts={debtsCollection.data || []}
-              onNavigateToDebts={hasPerm('finance')  ? () => setActiveTab('debts')   : null}
-              onNavigateToWeights={hasPerm('students') ? () => setActiveTab('weights') : null}
-              onNavigateToFinance={hasPerm('finance')  ? () => setActiveTab('finance') : null}
+              onNavigateToDebts={hasPerm('finance')  ? (id) => navigateForStudent('debts', id)   : null}
+              onNavigateToWeights={hasPerm('students') ? (id) => navigateForStudent('weights', id) : null}
+              onNavigateToFinance={hasPerm('finance')  ? (id) => navigateForStudent('finance', id) : null}
             />
           )}
           {activeTab === 'tests'          && hasPerm('tests')          && (
@@ -603,6 +614,8 @@ const AdminDashboard = ({
           )}
           {activeTab === 'finance'        && hasPerm('finance')        && (
             <FinanceManager
+              key={studentRequest?.tab === "finance" ? studentRequest.key : "finance"}
+              initialStudentId={studentRequest?.tab === "finance" ? studentRequest.studentId : null}
               students={branchStudents}
               payments={branchPayments}
               paymentsCollection={paymentsCollection}
@@ -670,6 +683,8 @@ const AdminDashboard = ({
           )}
           {activeTab === 'debts' && hasPerm('finance') && (
             <DebtManager
+              key={studentRequest?.tab === "debts" ? studentRequest.key : "debts"}
+              initialStudentId={studentRequest?.tab === "debts" ? studentRequest.studentId : null}
               students={branchStudents}
               archivedStudents={archiveCollection.data || []}
               selectedBranch={selectedBranch}
@@ -678,6 +693,8 @@ const AdminDashboard = ({
           )}
           {activeTab === 'weights' && hasPerm('students') && (
             <WeightsManager
+              key={studentRequest?.tab === "weights" ? studentRequest.key : "weights"}
+              initialStudentId={studentRequest?.tab === "weights" ? studentRequest.studentId : null}
               students={branchStudents}
               archivedStudents={archiveCollection.data || []}
               selectedBranch={selectedBranch}
@@ -713,13 +730,13 @@ const AdminDashboard = ({
         </div>
       </main>
 
-      {/* ── Quick Search (Ctrl+K) — يعمل في أي مكان بالـ dashboard ── */}
+      {/* ── Quick Search (Ctrl+F) — يعمل في أي مكان بالـ dashboard ── */}
       <QuickSearch
-        students={branchStudents}
+        students={hasPerm('students') ? branchStudents : []}
         archivedStudents={archiveCollection.data || []}
         payments={branchPayments}
         debts={debtsCollection.data || []}
-        onNavigate={(tab) => setActiveTab(tab)}
+        onNavigate={navigateForStudent}
       />
 
       {/* ── Mobile Bottom Nav — يظهر فقط على الموبايل ── */}

@@ -56,7 +56,7 @@ const WeightEntryModal = ({ student, editing, onClose, onSave }) => {
         try {
             await onSave({ weight: w, note: note.trim() });
             onClose();
-        } finally { setSaving(false); }
+        } catch { toast("تعذر حفظ القياس. حاول مرة أخرى.", "error"); } finally { setSaving(false); }
     };
 
     return createPortal(
@@ -322,15 +322,15 @@ const StudentRow = ({ student, entries, target, isSelected, onClick, isArchived 
 };
 
 // ─── المكوّن الرئيسي ──────────────────────────────────────────────────────────
-export default function WeightsManager({ students = [], archivedStudents = [], selectedBranch, logActivity }) {
+export default function WeightsManager({ initialStudentId, students = [], archivedStudents = [], selectedBranch, logActivity }) {
 
     const weightsCol  = useCollection('weights');
     const eventsCol   = useCollection('weight_events');
 
     const [activeView, setActiveView]     = useState('all');        // 'all' | eventId
-    const [selectedId, setSelectedId]     = useState(null);
+    const [selectedId, setSelectedId]     = useState(initialStudentId || null);
     const [search, setSearch]             = useState('');
-    const [showAddWeight, setShowAddWeight] = useState(false);
+    const [showAddWeight, setShowAddWeight] = useState(Boolean(initialStudentId));
     const [editingWeight, setEditingWeight] = useState(null);
     const [showTarget, setShowTarget]     = useState(false);
     const [showNewEvent, setShowNewEvent] = useState(false);
@@ -408,11 +408,11 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
 
     const handleSaveWeight = async (data) => {
         if (editingWeight) {
-            await weightsCol.update(editingWeight.id, data);
+            if (!await weightsCol.update(editingWeight.id, data)) throw new Error("Weight update failed");
             if (logActivity) logActivity('تعديل وزن', `تعديل وزن ${selectedStudent.name} → ${data.weight} كغم`);
             setEditingWeight(null);
         } else {
-            await weightsCol.add({
+            const saved = await weightsCol.add({
                 studentId: selectedStudent.id,
                 studentName: selectedStudent.name,
                 branch: selectedBranch,
@@ -420,6 +420,7 @@ export default function WeightsManager({ students = [], archivedStudents = [], s
                 note: data.note,
                 createdAt: nowIso(),
             });
+            if (!saved) throw new Error('Weight save failed');
             if (logActivity) logActivity('قياس وزن', `${selectedStudent.name} → ${data.weight} كغم`);
         }
     };

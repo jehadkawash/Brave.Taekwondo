@@ -1,10 +1,10 @@
 // src/components/QuickSearch.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, X, User, DollarSign, AlertTriangle, Archive, Phone } from 'lucide-react';
+import { Search, X, User } from 'lucide-react';
 
 /**
- * QuickSearch — Cmd/Ctrl+K modal that searches everything at once
+ * QuickSearch — Cmd/Ctrl+F modal that opens a selected student profile
  *
  * Props:
  *   - students:        active students array
@@ -15,7 +15,7 @@ import { Search, X, User, DollarSign, AlertTriangle, Archive, Phone } from 'luci
  */
 // نُعرّض دالة open globally على window للوصول من زر الـ header
 export default function QuickSearch({
-    students = [], archivedStudents = [], payments = [], debts = [], onNavigate
+    students = [], onNavigate
 }) {
     const [open, setOpen]   = useState(false);
 
@@ -27,13 +27,13 @@ export default function QuickSearch({
     const [query, setQuery] = useState('');
     const inputRef = useRef(null);
 
-    // Cmd/Ctrl + K to open — يستخدم e.code علشان يشتغل مع اللوحة العربية أيضاً
+    // Cmd/Ctrl + F to open — يستخدم e.code علشان يشتغل مع اللوحة العربية أيضاً
     useEffect(() => {
         const handler = (e) => {
             // e.code = 'KeyK' بغض النظر عن لغة لوحة المفاتيح (عربي/إنجليزي)
-            if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key === 'k' || e.key === 'K' || e.key === 'لا')) {
+            if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.code === 'KeyF' || e.code === 'KeyK' || ['f', 'F', 'k', 'K'].includes(e.key))) {
                 e.preventDefault();
-                setOpen(o => !o);
+                setOpen(true);
             }
             if (e.key === 'Escape') setOpen(false);
         };
@@ -43,7 +43,7 @@ export default function QuickSearch({
 
     useEffect(() => {
         if (open && inputRef.current) {
-            setTimeout(() => inputRef.current.focus(), 50);
+            inputRef.current.focus();
         } else {
             setQuery('');
         }
@@ -63,44 +63,8 @@ export default function QuickSearch({
                 s.username?.toLowerCase().includes(q)) {
                 items.push({ type: 'student', icon: User, color: 'text-blue-400', bg: 'bg-blue-900/20', border: 'border-blue-500/20',
                     title: s.name, subtitle: `${s.belt || '—'} • ${s.phone || ''}`,
-                    badge: 'نشط', badgeBg: 'bg-emerald-900/30 text-emerald-400 border-emerald-500/20',
-                    target: { tab: 'students' } });
-            }
-        });
-
-        // طلاب مؤرشفين
-        archivedStudents.forEach(s => {
-            if (s.name?.toLowerCase().includes(q) || s.phone?.includes(q)) {
-                items.push({ type: 'archived', icon: Archive, color: 'text-orange-400', bg: 'bg-orange-900/20', border: 'border-orange-500/20',
-                    title: s.name, subtitle: `${s.belt || '—'} • مؤرشف ${s.archivedAt || ''}`,
-                    badge: '📦 مؤرشف', badgeBg: 'bg-orange-900/30 text-orange-400 border-orange-500/20',
-                    target: { tab: 'archive' } });
-            }
-        });
-
-        // وصولات (بحث بالاسم أو السبب أو المبلغ)
-        payments.forEach(p => {
-            if (p.name?.toLowerCase().includes(q) ||
-                p.reason?.toLowerCase().includes(q) ||
-                String(p.amount).includes(q)) {
-                items.push({ type: 'payment', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-900/20', border: 'border-emerald-500/20',
-                    title: `${p.name} — ${p.amount} JD`, subtitle: `${p.reason || '-'} • ${p.date || ''}`,
-                    badge: p.method === 'cliq' ? 'كليك' : 'كاش',
-                    badgeBg: p.method === 'cliq' ? 'bg-blue-900/30 text-blue-400 border-blue-500/20' : 'bg-green-900/30 text-green-400 border-green-500/20',
-                    target: { tab: 'finance' } });
-            }
-        });
-
-        // ذمم
-        debts.forEach(d => {
-            const remaining = Number(d.totalAmount) - Number(d.paidAmount || 0);
-            if (d.studentName?.toLowerCase().includes(q) ||
-                d.reason?.toLowerCase().includes(q)) {
-                items.push({ type: 'debt', icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-900/20', border: 'border-red-500/20',
-                    title: `${d.studentName} — ${remaining} JD`, subtitle: `${d.reason || ''} • متبقي`,
-                    badge: remaining > 0 ? 'غير مدفوع' : 'مسدّد',
-                    badgeBg: remaining > 0 ? 'bg-red-900/30 text-red-400 border-red-500/20' : 'bg-emerald-900/30 text-emerald-400 border-emerald-500/20',
-                    target: { tab: 'debts' } });
+                    badge: 'طالب', badgeBg: 'bg-emerald-900/30 text-emerald-400 border-emerald-500/20',
+                    target: { tab: 'students', studentId: s.id } });
             }
         });
 
@@ -112,17 +76,17 @@ export default function QuickSearch({
         });
 
         return items.slice(0, 30); // كحد أقصى
-    }, [query, students, archivedStudents, payments, debts]);
+    }, [query, students]);
 
     const handleSelect = (item) => {
-        if (onNavigate && item.target?.tab) onNavigate(item.target.tab);
+        if (onNavigate && item.target?.tab) onNavigate(item.target.tab, item.target.studentId);
         setOpen(false);
     };
 
     if (!open) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[10vh] bg-black/70 backdrop-blur-sm"
+        <div role="dialog" aria-modal="true" aria-label="بحث عن طالب" dir="rtl" className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[10vh] bg-black/70 backdrop-blur-sm"
             onClick={() => setOpen(false)}>
             <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden animate-fade-in"
                 onClick={e => e.stopPropagation()}>
@@ -130,9 +94,9 @@ export default function QuickSearch({
                 {/* حقل البحث */}
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800 bg-slate-950">
                     <Search size={18} className="text-yellow-500 shrink-0"/>
-                    <input ref={inputRef}
-                        className="flex-1 bg-transparent text-slate-100 outline-none placeholder-slate-600 text-base"
-                        placeholder="ابحث في الطلاب، الوصولات، الذمم..."
+                    <input ref={inputRef} aria-label="بحث عن طالب" onKeyDown={e => { if (e.key === "Enter" && results?.length) { e.preventDefault(); handleSelect(results[0]); } }}
+                        className="flex-1 min-w-0 bg-transparent text-slate-100 outline-none placeholder-slate-600 text-base"
+                        placeholder="اسم الطالب، الهاتف، أو اسم المستخدم"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
                     />
@@ -149,8 +113,8 @@ export default function QuickSearch({
                     {!query.trim() ? (
                         <div className="p-8 text-center text-slate-600">
                             <Search size={32} className="mx-auto mb-3 opacity-30"/>
-                            <p className="text-sm font-bold">ابحث في كل البيانات بضغطة زر</p>
-                            <p className="text-xs mt-1">الطلاب • الوصولات • الذمم • الأرشيف</p>
+                            <p className="text-sm font-bold">ابحث عن طالب وافتح ملفه مباشرة</p>
+                            <p className="text-xs mt-1">طلاب الفرع الحالي • حسب صلاحيات حسابك</p>
                         </div>
                     ) : results.length === 0 ? (
                         <div className="p-8 text-center text-slate-600">
@@ -183,7 +147,7 @@ export default function QuickSearch({
                     <span>
                         <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded font-mono">Ctrl</kbd>
                         +
-                        <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded font-mono">K</kbd>
+                        <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded font-mono">F</kbd>
                         {' '}للفتح بأي وقت
                     </span>
                 </div>

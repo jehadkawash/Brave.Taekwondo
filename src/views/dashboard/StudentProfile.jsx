@@ -1,5 +1,5 @@
 // src/views/dashboard/StudentProfile.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X, User, Phone, MapPin, Calendar, Award, Scale, DollarSign,
@@ -14,6 +14,8 @@ import {
 import { useCollection } from '../../hooks/useCollection';
 import { BELTS, IMAGES } from '../../lib/constants';
 import { toast } from '../../lib/toast';
+import NotesManager from './NotesManager';
+import AttendanceHistory from '../../components/AttendanceHistory';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const fmtDate = (v) => {
@@ -47,8 +49,14 @@ const openWhatsApp = (phone, msg = '') => {
     window.open(url, '_blank');
 };
 
+const ProfileTab = createContext('overview');
+const sectionTabs = { info:'overview', family:'overview', subscription:'overview', 'membership-history':'overview', login:'overview', payments:'finance', debts:'finance', weights:'progress', belt:'progress', attendance:'attendance', notes:'notes' };
+
 // ─── Section Card ────────────────────────────────────────────────────────────
-const Section = ({ id, icon: Icon, title, color, count, action, children }) => (
+const Section = ({ id, icon: Icon, title, color, count, action, children }) => {
+    const tab = useContext(ProfileTab);
+    if (sectionTabs[id] !== tab) return null;
+    return (
     <section id={id} className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3.5 bg-slate-950 border-b border-slate-800">
             <h3 className={`font-black flex items-center gap-2 ${color}`}>
@@ -64,6 +72,7 @@ const Section = ({ id, icon: Icon, title, color, count, action, children }) => (
         <div className="p-4">{children}</div>
     </section>
 );
+};
 
 // ─── Stat Pill ───────────────────────────────────────────────────────────────
 const StatPill = ({ label, value, color }) => (
@@ -74,34 +83,28 @@ const StatPill = ({ label, value, color }) => (
 );
 
 // ─── المكوّن الرئيسي ──────────────────────────────────────────────────────────
-export default function StudentProfile({ student, allStudents = [], studentsCollection, archiveCollection, selectedBranch, logActivity, onClose, onOpenWeights, onOpenDebts, onOpenFinance }) {
+export default function StudentProfile({ student, allStudents = [], studentsCollection, archiveCollection, selectedBranch, logActivity, onClose, onOpenWeights, onOpenDebts, onOpenFinance, onRenew, onSelectStudent }) {
 
     // إذا الطالب null، ما نعرض شي
     if (!student) return null;
 
     // ─── Collections ──────────────────────────────────────────────────────────
-    const paymentsCol = useCollection('payments');
-    const debtsCol    = useCollection('debts');
-    const weightsCol  = useCollection('weights');
+    const paymentsCol = useCollection('payments', { enabled: Boolean(onOpenFinance), where: [['studentId', '==', student.id], ['branch', '==', selectedBranch]] });
+    const debtsCol    = useCollection('debts', { enabled: Boolean(onOpenDebts), where: [['studentId', '==', student.id], ['branch', '==', selectedBranch]] });
+    const weightsCol  = useCollection('weights', { where: [['studentId', '==', student.id], ['branch', '==', selectedBranch]] });
+    const [activeSection, setActiveSection] = useState('overview');
 
     // ─── حالات تحرير ──────────────────────────────────────────────────────────
     const [editMode, setEditMode]     = useState(false);
     const [editForm, setEditForm]     = useState({ ...student });
     const [savingEdit, setSavingEdit] = useState(false);
 
-    // مودالات صغيرة داخل البروفايل
-    const [showAddPayment, setShowAddPayment] = useState(false);
-    const [showAddDebt, setShowAddDebt]       = useState(false);
-    const [showAddWeight, setShowAddWeight]   = useState(false);
-    const [showAddNote, setShowAddNote]       = useState(false);
-    const [showRenew, setShowRenew]           = useState(false);
-
     // ─── Computed ─────────────────────────────────────────────────────────────
     const status = calcStatus(student.subEnd);
 
     // الإخوة (نفس العائلة)
     const siblings = useMemo(() =>
-        allStudents.filter(s => s.familyId === student.familyId && s.id !== student.id),
+        allStudents.filter(s => student.familyId && student.familyId !== 'new' && s.familyId === student.familyId && s.id !== student.id),
     [allStudents, student]);
 
     // الوصولات
@@ -159,16 +162,19 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     const saveEdit = async () => {
         setSavingEdit(true);
         try {
-            await studentsCollection.update(student.id, editForm);
+            const fields = Object.fromEntries(['name', 'phone', 'dob', 'joinDate', 'address'].map(key => [key, editForm[key] || '']));
+            if (!fields.name.trim()) return toast('اسم الطالب مطلوب', 'error');
+            if (!await studentsCollection.update(student.id, fields)) throw new Error('Save failed');
             if (logActivity) logActivity('تعديل طالب', `تعديل بيانات ${student.name}`);
             setEditMode(false);
-        } finally { setSavingEdit(false); }
+            toast('تم حفظ بيانات الطالب', 'success');
+        } catch { toast('تعذر حفظ التعديلات. حاول مرة أخرى.', 'error'); } finally { setSavingEdit(false); }
     };
 
     const promoteBelt = async () => {
         if (!nextBelt) return toast('الطالب في أعلى حزام', 'error');
         if (!confirm(`ترقية ${student.name} من ${student.belt} إلى ${nextBelt}؟`)) return;
-        await studentsCollection.update(student.id, { belt: nextBelt });
+        if (!await studentsCollection.update(student.id, { belt: nextBelt })) return toast('تعذر حفظ ترقية الحزام', 'error');
         if (logActivity) logActivity('ترقية حزام', `${student.name}: ${student.belt} → ${nextBelt}`);
     };
 
@@ -293,7 +299,8 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     }[status];
 
     return createPortal(
-        <div className="fixed inset-0 z-[80] bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
+        <ProfileTab.Provider value={activeSection}>
+        <div role="dialog" aria-modal="true" aria-label={`ملف الطالب ${student.name}`} dir="rtl" className="fixed inset-0 z-[80] bg-black/85 backdrop-blur-md overflow-y-auto" onClick={onClose}>
             <div className="min-h-screen p-2 md:p-6" onClick={e => e.stopPropagation()}>
                 <div className="max-w-5xl mx-auto space-y-5">
 
@@ -318,7 +325,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                                     className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition-colors">
                                     <Printer size={18}/>
                                 </button>
-                                <button onClick={onClose}
+                                <button onClick={onClose} aria-label="إغلاق ملف الطالب"
                                     className="p-2.5 bg-red-900/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 rounded-xl transition-colors">
                                     <X size={18}/>
                                 </button>
@@ -331,15 +338,22 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                             <StatPill label="إجمالي المدفوع" value={`${totalPaid} JD`} color="text-emerald-400"/>
                             <StatPill label="عدد الوصولات" value={studentPayments.length} color="text-cyan-400"/>
                             <StatPill label="الذمم المتبقية" value={`${totalDebt} JD`} color={totalDebt > 0 ? "text-red-400" : "text-emerald-400"}/>
+                            <StatPill label="آخر حضور" value={fmtDate(Object.keys(student.attendance || {}).filter(day => student.attendance[day]).sort().at(-1))}/><StatPill label="آخر دفعة" value={onOpenFinance ? (paymentsCol.loading ? "..." : fmtDate(studentPayments[0]?.date)) : "غير متاح"}/>
                             <StatPill label="القياسات" value={studentWeights.length} color="text-purple-400"/>
                             <StatPill label="الوزن الحالي" value={currentWeight ? `${currentWeight} kg` : '-'} color="text-yellow-400"/>
                         </div>
                     </div>
 
+                    <nav aria-label="أقسام ملف الطالب" className="flex flex-wrap gap-2 bg-slate-900 border border-slate-800 rounded-xl p-2">
+                        {[['overview','الملخص'], ...(onOpenFinance || onOpenDebts ? [['finance','المالية']] : []), ['attendance','الحضور'], ['progress','التقدم'], ['notes','الملاحظات']].map(([id,label]) => <button key={id} aria-pressed={activeSection === id} onClick={() => setActiveSection(id)} className={`min-h-11 px-4 rounded-lg text-sm font-bold ${activeSection === id ? 'bg-yellow-500 text-slate-900' : 'text-slate-300 hover:bg-slate-800'}`}>{label}</button>)}
+                    </nav>
+                    {((activeSection === 'finance' && (paymentsCol.loading || debtsCol.loading)) || (activeSection === 'progress' && weightsCol.loading)) && <p role="status" className="text-slate-400 text-center">جاري تحميل السجلات...</p>}
+                    {((activeSection === 'finance' && (paymentsCol.error || debtsCol.error)) || (activeSection === 'progress' && weightsCol.error)) && <p role="alert" className="text-red-400 text-center">تعذر تحميل بعض السجلات. تحقق من الاتصال والصلاحيات.</p>}
+
                     {/* ── 1. المعلومات الشخصية ── */}
                     <Section id="info" icon={User} title="المعلومات الشخصية" color="text-blue-400"
                         action={
-                            <button onClick={() => editMode ? saveEdit() : setEditMode(true)} disabled={savingEdit}
+                            <button onClick={() => { if (editMode) saveEdit(); else { setEditForm({ ...student }); setEditMode(true); } }} disabled={savingEdit}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors
                                     ${editMode
                                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
@@ -409,7 +423,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                         <Section id="family" icon={Users} title="الإخوة في العائلة" color="text-emerald-400" count={siblings.length}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {siblings.map(sib => (
-                                    <div key={sib.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
+                                    <button onClick={() => onSelectStudent?.(sib)} key={sib.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center gap-3">
                                         <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black">
                                             {sib.name?.charAt(0)}
                                         </div>
@@ -417,7 +431,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                                             <p className="font-bold text-slate-200 truncate text-sm">{sib.name}</p>
                                             <p className="text-[10px] text-slate-500">🥋 {sib.belt}</p>
                                         </div>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         </Section>
@@ -426,7 +440,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                     {/* ── 3. الاشتراك ── */}
                     <Section id="subscription" icon={CalendarClock} title="الاشتراك" color="text-emerald-400"
                         action={
-                            <button onClick={() => setShowRenew(true)}
+                            <button onClick={onRenew} disabled={!onRenew}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold">
                                 <RefreshCw size={13}/> تجديد
                             </button>
@@ -494,7 +508,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                     {/* ── 5. الوصولات ── */}
                     <Section id="payments" icon={DollarSign} title="الوصولات" color="text-emerald-400" count={studentPayments.length}
                         action={
-                            <button onClick={() => onOpenFinance && onOpenFinance()}
+                            <button disabled={!onOpenFinance} onClick={() => onOpenFinance?.()}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold">
                                 <Plus size={13}/> وصل جديد
                             </button>
@@ -529,7 +543,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                     {/* ── 6. الذمم ── */}
                     <Section id="debts" icon={AlertTriangle} title="الذمم والأقساط" color="text-red-400" count={studentDebts.length}
                         action={
-                            <button onClick={() => onOpenDebts && onOpenDebts()}
+                            <button disabled={!onOpenDebts} onClick={() => onOpenDebts?.()}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold">
                                 <Plus size={13}/> دين جديد
                             </button>
@@ -566,7 +580,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                     {/* ── 7. الأوزان ── */}
                     <Section id="weights" icon={Scale} title="تتبع الوزن" color="text-blue-400" count={studentWeights.length}
                         action={
-                            <button onClick={() => onOpenWeights && onOpenWeights()}
+                            <button disabled={!onOpenWeights} onClick={() => onOpenWeights?.()}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold">
                                 <Plus size={13}/> قياس جديد
                             </button>
@@ -608,74 +622,12 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                         )}
                     </Section>
 
-                    {/* ── 8. الحضور ── */}
-                    <Section id="attendance" icon={Calendar} title="الحضور" color="text-blue-400"
-                        count={`${attendanceThisMonth} هذا الشهر`}>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-                            <StatPill label="حضور هذا الشهر" value={attendanceThisMonth} color="text-blue-400"/>
-                            <StatPill label="إجمالي الحضور" value={attendanceTotal} color="text-emerald-400"/>
-                            <StatPill label="معدل تقريبي" value={`${student.joinDate ? Math.round(attendanceTotal / Math.max(1, Math.floor((new Date() - new Date(student.joinDate)) / (86400000 * 30)))) : 0}/شهر`} color="text-yellow-400"/>
-                        </div>
-                        {/* أيام الحضور هذا الشهر */}
-                        {student.attendance && (() => {
-                            const days = Object.keys(student.attendance)
-                                .filter(k => k.startsWith(monthPrefix) && student.attendance[k])
-                                .sort()
-                                .map(k => new Date(k).getDate());
-                            if (days.length === 0) return <p className="text-center text-slate-600 text-xs py-3">لا حضور هذا الشهر</p>;
-                            return (
-                                <div className="flex flex-wrap gap-1.5">
-                                    {days.map(d => (
-                                        <span key={d} className="w-7 h-7 rounded-lg bg-emerald-500 text-slate-900 flex items-center justify-center text-xs font-black">
-                                            {d}
-                                        </span>
-                                    ))}
-                                </div>
-                            );
-                        })()}
+                    <Section id="attendance" icon={Calendar} title="سجل الحضور" color="text-blue-400">
+                        <AttendanceHistory key={student.id} attendance={student.attendance}/>
                     </Section>
 
-                    {/* ── 9. الملاحظات ── */}
-                    <Section id="notes" icon={FileText} title="الملاحظات والرسائل" color="text-purple-400"
-                        count={publicNotes.length + privateNotes.length}>
-                        {publicNotes.length === 0 && privateNotes.length === 0 ? (
-                            <p className="text-center text-slate-600 text-sm py-6">لا يوجد ملاحظات</p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {/* الخاصة */}
-                                <div>
-                                    <p className="text-xs font-bold text-red-400 mb-2 flex items-center gap-1">
-                                        <Lock size={11}/> ملاحظات خاصة ({privateNotes.length})
-                                    </p>
-                                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                        {privateNotes.length === 0 ? (
-                                            <p className="text-[11px] text-slate-600 text-center py-3 bg-slate-950 rounded-lg border border-slate-800 border-dashed">لا يوجد</p>
-                                        ) : privateNotes.map(n => (
-                                            <div key={n.id} className="bg-red-950/20 border border-red-900/30 border-r-4 border-r-red-500 rounded-lg p-3">
-                                                <p className="text-xs text-slate-300 whitespace-pre-line">{n.text}</p>
-                                                <p className="text-[10px] text-red-500/70 mt-1 font-mono">{n.date}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                {/* العامة */}
-                                <div>
-                                    <p className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-1">
-                                        <Bell size={11}/> إعلانات للأهل ({publicNotes.length})
-                                    </p>
-                                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                        {publicNotes.length === 0 ? (
-                                            <p className="text-[11px] text-slate-600 text-center py-3 bg-slate-950 rounded-lg border border-slate-800 border-dashed">لا يوجد</p>
-                                        ) : publicNotes.map(n => (
-                                            <div key={n.id} className="bg-emerald-950/20 border border-emerald-900/30 border-r-4 border-r-emerald-500 rounded-lg p-3">
-                                                <p className="text-xs text-slate-300 whitespace-pre-line">{n.text}</p>
-                                                <p className="text-[10px] text-emerald-500/70 mt-1 font-mono">{n.date}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    <Section id="notes" icon={FileText} title="الملاحظات والرسائل" color="text-purple-400">
+                        <NotesManager key={student.id} embedded initialStudentId={student.id} students={allStudents} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={logActivity}/>
                     </Section>
 
                     {/* ── 10. بيانات الدخول ── */}
@@ -688,9 +640,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                             <div className="bg-slate-950 border border-slate-800 rounded-xl p-3">
                                 <p className="text-[10px] text-slate-500 font-bold mb-1">كلمة المرور</p>
                                 <p className="text-slate-200 font-mono">
-                                    {student.isPasswordHashed || (student.password && student.password.length > 30)
-                                        ? '🔒 مشفّرة'
-                                        : student.password || '-'}
+                                    ••••••••
                                 </p>
                             </div>
                         </div>
@@ -698,7 +648,8 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
 
                 </div>
             </div>
-        </div>,
+        </div>
+        </ProfileTab.Provider>,
         document.body
     );
 }

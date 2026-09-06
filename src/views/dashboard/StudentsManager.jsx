@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   UserPlus, Edit, Archive, ArrowUp, MessageCircle, Phone,
-  X, Search, Filter, SortAsc, SortDesc, Send, Sparkles,
+  X, Search, MoreHorizontal, KeyRound, Send, Sparkles,
   Lock, Bell, FileWarning, Trash2, CheckCircle, Megaphone, CheckSquare, CalendarClock, Printer, RefreshCw,
   User
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { BELTS, IMAGES } from '../../lib/constants';
 import { writeBatch, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db, appId } from '../../lib/firebase';
 import StudentProfile from './StudentProfile';
+import NotesManager from './NotesManager';
 import { formatDate, calculateStatus } from '../../lib/utils';
 import { toast } from '../../lib/toast';
 
@@ -171,111 +172,6 @@ const BroadcastModal = ({ isOpen, onClose, groups, allStudents, onSend }) => {
     );
 };
 
-// --- 2. Notes Manager Modal ---
-const NotesManagerModal = ({ student, onClose, onSave }) => {
-    const [activeTab, setActiveTab] = useState('private'); 
-    const [noteText, setNoteText] = useState('');
-
-    const handleAdd = () => {
-        if (!noteText.trim()) return;
-        const newNote = {
-            id: Date.now().toString(),
-            text: noteText,
-            date: formatDate(new Date()), 
-            timestamp: new Date().toISOString()
-        };
-        onSave(student.id, activeTab, 'add', newNote);
-        setNoteText('');
-    };
-
-    const handleDelete = (noteId, isLegacy) => {
-        if (!confirm("حذف الملاحظة؟")) return;
-        onSave(student.id, activeTab, 'delete', { id: noteId, isLegacy });
-    };
-
-    const notesList = useMemo(() => {
-        if (activeTab === 'private') {
-            let list = student.internalNotes || [];
-            if (student.note && student.note.trim() !== '') {
-                list = [...list, { id: 'legacy_note', text: student.note, date: 'سجل قديم', isLegacy: true }];
-            }
-            return list;
-        } else {
-            return student.notes || []; 
-        }
-    }, [student, activeTab]);
-
-    return (
-        <ModalOverlay onClose={onClose}>
-            <div className="p-0 overflow-hidden flex flex-col h-[500px]">
-                <div className={`p-4 text-white flex justify-between items-center ${activeTab === 'private' ? 'bg-red-900/80 border-b border-red-700' : 'bg-blue-900/80 border-b border-blue-700'}`}>
-                    <h3 className="text-lg font-bold flex items-center gap-2 text-white">
-                        {activeTab === 'private' ? <Lock size={20}/> : <Bell size={20}/>}
-                        {activeTab === 'private' ? `ملاحظات خاصة: ${student.name}` : `إعلانات للطالب: ${student.name}`}
-                    </h3>
-                    <button onClick={onClose} className="hover:text-red-300"><X size={20}/></button>
-                </div>
-
-                <div className="flex border-b border-slate-700 bg-slate-900">
-                    <button 
-                        onClick={() => setActiveTab('private')} 
-                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors ${activeTab === 'private' ? 'text-red-400 border-b-2 border-red-500 bg-red-500/10' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
-                    >
-                        <Lock size={16}/> ملاحظات خاصة (للإدارة)
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('public')} 
-                        className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors ${activeTab === 'public' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/10' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'}`}
-                    >
-                        <Bell size={16}/> إعلانات (للطالب)
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 bg-slate-950">
-                    {notesList.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-600">
-                            {activeTab === 'private' ? <Lock size={48} className="mb-2 opacity-20"/> : <Bell size={48} className="mb-2 opacity-20"/>}
-                            <p>لا يوجد ملاحظات مسجلة</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {notesList.map((note, idx) => (
-                                <div key={note.id || idx} className="bg-slate-900 p-3 rounded-xl border border-slate-800 shadow-sm relative group">
-                                    <p className="text-slate-300 text-sm whitespace-pre-wrap">{note.text}</p>
-                                    <div className="mt-2 flex justify-between items-center">
-                                        <div className="flex gap-1">
-                                            <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-1 rounded-full">{note.date}</span>
-                                            {note.isLegacy && <span className="text-[10px] text-red-400 bg-red-900/20 px-2 py-1 rounded-full font-bold">قديم</span>}
-                                        </div>
-                                        <button onClick={() => handleDelete(note.id, note.isLegacy)} className="text-red-400/50 hover:text-red-500 p-1 transition-colors">
-                                            <Trash2 size={16}/>
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="p-4 bg-slate-900 border-t border-slate-700">
-                    <div className="flex gap-2">
-                        <input 
-                            className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 focus:outline-none focus:border-yellow-500 placeholder-slate-600"
-                            placeholder={activeTab === 'private' ? "اكتب ملاحظة سرية..." : "اكتب إعلاناً للطالب..."}
-                            value={noteText}
-                            onChange={(e) => setNoteText(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                        />
-                        <Button onClick={handleAdd} className={activeTab === 'private' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}>
-                            <Send size={18}/>
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </ModalOverlay>
-    );
-};
-
 // --- 3. Quick Renewal Modal ---
 const SubscriptionModal = ({ student, onClose, onSave }) => {
     const [date, setDate] = useState(student.subEnd || new Date().toISOString().split('T')[0]);
@@ -317,9 +213,13 @@ const SubscriptionModal = ({ student, onClose, onSave }) => {
 };
 
 
-const StudentsManager = ({ students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups, debts = [], onNavigateToDebts, onNavigateToWeights, onNavigateToFinance }) => {
-  const [profileStudent, setProfileStudent] = useState(null);
+const StudentsManager = ({ initialStudentId, students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups, debts = [], onNavigateToDebts, onNavigateToWeights, onNavigateToFinance }) => {
+  const [profileStudent, setProfileStudent] = useState(() => students.find(s => s.id === initialStudentId) || null);
+  const [credentialsStudentId, setCredentialsStudentId] = useState(null);
+  const credentialsStudent = students.find(student => student.id === credentialsStudentId);
   const [search, setSearch] = useState(''); 
+  const [groupFilter, setGroupFilter] = useState('all');
+  const [beltFilter, setBeltFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [sortOption, setSortOption] = useState('joinDateDesc'); 
 
@@ -407,11 +307,35 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
       });
   }, [students]);
 
+  const summary = useMemo(() => students.reduce((counts, student) => {
+      counts[calculateStatus(student.subEnd)]++;
+      return counts;
+  }, { active: 0, near_end: 0, expired: 0 }), [students]);
+
+  const debtTotals = useMemo(() => debts.reduce((totals, debt) => {
+      totals[debt.studentId] = (totals[debt.studentId] || 0) + Math.max(0, Number(debt.totalAmount || 0) - Number(debt.paidAmount || 0));
+      return totals;
+  }, {}), [debts]);
+  const filterGroups = [...new Set([...availableGroups, ...students.map(s => formatGroupName(s.group))])].filter(Boolean);
+  const hasFilters = Boolean(search || statusFilter !== 'all' || groupFilter !== 'all' || beltFilter !== 'all');
+  const resetFilters = () => { setSearch(''); setStatusFilter('all'); setGroupFilter('all'); setBeltFilter('all'); };
+  const subscriptionTiming = (value) => {
+      if (!value) return 'تاريخ الانتهاء غير محدد';
+      const end = new Date(value);
+      if (Number.isNaN(end.getTime())) return 'تحقق من تاريخ الانتهاء';
+      const today = new Date();
+      const days = Math.round((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+      if (days < 0) return `منتهي منذ ${Math.abs(days)} يوم`;
+      if (days === 0) return 'ينتهي اليوم';
+      if (days === 1) return 'ينتهي غداً';
+      return `ينتهي خلال ${days} يوم`;
+  };
+
   const processedStudents = useMemo(() => {
       let result = [...students];
 
-      if (search) {
-          const lowerSearch = search.toLowerCase();
+      if (search.trim()) {
+          const lowerSearch = search.trim().toLowerCase();
           result = result.filter(s => 
             (s.name || '').toLowerCase().includes(lowerSearch) || 
             (s.phone || '').includes(lowerSearch) ||
@@ -423,19 +347,23 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
           result = result.filter(s => calculateStatus(s.subEnd) === statusFilter);
       }
 
+      if (groupFilter !== 'all') result = result.filter(s => formatGroupName(s.group) === groupFilter);
+      if (beltFilter !== 'all') result = result.filter(s => s.belt === beltFilter);
+
       result.sort((a, b) => {
           switch (sortOption) {
               case 'joinDateDesc': return new Date(b.joinDate || 0) - new Date(a.joinDate || 0);
               case 'joinDateAsc': return new Date(a.joinDate || 0) - new Date(b.joinDate || 0);
               case 'beltDesc': return BELTS.indexOf(b.belt) - BELTS.indexOf(a.belt);
               case 'beltAsc': return BELTS.indexOf(a.belt) - BELTS.indexOf(b.belt);
-              case 'balanceDesc': return b.balance - a.balance;
+              case 'balanceDesc': return (debtTotals[b.id] || 0) - (debtTotals[a.id] || 0);
+              case 'nameAsc': return (a.name || '').localeCompare(b.name || '', 'ar');
               default: return 0;
           }
       });
 
       return result;
-  }, [students, search, statusFilter, sortOption]);
+  }, [students, search, statusFilter, sortOption, groupFilter, beltFilter, debtTotals]);
 
   const handlePrintStudents = () => {
     const printWin = window.open('', 'PRINT', 'height=800,width=1100');
@@ -783,7 +711,9 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
   };
 
   const handleRenewSave = async (studentId, newDate) => {
-      await studentsCollection.update(studentId, { subEnd: newDate });
+      if (!newDate) return toast('حدد تاريخ انتهاء الاشتراك', 'error');
+      const saved = await studentsCollection.update(studentId, { subEnd: newDate });
+      if (!saved) return toast('تعذر حفظ التجديد. حاول مرة أخرى.', 'error');
       if(logActivity && renewingStudent) {
           logActivity("تجديد اشتراك", `تجديد اشتراك للطالب ${renewingStudent.name} (تاريخ جديد: ${formatDate(newDate)})`);
       }
@@ -824,28 +754,69 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
     
+  const renderActions = (student) => (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => setProfileStudent(student)} className="min-h-11 flex items-center justify-center gap-2 px-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:border-yellow-500 font-bold text-xs"><User size={16}/> عرض الملف</button>
+        <button onClick={() => setRenewingStudent(student)} className="min-h-11 flex items-center justify-center gap-2 px-3 rounded-xl bg-emerald-900/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/40 font-bold text-xs"><CalendarClock size={16}/> تجديد الاشتراك</button>
+      </div>
+      <details className="group/actions" onKeyDown={e => { if (e.key === 'Escape') { e.currentTarget.open = false; e.currentTarget.querySelector('summary').focus(); } }}>
+        <summary className="min-h-11 cursor-pointer flex items-center gap-2 rounded-lg px-2 text-xs text-slate-400 hover:bg-slate-800 focus-visible:outline-yellow-500" aria-label={`المزيد من الإجراءات للطالب ${student.name}`}><MoreHorizontal size={18}/> المزيد</summary>
+        <div className="grid grid-cols-1 gap-1 rounded-xl bg-slate-950 border border-slate-700 p-2 mt-1" onClick={e => { if (e.target.closest('button')) e.currentTarget.closest('details').open = false; }}>
+          {[
+            [Edit, 'تعديل البيانات', () => openEditModal(student)],
+            [Lock, 'الملاحظات والإعلانات', () => setStudentForNotes(student)],
+            [ArrowUp, 'ترفيع الحزام', () => promoteBelt(student)],
+            [KeyRound, 'بيانات الدخول', () => setCredentialsStudentId(student.id)],
+            [Archive, 'أرشفة الطالب', () => archiveStudent(student)],
+          ].map(([Icon, label, action]) => <button key={label} onClick={action} className={`min-h-11 flex items-center gap-2 text-right px-3 rounded-lg hover:bg-slate-800 text-sm ${Icon === Archive ? 'text-red-400 border-t border-slate-800' : 'text-slate-300'}`}><Icon size={16}/>{label}</button>)}
+        </div>
+      </details>
+    </div>
+  );
+  const renderSubscription = (student) => {
+    const status = calculateStatus(student.subEnd);
+    return <div className="space-y-2"><StatusBadge status={status}/><p className={`text-xs font-bold ${status === 'expired' ? 'text-red-400' : status === 'near_end' ? 'text-orange-400' : 'text-slate-300'}`}>{subscriptionTiming(student.subEnd)}</p><p className="text-xs text-slate-400">{formatDate(student.subEnd)}</p></div>;
+  };
+  const renderDebt = (student) => {
+    const amount = debtTotals[student.id] || 0;
+    return amount > 0 ? <button disabled={!onNavigateToDebts} onClick={() => onNavigateToDebts?.()} className="text-red-400 font-bold text-sm min-h-11 disabled:cursor-default" title="عرض الذمم">عليه {amount.toLocaleString('ar-JO', { maximumFractionDigits: 2 })} د.أ</button> : <span className="text-slate-300 font-bold text-sm">لا توجد ذمم</span>;
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in font-sans">
+    <div className="space-y-6 animate-fade-in font-sans" dir="rtl">
       
+      {credentialsStudent && <ModalOverlay onClose={() => setCredentialsStudentId(null)}>
+        <div className="p-6 space-y-5" dir="rtl">
+          <div className="flex justify-between items-start gap-3"><div><h2 className="text-xl font-bold text-slate-100">بيانات الدخول</h2><p className="text-sm text-slate-400 mt-1">{credentialsStudent.name}</p></div><button onClick={() => setCredentialsStudentId(null)} aria-label="إغلاق بيانات الدخول" className="p-3 text-slate-400 rounded-lg hover:bg-slate-800"><X size={20}/></button></div>
+          <div className="bg-slate-950 rounded-xl border border-slate-700 p-4 space-y-4"><div><p className="text-xs text-slate-400 mb-1">اسم المستخدم</p><p dir="ltr" className="text-right text-slate-200 font-mono break-all select-all">{credentialsStudent.username || 'غير محدد'}</p></div><div><p className="text-xs text-slate-400 mb-1">كلمة المرور</p><p className="text-slate-400 tracking-widest">••••••••</p></div></div>
+          <p className="text-sm text-slate-400">كلمة المرور مخفية. يمكنك إعادة تعيينها عند الحاجة أو فتح واتساب لإرسال بيانات الدخول المتاحة.</p>
+          <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => resetStudentPassword(credentialsStudent)} className="bg-slate-800 text-slate-200 border border-slate-700 min-h-11"><RefreshCw size={16}/> إعادة تعيين كلمة المرور</Button><button type="button" disabled={!credentialsStudent.phone} onClick={() => sendCredentialsWhatsApp(credentialsStudent)} className="px-4 py-2 rounded-xl flex items-center gap-2 bg-emerald-900/20 text-emerald-400 border border-emerald-500/30 min-h-11 disabled:opacity-50"><MessageCircle size={16}/> فتح واتساب</button></div>
+        </div>
+      </ModalOverlay>}
+
       <BroadcastModal isOpen={showBroadcast} onClose={() => setShowBroadcast(false)} groups={availableGroups} allStudents={students} onSend={handleBroadcast} />
 
-      {studentForNotes && <NotesManagerModal student={studentForNotes} onClose={() => setStudentForNotes(null)} onSave={handleNoteAction} />}
+      {studentForNotes && <ModalOverlay onClose={() => setStudentForNotes(null)}><div className="p-4 max-h-[85vh] overflow-y-auto"><button onClick={() => setStudentForNotes(null)} aria-label="إغلاق الملاحظات" className="p-3 text-slate-400"><X size={20}/></button><NotesManager key={studentForNotes.id} embedded initialStudentId={studentForNotes.id} students={students} studentsCollection={studentsCollection} selectedBranch={selectedBranch} logActivity={logActivity}/></div></ModalOverlay>}
 
       {renewingStudent && <SubscriptionModal student={renewingStudent} onClose={() => setRenewingStudent(null)} onSave={handleRenewSave} />}
 
       {/* ── Student Profile (full-screen modal) ── */}
       {profileStudent && (
         <StudentProfile
-          student={profileStudent}
+          key={profileStudent.id}
+          student={students.find(s => s.id === profileStudent.id) || profileStudent}
+          onSelectStudent={setProfileStudent}
+          onRenew={() => { setRenewingStudent(students.find(s => s.id === profileStudent.id) || profileStudent); setProfileStudent(null); }}
           allStudents={students}
           studentsCollection={studentsCollection}
           archiveCollection={archiveCollection}
           selectedBranch={selectedBranch}
           logActivity={logActivity}
           onClose={() => setProfileStudent(null)}
-          onOpenDebts={() => { setProfileStudent(null); onNavigateToDebts && onNavigateToDebts(); }}
-          onOpenWeights={() => { setProfileStudent(null); onNavigateToWeights && onNavigateToWeights(); }}
-          onOpenFinance={() => { setProfileStudent(null); onNavigateToFinance && onNavigateToFinance(); }}
+          onOpenDebts={onNavigateToDebts ? () => { setProfileStudent(null); onNavigateToDebts(profileStudent.id); } : null}
+          onOpenWeights={onNavigateToWeights ? () => { setProfileStudent(null); onNavigateToWeights(profileStudent.id); } : null}
+          onOpenFinance={onNavigateToFinance ? () => { setProfileStudent(null); onNavigateToFinance(profileStudent.id); } : null}
         />
       )}
 
@@ -872,267 +843,89 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
         </ModalOverlay>
       )}
       
-      {/* --- Filter Toolbar --- */}
-      <div className="bg-slate-900 p-4 rounded-2xl shadow-lg shadow-black/20 border border-slate-800/60 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-20 backdrop-blur-md bg-opacity-90">
-          <div className="relative w-full md:w-1/3">
-             <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <Search size={18} className="text-slate-500"/>
-             </div>
-             <input 
-                className="w-full bg-slate-950 text-slate-200 pl-4 pr-10 py-2.5 border border-slate-700 rounded-xl focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50 outline-none transition-all placeholder-slate-600" 
-                placeholder="ابحث عن اسم، هاتف، يوزر..." 
-                value={search} 
-                onChange={e=>setSearch(e.target.value)} 
-                list="students-suggestions"
-             />
-             <datalist id="students-suggestions">
-                {students.map(s => <option key={s.id} value={s.name} />)}
-             </datalist>
+      <section dir="rtl" className="space-y-5" aria-label="إدارة الطلاب">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black text-slate-100">الطلاب</h2>
+            <p className="text-sm text-slate-400 mt-1">تابع الاشتراكات واعثر على الطالب بسرعة · {selectedBranch}</p>
           </div>
-
-          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
-             <Button onClick={handlePrintStudents} className="bg-blue-600 text-white border border-blue-500/30 hover:bg-blue-500 whitespace-nowrap flex items-center gap-2 shadow-lg shadow-blue-600/20">
-                 <Printer size={18}/> <span className="hidden sm:inline">طباعة الكشف</span>
-             </Button>
-
-             <Button onClick={() => setShowBroadcast(true)} className="bg-blue-900/20 text-blue-400 border border-blue-500/30 hover:bg-blue-900/40 whitespace-nowrap flex items-center gap-2">
-                 <Megaphone size={18}/> <span className="hidden sm:inline">إعلان للكل</span>
-             </Button>
-
-             <div className="relative min-w-[120px]">
-                 <select className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                    <option value="all">كل الحالات</option>
-                    <option value="active">🟢 فعال</option>
-                    <option value="near_end">🟡 قارب الانتهاء</option>
-                    <option value="expired">🔴 منتهي</option>
-                 </select>
-                 <Filter size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/>
-             </div>
-
-             <div className="relative min-w-[140px]">
-                 <select className="w-full appearance-none bg-slate-950 border border-slate-700 text-slate-300 py-2.5 pr-8 pl-8 rounded-xl focus:outline-none focus:border-yellow-500 cursor-pointer text-sm font-bold" value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
-                    <option value="joinDateDesc">📅 الأحدث</option>
-                    <option value="joinDateAsc">📅 الأقدم</option>
-                    <option value="beltDesc">🥋 أعلى حزام</option>
-                    <option value="balanceDesc">💰 المديونية</option>
-                 </select>
-                 {sortOption.includes('Desc') ? 
-                    <SortDesc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/> :
-                    <SortAsc size={14} className="absolute top-1/2 -translate-y-1/2 right-3 text-slate-500 pointer-events-none"/>
-                 }
-             </div>
-
-             <Button onClick={()=>{setEditingStudent(null); setShowModal(true)}} className="whitespace-nowrap flex items-center gap-2 shadow-lg shadow-yellow-500/20 text-slate-900 bg-yellow-500 hover:bg-yellow-400 border-none font-bold">
-                <UserPlus size={18}/> <span className="hidden sm:inline">طالب جديد</span><span className="inline sm:hidden">جديد</span>
-             </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={handlePrintStudents} className="bg-slate-800 text-slate-300 border border-slate-700"><Printer size={16}/> طباعة النتائج</Button>
+            <Button variant="secondary" onClick={() => setShowBroadcast(true)} className="bg-slate-800 text-slate-300 border border-slate-700"><Megaphone size={16}/> إرسال إعلان</Button>
+            <Button onClick={() => {setEditingStudent(null); setShowModal(true);}} className="bg-yellow-500 text-slate-900 hover:bg-yellow-400 font-bold"><UserPlus size={18}/> طالب جديد</Button>
           </div>
-      </div>
+        </div>
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          {[
+            { id: 'all', label: 'جميع الطلاب', count: students.length, hint: 'طلاب الفرع', color: 'text-slate-200' },
+            { id: 'active', label: 'اشتراكات نشطة', count: summary.active, hint: 'أكثر من ٧ أيام متبقية', color: 'text-emerald-400' },
+            { id: 'near_end', label: 'قرب الانتهاء', count: summary.near_end, hint: 'تنتهي خلال ٧ أيام أو اليوم', color: 'text-orange-400' },
+            { id: 'expired', label: 'اشتراكات منتهية', count: summary.expired, hint: 'تشمل غير محددة التاريخ', color: 'text-red-400' },
+          ].map(item => (
+            <button key={item.id} type="button" aria-pressed={statusFilter === item.id} onClick={() => setStatusFilter(item.id)} className={`text-right rounded-2xl border p-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-500 ${statusFilter === item.id ? 'bg-slate-800 border-yellow-500' : 'bg-slate-900 border-slate-800 hover:border-slate-500'}`}>
+              <div className="flex items-center justify-between gap-2"><span className={`text-sm font-bold ${item.color}`}>{item.label}</span>{statusFilter === item.id && <CheckCircle size={16} className="text-yellow-500 shrink-0"/>}</div>
+              <div className="text-3xl font-black text-slate-100 my-2 tabular-nums">{item.count}</div>
+              <p className="text-xs text-slate-400">{item.hint}</p>
+            </button>
+          ))}
+        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            <label className="sm:col-span-2 xl:col-span-1 text-xs font-bold text-slate-400">
+              البحث عن طالب
+              <div className="relative mt-2"><Search size={17} className="absolute right-3 top-3 text-slate-500"/>
+                <input type="search" className="w-full min-h-11 bg-slate-950 text-slate-200 pr-10 pl-3 border border-slate-700 rounded-xl focus:outline-yellow-500" placeholder="الاسم، الهاتف، اسم المستخدم" value={search} onChange={e => setSearch(e.target.value)}/>
+              </div>
+            </label>
+            {[
+              { label: 'حالة الاشتراك', value: statusFilter, onChange: setStatusFilter, options: [['all', 'كل الحالات'], ['active', 'نشط'], ['near_end', 'قرب الانتهاء'], ['expired', 'منتهي']] },
+              { label: 'المجموعة', value: groupFilter, onChange: setGroupFilter, options: [['all', 'كل المجموعات'], ...filterGroups.map(g => [g, g])] },
+              { label: 'الحزام', value: beltFilter, onChange: setBeltFilter, options: [['all', 'كل الأحزمة'], ...BELTS.map(b => [b, b])] },
+              { label: 'ترتيب الطلاب', value: sortOption, onChange: setSortOption, options: [['joinDateDesc', 'الأحدث انضماماً'], ['joinDateAsc', 'الأقدم انضماماً'], ['nameAsc', 'الاسم أبجدياً'], ['beltDesc', 'أعلى حزام'], ['balanceDesc', 'الأعلى مديونية']] },
+            ].map(field => (
+              <label key={field.label} className="text-xs font-bold text-slate-400">{field.label}
+                <select className="mt-2 w-full min-h-11 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl px-3 focus:outline-yellow-500" value={field.value} onChange={e => field.onChange(e.target.value)}>{field.options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              </label>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
+            <p role="status" className="text-sm text-slate-400">عرض <strong className="text-slate-100">{processedStudents.length}</strong> من {students.length} طالب</p>
+            {hasFilters && <button onClick={resetFilters} className="flex items-center gap-1 text-sm text-yellow-500 min-h-11 px-2 rounded-lg hover:bg-slate-800"><X size={16}/> مسح البحث والفلاتر</button>}
+          </div>
+        </div>
+      </section>
 
-      {/* 1. DESKTOP VIEW (Table) */}
-      <Card className="hidden md:block overflow-hidden border border-slate-800 shadow-xl rounded-2xl p-0 bg-slate-900">
+      {processedStudents.length === 0 && <div className="text-center bg-slate-900 border border-slate-800 rounded-2xl p-10" dir="rtl"><Search size={28} className="mx-auto text-slate-500 mb-3"/><h3 className="font-bold text-slate-200">{students.length ? 'لا يوجد طلاب مطابقون للبحث' : 'لا يوجد طلاب في هذا الفرع بعد'}</h3><p className="text-sm text-slate-400 mt-2">{students.length ? 'جرّب تغيير كلمة البحث أو توسيع الفلاتر.' : 'ابدأ بإضافة طالب جديد من الزر أعلى الصفحة.'}</p>{hasFilters && <button onClick={resetFilters} className="text-yellow-500 mt-4 p-2">عرض جميع الطلاب</button>}</div>}
+
+      {/* Desktop table and mobile cards share the same actions and status details. */}
+      {processedStudents.length > 0 && <>
+        <Card noPadding className="hidden xl:block overflow-hidden border border-slate-800 rounded-2xl p-0 bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
-                <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
-                    <tr>
-                        <th className="p-4 font-bold">الطالب</th>
-                        <th className="p-4 font-bold">الفترة</th>
-                        <th className="p-4 font-bold">معلومات الاتصال</th>
-                        <th className="p-4 font-bold">بيانات الدخول</th>
-                        <th className="p-4 font-bold">الحزام</th>
-                        <th className="p-4 font-bold">الحالة المالية</th>
-                        <th className="p-4 font-bold">الاشتراك</th>
-                        <th className="p-4 font-bold">إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800 bg-slate-900">
-                    {processedStudents.map(s => {
-                        const isNew = isNewStudent(s.joinDate);
-                        const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
-                        const hasPublicNotes = s.notes && s.notes.length > 0;
-                        const isPasswordHashed = s.isPasswordHashed || (s.password && s.password.length > 30);
-
-                        return (
-                            <tr key={s.id} className="hover:bg-slate-800/50 transition-colors group">
-                                <td className="p-4">
-                                    <div className="flex items-center gap-2">
-                                        {hasPrivateNotes && (
-                                            <button onClick={() => setStudentForNotes(s)} className="text-red-500 hover:scale-110 transition-transform" title="يوجد ملاحظات خاصة!">
-                                                <FileWarning size={20} fill="currentColor" className="text-red-900/50"/>
-                                            </button>
-                                        )}
-                                        <div className="font-bold text-slate-200 text-base cursor-pointer hover:text-yellow-500 transition-colors" onClick={() => setProfileStudent(s)} title="فتح بروفايل الطالب">
-                                            {s.name}
-                                        </div>
-                                        {isNew && <span className="px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 text-[10px] font-bold border border-red-500/30 animate-pulse">NEW</span>}
-                                    </div>
-                                    <div className="text-xs text-slate-500 mt-1">{formatDate(s.joinDate)}</div>
-                                </td>
-                                
-                                <td className="p-4">
-                                    {/* تم الإصلاح: عرض المجموعة في الجدول للكمبيوتر */}
-                                    <span className="px-2 py-1 bg-blue-900/20 text-blue-400 rounded text-xs font-bold border border-blue-500/20">
-                                        {formatGroupName(s.group)}
-                                    </span>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <a href={`tel:${s.phone}`} className="font-mono text-slate-400 hover:text-blue-400 font-bold flex items-center gap-1" title="اتصال">
-                                            {s.phone} <Phone size={12} className="opacity-50"/>
-                                        </a>
-                                        <button onClick={() => openWhatsAppChat(s.phone)} className="w-8 h-8 rounded-full bg-green-900/20 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-all shadow-sm border border-green-500/20">
-                                            <MessageCircle size={16}/>
-                                        </button>
-                                    </div>
-                                </td>
-                                
-                                <td className="p-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="bg-slate-950 p-1.5 rounded-lg text-xs font-mono border border-slate-800">
-                                            <div className="text-blue-400">U: {s.username}</div>
-                                            {/* FIX SECURITY: never show plaintext password — always mask it */}
-                                            <div className="text-red-400 font-bold flex items-center gap-2">
-                                                <span>P:</span>
-                                                <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
-                                                <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1" title="توليد كلمة مرور جديدة للطالب">
-                                                    <RefreshCw size={10}/> Reset
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <button onClick={() => sendCredentialsWhatsApp(s)} className="text-slate-600 hover:text-[#25D366] transition-colors"><Send size={16}/></button>
-                                    </div>
-                                </td>
-
-                                <td className="p-4"><span className="px-3 py-1 bg-slate-800 rounded-lg font-bold text-xs border border-slate-700 text-slate-300">{s.belt}</span></td>
-                                <td className="p-4">
-                                    {(() => {
-                                        // حساب الذمم من collection الذمم الجديدة
-                                        const studentDebts  = debts.filter(d => d.studentId === s.id);
-                                        const totalDebt     = studentDebts.reduce((acc, d) =>
-                                            acc + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
-                                        if (totalDebt > 0) {
-                                            return (
-                                                <button
-                                                    onClick={() => onNavigateToDebts && onNavigateToDebts()}
-                                                    className="text-red-400 font-bold bg-red-900/20 px-2 py-1 rounded text-xs border border-red-500/20 hover:bg-red-600 hover:text-white transition-colors"
-                                                    title="اضغط للذهاب لصفحة الذمم"
-                                                >
-                                                    عليه {totalDebt} JD
-                                                </button>
-                                            );
-                                        }
-                                        return <span className="text-emerald-400 font-bold text-xs">خالص</span>;
-                                    })()}
-                                </td>
-                                <td className="p-4"><StatusBadge status={calculateStatus(s.subEnd)}/></td>
-                                <td className="p-4">
-                                    <div className="flex gap-1">
-                                        <button onClick={() => setProfileStudent(s)} className="bg-purple-900/20 text-purple-400 border border-purple-500/20 p-2 rounded-lg hover:bg-purple-600 hover:text-white transition" title="بروفايل الطالب الكامل"><User size={16}/></button>
-                                        <button onClick={() => setRenewingStudent(s)} className="bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 p-2 rounded-lg hover:bg-emerald-600 hover:text-white transition" title="تجديد الاشتراك"><CalendarClock size={16}/></button>
-                                        <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg transition border ${hasPublicNotes || hasPrivateNotes ? 'bg-yellow-900/20 text-yellow-500 border-yellow-500/20' : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-yellow-500 hover:border-yellow-500/50'}`} title="الملاحظات"><Lock size={16}/></button>
-                                        <button onClick={() => promoteBelt(s)} className="bg-blue-900/20 text-blue-400 border border-blue-500/20 p-2 rounded-lg hover:bg-blue-600 hover:text-white transition" title="ترفيع"><ArrowUp size={16}/></button>
-                                        <button onClick={() => openEditModal(s)} className="bg-slate-800 text-slate-400 border border-slate-700 p-2 rounded-lg hover:bg-slate-700 hover:text-white transition" title="تعديل"><Edit size={16}/></button>
-                                        <button onClick={() => archiveStudent(s)} className="bg-red-900/20 text-red-400 border border-red-500/20 p-2 rounded-lg hover:bg-red-600 hover:text-white transition" title="أرشفة"><Archive size={16}/></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
+              <caption className="sr-only">قائمة الطلاب واشتراكاتهم وإجراءات المتابعة</caption>
+              <thead className="bg-slate-950 text-slate-400 border-b border-slate-800"><tr>{['الطالب والمجموعة', 'التواصل', 'الحزام', 'الذمم', 'الاشتراك', 'الإجراءات'].map(label => <th scope="col" key={label} className="p-4 font-bold">{label}</th>)}</tr></thead>
+              <tbody className="divide-y divide-slate-800">
+                {processedStudents.map(student => <tr key={student.id} className="hover:bg-slate-800/50 transition-colors align-top">
+                  <td className="p-4"><button onClick={() => setProfileStudent(student)} className="text-right text-base font-bold text-slate-200 hover:text-yellow-500">{student.name}</button><p className="text-xs text-slate-400 mt-2">{formatGroupName(student.group)}</p><div className="flex flex-wrap gap-2 mt-2">{isNewStudent(student.joinDate) && <span className="text-xs text-blue-400">طالب جديد</span>}{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 flex items-center gap-1"><FileWarning size={14}/> ملاحظات خاصة</button>}</div></td>
+                  <td className="p-4"><div className="flex flex-col items-start gap-2">{student.phone ? <><a dir="ltr" href={`tel:${student.phone}`} className="text-slate-300 font-mono min-h-11 inline-flex items-center gap-2"><Phone size={14}/>{student.phone}</a><button onClick={() => openWhatsAppChat(student.phone)} className="text-emerald-400 text-xs flex items-center gap-2 min-h-11"><MessageCircle size={16}/> واتساب</button></> : <span className="text-slate-500">غير محدد</span>}</div></td>
+                  <td className="p-4"><span className="inline-block px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">{student.belt || 'غير محدد'}</span></td>
+                  <td className="p-4 whitespace-nowrap">{renderDebt(student)}</td>
+                  <td className="p-4 whitespace-nowrap">{renderSubscription(student)}</td>
+                  <td className="p-4">{renderActions(student)}</td>
+                </tr>)}
+              </tbody>
             </table>
           </div>
-      </Card>
-
-      {/* 2. MOBILE VIEW (Cards) */}
-      <div className="md:hidden grid grid-cols-1 gap-4">
-        {processedStudents.map(s => {
-             const isNew = isNewStudent(s.joinDate);
-             const status = calculateStatus(s.subEnd);
-             const hasPrivateNotes = (s.internalNotes && s.internalNotes.length > 0) || (s.note && s.note.trim() !== '');
-             const isPasswordHashed = s.isPasswordHashed || (s.password && s.password.length > 30);
-
-             return (
-                 <div key={s.id} className={`bg-slate-900 p-4 rounded-xl shadow-lg border ${hasPrivateNotes ? 'border-red-900/50 ring-1 ring-red-900/30' : 'border-slate-800'} flex flex-col gap-3 relative`}>
-                     {hasPrivateNotes && (
-                         <div className="absolute top-4 left-14 animate-pulse"><FileWarning size={20} className="text-red-500 fill-red-900"/></div>
-                     )}
-
-                     <div className="flex justify-between items-start">
-                         <div>
-                             <div className="flex items-center gap-2" onClick={() => setProfileStudent(s)}>
-                                <h3 className="font-bold text-slate-100 text-lg cursor-pointer hover:text-yellow-500">{s.name}</h3>
-                                {isNew && <span className="text-[10px] bg-red-900/40 text-red-400 px-2 rounded-full border border-red-500/40 animate-pulse">NEW</span>}
-                             </div>
-                             <p className="text-xs text-slate-500 mt-0.5">منذ: {formatDate(s.joinDate)}</p>
-                             {/* تم الإصلاح: عرض المجموعة في كروت الهاتف */}
-                             <span className="text-[10px] bg-blue-900/20 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
-                                 {formatGroupName(s.group)}
-                             </span>
-                         </div>
-                         <StatusBadge status={status} />
-                     </div>
-
-                     <div className="grid grid-cols-2 gap-3 text-sm">
-                         <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
-                             <span className="text-slate-500 text-xs block">الحزام</span>
-                             <span className="font-bold text-slate-200">{s.belt}</span>
-                         </div>
-                         {(() => {
-                             const studentDebts = debts.filter(d => d.studentId === s.id);
-                             const totalDebt    = studentDebts.reduce((acc, d) =>
-                                 acc + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
-                             return (
-                                 <button
-                                     onClick={() => totalDebt > 0 && onNavigateToDebts && onNavigateToDebts()}
-                                     className={`p-2 rounded-lg border text-right w-full transition-colors
-                                         ${totalDebt > 0
-                                             ? 'bg-red-900/20 text-red-400 border-red-500/20 hover:bg-red-600 hover:text-white'
-                                             : 'bg-emerald-900/20 text-emerald-400 border-emerald-500/20 cursor-default'}`}
-                                 >
-                                     <span className="text-xs block opacity-70">الذمم</span>
-                                     <span className="font-bold">{totalDebt > 0 ? `عليه ${totalDebt} JD` : 'خالص'}</span>
-                                 </button>
-                             );
-                         })()}
-                     </div>
-
-                     <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800 border-dashed">
-                         <div className="text-xs font-mono text-slate-400">
-                             <div className="mb-1"><span className="font-bold text-blue-500">U:</span> {s.username}</div>
-                             {/* FIX SECURITY: never show plaintext password on mobile either */}
-                             <div className="flex items-center gap-2">
-                                 <span className="font-bold text-red-500">P:</span>
-                                 <span className="text-slate-500 tracking-widest text-[10px]">**********</span>
-                                 <button onClick={() => resetStudentPassword(s)} className="text-[10px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-1">
-                                     <RefreshCw size={10}/> Reset
-                                 </button>
-                             </div>
-                         </div>
-                         <button onClick={() => sendCredentialsWhatsApp(s)} className="p-2 bg-green-900/20 text-green-500 border border-green-500/20 rounded-lg hover:bg-green-600 hover:text-white">
-                             <Send size={16} />
-                         </button>
-                     </div>
-
-                     <div className="flex items-center justify-between pt-3 border-t border-slate-800 mt-1">
-                         <div className="flex gap-2">
-                             <a href={`tel:${s.phone}`} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 border border-slate-700"><Phone size={16}/></a>
-                             <button onClick={() => openWhatsAppChat(s.phone)} className="p-2 bg-green-900/20 rounded-full text-[#25D366] border border-green-500/20"><MessageCircle size={16}/></button>
-                         </div>
-                         <div className="flex gap-2">
-                             <button onClick={() => setProfileStudent(s)} className="p-2 bg-purple-900/20 text-purple-400 border border-purple-500/20 rounded-lg" title="بروفايل كامل"><User size={16}/></button>
-                             <button onClick={() => setRenewingStudent(s)} className="p-2 bg-emerald-900/20 text-emerald-500 border border-emerald-500/20 rounded-lg"><CalendarClock size={16}/></button>
-                             <button onClick={() => setStudentForNotes(s)} className={`p-2 rounded-lg border ${hasPrivateNotes ? 'bg-red-900/20 text-red-500 border-red-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'}`}><Lock size={16}/></button>
-                             <button onClick={() => promoteBelt(s)} className="p-2 bg-blue-900/20 text-blue-500 border border-blue-500/20 rounded-lg"><ArrowUp size={16}/></button>
-                             <button onClick={() => openEditModal(s)} className="p-2 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg"><Edit size={16}/></button>
-                             <button onClick={() => archiveStudent(s)} className="p-2 bg-red-900/20 text-red-500 border border-red-500/20 rounded-lg"><Archive size={16}/></button>
-                         </div>
-                     </div>
-                 </div>
-             )
-        })}
-        {processedStudents.length === 0 && (
-            <div className="text-center p-8 text-slate-600">لا يوجد نتائج</div>
-        )}
-      </div>
+        </Card>
+        <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+          {processedStudents.map(student => <article key={student.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 min-w-0">
+            <div><button onClick={() => setProfileStudent(student)} className="text-right font-bold text-lg text-slate-100 hover:text-yellow-500 break-words">{student.name}</button><p className="text-sm text-slate-400 mt-1">{formatGroupName(student.group)} · الحزام {student.belt || 'غير محدد'}</p>{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 mt-2 min-h-8 flex items-center gap-1"><FileWarning size={14}/> توجد ملاحظات خاصة</button>}</div>
+            <div className="grid grid-cols-2 gap-3 bg-slate-950 border border-slate-800 rounded-xl p-3"><div><p className="text-xs text-slate-400 mb-2">الاشتراك</p>{renderSubscription(student)}</div><div><p className="text-xs text-slate-400 mb-2">الذمم المالية</p>{renderDebt(student)}</div></div>
+            {student.phone && <div className="flex flex-wrap items-center justify-between gap-2"><a dir="ltr" href={`tel:${student.phone}`} className="min-h-11 flex items-center gap-2 text-sm text-slate-300 font-mono"><Phone size={16}/>{student.phone}</a><button onClick={() => openWhatsAppChat(student.phone)} className="min-h-11 px-3 rounded-lg text-emerald-400 bg-emerald-900/20 flex items-center gap-2 text-sm"><MessageCircle size={16}/> واتساب</button></div>}
+            <div className="border-t border-slate-800 pt-3 mt-auto">{renderActions(student)}</div>
+          </article>)}
+        </div>
+      </>}
 
       {/* --- Add/Edit Modal --- */}
       {showModal && (() => {

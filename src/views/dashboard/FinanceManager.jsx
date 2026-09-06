@@ -273,7 +273,7 @@ const EditReceiptModal = ({ payment, financeReasons, onSave, onClose }) => {
 };
 
 export default function FinanceManager({
-    students, payments,
+    initialStudentId, students, payments,
     paymentsCollection, studentsCollection,
     selectedBranch, logActivity,
     financeReasons = [], financeReasonsCollection
@@ -283,7 +283,7 @@ export default function FinanceManager({
   // viewMode removed — page is now only for Receipts. Expenses moved to AccountsManager.
   // FIX 2: أضفنا date للفورم — اليوم افتراضياً لكن يمكن تغييره للتاريخ الفعلي
   const [payForm, setPayForm] = useState({
-    sid: '', amount: '', reason: '', customReason: '',
+    sid: students.find(s => s.id === initialStudentId)?.name || '', studentObjId: initialStudentId || '', amount: '', reason: '', customReason: '',
     details: '', method: 'cash', extraName: '',
     date: todayString()   // ← قابل للتعديل
   });
@@ -352,7 +352,8 @@ export default function FinanceManager({
         branch: selectedBranch,
     };
 
-    await paymentsCollection.add(newPay);
+    const saved = await paymentsCollection.add(newPay);
+    if (!saved) return toast("تعذر حفظ الوصل. لم يتم تسجيل الدفعة، حاول مرة أخرى.", "error");
     logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`);
 
     // reset مع إبقاء التاريخ المحدد (مفيد لو بدو يضيف وصولات بنفس اليوم القديم)
@@ -920,7 +921,8 @@ export default function FinanceManager({
             <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div className="relative col-span-1 md:col-span-1">
                   <label className="text-xs block mb-1 font-bold text-slate-400">اسم الطالب</label>
-                  <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} placeholder="ابحث..." />
+                  <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} onClear={() => setPayForm({...payForm, sid: '', studentObjId: ''})} placeholder="ابحث..." />
+                  {payForm.studentObjId && <p className="text-xs text-emerald-400 mt-2">الطالب المحدد: {payForm.sid}</p>}
               </div>
               
               <div className="col-span-1">

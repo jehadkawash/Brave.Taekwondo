@@ -82,9 +82,9 @@ const CombinedStudentSearch = ({ students, archivedStudents, onSelect, onClear }
 };
 
 // ─── مودال: إضافة دين جديد ───────────────────────────────────────────────────
-const AddDebtModal = ({ onClose, students, archivedStudents, onSave }) => {
+const AddDebtModal = ({ onClose, students, archivedStudents, onSave, initialStudent }) => {
     const [form, setForm] = useState({
-        studentId: '', studentName: '', phone: '',
+        studentId: initialStudent?.id || '', studentName: initialStudent?.name || '', phone: initialStudent?.phone || '',
         reason: '', totalAmount: '', dueDate: '', notes: '',
         isArchived: false,
     });
@@ -502,14 +502,14 @@ const DebtCard = ({ debt, onPay, onDelete, onPrint }) => {
 };
 
 // ─── المكوّن الرئيسي ──────────────────────────────────────────────────────────
-export default function DebtManager({ students, archivedStudents = [], selectedBranch, logActivity }) {
+export default function DebtManager({ initialStudentId, students, archivedStudents = [], selectedBranch, logActivity }) {
     const debtsCollection = useCollection('debts');
     const branchDebts     = useMemo(() =>
         debtsCollection.data.filter(d => d.branch === selectedBranch),
         [debtsCollection.data, selectedBranch]
     );
 
-    const [showAddModal, setShowAddModal]     = useState(false);
+    const [showAddModal, setShowAddModal]     = useState(Boolean(initialStudentId));
     const [payingDebt, setPayingDebt]         = useState(null);
     const [statusFilter, setStatusFilter]     = useState('all');
     const [search, setSearch]                 = useState('');
@@ -567,7 +567,7 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
 
     // ── حفظ دين جديد ──────────────────────────────────────────────────────────
     const handleAddDebt = async (data) => {
-        await debtsCollection.add({ ...data, branch: selectedBranch });
+        if (!await debtsCollection.add({ ...data, branch: selectedBranch })) throw new Error("Debt save failed");
         if (logActivity) logActivity('دين جديد', `تسجيل دين ${data.totalAmount} JD على ${data.studentName} — ${data.reason}`);
     };
 
@@ -799,6 +799,7 @@ export default function DebtManager({ students, archivedStudents = [], selectedB
 
             {showAddModal && (
                 <AddDebtModal
+                    initialStudent={students.find(s => s.id === initialStudentId)}
                     students={students}
                     archivedStudents={archivedStudents}
                     onClose={() => setShowAddModal(false)}
