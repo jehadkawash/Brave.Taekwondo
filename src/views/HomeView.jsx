@@ -89,7 +89,7 @@ const HomeView = ({ setView, schedule }) => {
                 <img src={IMAGES.LOGO} alt="Logo" className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-slate-900/50 backdrop-blur-sm p-1 object-contain border border-slate-700 transition-transform group-hover:rotate-12" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-black leading-none text-slate-100 tracking-tight group-hover:text-yellow-500 transition-colors">أكاديمية الشجاع</h1>
+              <h1 className="text-lg md:text-xl font-black leading-none text-slate-100 tracking-tight group-hover:text-yellow-500 transition-colors">اكاديمية الشجاع</h1>
               <p className="text-[9px] md:text-[10px] text-slate-500 tracking-[0.2em] uppercase font-bold">Brave Taekwondo</p>
             </div>
           </div>
@@ -262,7 +262,7 @@ const HomeView = ({ setView, schedule }) => {
       <section id="about" className="py-20 md:py-32 bg-slate-950 relative">
          <div className="container mx-auto px-4 md:px-6 relative z-10">
             <div className="text-center mb-12 md:mb-20">
-                <span className="text-yellow-600 font-bold tracking-widest text-[10px] md:text-sm uppercase bg-yellow-900/10 px-4 py-2 rounded-full border border-yellow-500/20">لماذا أكاديمية الشجاع؟</span>
+                <span className="text-yellow-600 font-bold tracking-widest text-[10px] md:text-sm uppercase bg-yellow-900/10 px-4 py-2 rounded-full border border-yellow-500/20">لماذا اكاديمية الشجاع؟</span>
                 <h2 className="text-3xl md:text-6xl font-black text-slate-100 mt-6 mb-4 tracking-tight">نصنع <span className="text-yellow-500">الأبطال</span> باحترافية</h2>
             </div>
             
@@ -410,7 +410,7 @@ const HomeView = ({ setView, schedule }) => {
                <img src={IMAGES.LOGO} alt="Logo" className="w-20 h-20 mx-auto opacity-50 grayscale hover:grayscale-0 transition-all duration-500 hover:scale-110" />
             </div>
             {/* FIX: dynamic year instead of hardcoded 2020 */}
-            <p className="text-gray-500 text-sm font-medium tracking-wide">© {new Date().getFullYear()} أكاديمية الشجاع للتايكواندو. جميع الحقوق محفوظة.</p>
+            <p className="text-gray-500 text-sm font-medium tracking-wide">© {new Date().getFullYear()} اكاديمية الشجاع. جميع الحقوق محفوظة.</p>
          </div>
       </footer>
 

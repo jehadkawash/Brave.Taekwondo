@@ -37,6 +37,8 @@ import InventoryManager from './dashboard/InventoryManager';
 import PackagesManager from './dashboard/PackagesManager';
 import PasswordResetRequestsManager from './dashboard/PasswordResetRequestsManager';
 import QuickSearch from '../components/QuickSearch';
+import {isManagementClubPage} from '../lib/portalPages';
+import {downloadDatabaseBackup} from '../lib/databaseBackup';
 // ملاحظة: تم حذف AdminNotesManager, EventsManager, WeightTracker القديمة
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -147,7 +149,7 @@ const AdminDashboard = ({
     // Read tab from hash on load (handles refresh correctly)
     const hash = window.location.hash.slice(1);
     const parts = hash.split('/');
-    if (parts[0] === 'admin_dashboard' && parts[1]) return parts[1];
+    if (parts[0] === 'admin_dashboard' && parts[1] && !isManagementClubPage(parts[1])) return parts[1];
     return user.isSuper || (user.permissions && user.permissions.includes('dashboard'))
       ? 'dashboard'
       : 'attendance';
@@ -183,7 +185,7 @@ const AdminDashboard = ({
     const handler = () => {
       const hash = window.location.hash.slice(1);
       const parts = hash.split('/');
-      if (parts[0] === 'admin_dashboard' && parts[1]) setActiveTab(parts[1]);
+      if (parts[0] === 'admin_dashboard' && parts[1]) setActiveTab(isManagementClubPage(parts[1]) ? (user.isSuper || user.permissions?.includes('dashboard') ? 'dashboard' : 'attendance') : parts[1]);
     };
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
@@ -207,7 +209,7 @@ const AdminDashboard = ({
   // ── Collections ─────────────────────────────────────────────────────────────
   // Always loaded (lightweight)
   const groupsCollection   = useCollection('groups');
-  const captainsCollection = useCollection('captains', { enabled: user.isSuper === true });
+  const captainsCollection = useCollection('captains', { enabled: false });
 
   // Lazy-loaded heavy collections — use { enabled: bool } options
   const paymentsCollection = useCollection(
@@ -283,28 +285,13 @@ const AdminDashboard = ({
 
   const handleLog = (action, details) => logActivity(action, details, selectedBranch, user);
 
-  const handleBackup = () => {
-    if (!confirm('هل تريد تحميل نسخة كاملة من قاعدة البيانات؟')) return;
-    const backupData = {
-      date: new Date().toISOString(),
-      branch: selectedBranch,
-      students: branchStudents,
-      payments: branchPayments,
-      expenses: branchExpenses,
-      registrations: branchRegistrations,
-      schedule,
-      news: newsData,
-      groups: branchGroups,
-      captains,
-      activityLogs: branchActivityLogs,
-    };
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(backupData, null, 2));
-    const a = document.createElement('a');
-    a.setAttribute('href', dataStr);
-    a.setAttribute('download', `brave_backup_${selectedBranch}_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+  const [backupBusy,setBackupBusy]=useState(false);
+  const handleBackup = async () => {
+    if(backupBusy || !user.isSuper) return;
+    setBackupBusy(true);
+    try { await downloadDatabaseBackup(); toast('تم تنزيل نسخة سجلات جميع الفروع. ملفات التخزين وحسابات الدخول تحتاج نسخة خادم مستقلة.', 'success'); }
+    catch(error){toast(error.message,'error');}
+    finally{setBackupBusy(false);}
   };
 
   // ── Nav groups ──────────────────────────────────────────────────────────────
@@ -322,15 +309,9 @@ const AdminDashboard = ({
   const adminGroups = [
     hasPerm('password_resets') && { id: 'password_resets', icon: KeyRound, label: 'طلبات استعادة الدخول', badge: passwordResetRequests.filter(r => r.status === 'new').length },
     hasPerm('registrations') && { id: 'registrations', icon: Inbox,     label: 'طلبات التسجيل', badge: branchRegistrations.length },
-    hasPerm('schedule')      && { id: 'schedule',      icon: Clock,     label: 'جدول الحصص' },
-    hasPerm('finance')       && { id: 'accounts',      icon: Wallet,    label: 'حسابات النادي' },
-    hasPerm('finance')       && { id: 'inventory',     icon: Package,   label: 'المخزون' },
     hasPerm('finance')       && { id: 'packages',      icon: Gift,      label: 'الباقات الجاهزة' },
-    hasPerm('news')          && { id: 'news',          icon: Megaphone, label: 'الأخبار والعروض' },
-    hasPerm('reports')       && { id: 'reports',       icon: FileText,  label: 'التقارير الشاملة' },
     hasPerm('reports')       && { id: 'advanced',      icon: BarChart3, label: 'إحصائيات متقدمة' },
-    user.isSuper             && { id: 'captains',      icon: Shield,    label: 'الكباتن والصلاحيات' },
-    user.isSuper             && { id: 'backup',        icon: Database,  label: 'باك اب داتابيس', action: handleBackup, special: true },
+    user.isSuper             && { id: 'backup',        icon: Database,  label: backupBusy ? 'جارٍ إعداد النسخة…' : 'باك اب داتابيس', action: handleBackup, special: true },
   ].filter(Boolean);
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -352,7 +333,7 @@ const AdminDashboard = ({
             </div>
             <div>
               <h1 className="font-bold text-lg hidden md:block bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                أكاديمية الشجاع للتايكواندو
+                اكاديمية الشجاع
               </h1>
               <div className="text-xs text-yellow-500 font-bold flex items-center gap-1">
                 {user.name} <span className="text-slate-600">|</span>
@@ -594,7 +575,7 @@ const AdminDashboard = ({
           {activeTab === 'tests'          && hasPerm('tests')          && (
             <BeltTestsManager students={branchStudents} studentsCollection={studentsCollection} logActivity={handleLog} />
           )}
-          {activeTab === 'reports'        && hasPerm('reports')        && (
+          {!isManagementClubPage(activeTab) && activeTab === 'reports'        && hasPerm('reports')        && (
             <ReportsManager
               students={branchStudents}
               payments={branchPayments}
@@ -654,7 +635,7 @@ const AdminDashboard = ({
               logActivity={handleLog}
             />
           )}
-          {activeTab === 'schedule'       && hasPerm('schedule')       && (
+          {!isManagementClubPage(activeTab) && activeTab === 'schedule'       && hasPerm('schedule')       && (
             <ScheduleManager schedule={schedule} scheduleCollection={scheduleCollection} />
           )}
           {activeTab === 'archive'        && hasPerm('archive')        && (
@@ -667,10 +648,10 @@ const AdminDashboard = ({
               canCleanDuplicates={user.isSuper}
             />
           )}
-          {activeTab === 'captains'       && user.isSuper              && (
+          {!isManagementClubPage(activeTab) && activeTab === 'captains'       && user.isSuper              && (
             <CaptainsManager captains={captains} captainsCollection={captainsCollection} />
           )}
-          {activeTab === 'news'           && hasPerm('news')           && (
+          {!isManagementClubPage(activeTab) && activeTab === 'news'           && hasPerm('news')           && (
             <NewsManager news={newsData} newsCollection={newsCollection} selectedBranch={selectedBranch} />
           )}
           {activeTab === 'student_notes'  && hasPerm('student_notes')  && (
@@ -701,7 +682,7 @@ const AdminDashboard = ({
               logActivity={handleLog}
             />
           )}
-          {activeTab === 'accounts' && hasPerm('finance') && (
+          {!isManagementClubPage(activeTab) && activeTab === 'accounts' && hasPerm('finance') && (
             <AccountsManager
               selectedBranch={selectedBranch}
               logActivity={handleLog}
@@ -715,7 +696,7 @@ const AdminDashboard = ({
               selectedBranch={selectedBranch}
             />
           )}
-          {activeTab === 'inventory' && hasPerm('finance') && (
+          {!isManagementClubPage(activeTab) && activeTab === 'inventory' && hasPerm('finance') && (
             <InventoryManager
               selectedBranch={selectedBranch}
               logActivity={handleLog}

@@ -139,7 +139,7 @@ export default function BeltTestsManager({ students, studentsCollection, logActi
                 <div class="print-container">
                     <div class="header">
                         <div class="title-section">
-                            <h2>أكاديمية الشجاع للتايكواندو - كشف اختبارات الأحزمة</h2>
+                            <h2>اكاديمية الشجاع - كشف اختبارات الأحزمة</h2>
                             <p>الفرع: ${selectedBranch || 'عام'} | عدد الطلاب في الكشف: ${processedStudents.length}</p>
                             <p>تاريخ استخراج التقرير: ${dateNow}</p>
                         </div>

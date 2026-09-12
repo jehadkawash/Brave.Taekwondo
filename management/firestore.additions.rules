@@ -1,0 +1,84 @@
+// Additive rules, inserted inside match /databases/{database}/documents.
+// Never replace existing rules with this fragment.
+function mgDirector() {
+ return request.auth != null && request.auth.token.email != null &&
+ (request.auth.token.email in ['admin@brave.com','jehad234kawash@yahoo.com'] ||
+ (exists(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/users/$(request.auth.token.email)) &&
+ get(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/users/$(request.auth.token.email)).data.get('isSuper',false)==true));
+}
+function mgPermission(permission) {
+ return mgDirector() || (request.auth != null && request.auth.token.email != null &&
+ exists(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_users/$(request.auth.token.email)) &&
+ get(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_users/$(request.auth.token.email)).data.get('active',false)==true &&
+ get(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_users/$(request.auth.token.email)).data.get('permissions',[]).hasAny([permission]));
+}
+function mgEarned(data) {
+ let days=data.attendance.values().removeAll([false]).size();
+ return math.round(data.salary * (days>26?26:days) / 26 * 100)/100;
+}
+function mgMonthValid(data) {
+ return data.keys().hasOnly(['coachId','month','branch','salary','attendance','paid','lastPayment','closed']) &&
+ data.coachId is string && data.month.matches('^[0-9]{4}-(0[1-9]|1[0-2])$') &&
+ data.branch in ['شفا بدران','أبو نصير'] && data.salary is number && data.salary>=0 &&
+ data.attendance is map && data.attendance.size()<=31 && data.attendance.values().hasOnly([true,false]) &&
+ data.paid is number && data.paid>=0 && data.paid<=mgEarned(data);
+}
+match /artifacts/brave-academy-live-data/public/data/management_users/{email} {
+ allow read: if mgDirector() || (request.auth!=null && request.auth.token.email==email);
+ allow create,update: if mgDirector() && request.resource.data.keys().hasOnly(['active','permissions']) &&
+ request.resource.data.active is bool && request.resource.data.permissions is list &&
+ request.resource.data.permissions.hasOnly(['overview','finance','coaches','attendance','payroll','notes','schedule','accounts','inventory','news','reports']);
+}
+match /artifacts/brave-academy-live-data/public/data/management_coaches/{id} {
+ allow read: if mgPermission('coaches') || mgPermission('attendance') || mgPermission('payroll') || mgPermission('notes');
+ allow create,update: if mgPermission('coaches') && request.resource.data.keys().hasOnly(['name','salary','branch']) &&
+ request.resource.data.name is string && request.resource.data.name.size()>0 && request.resource.data.name.size()<=150 &&
+ request.resource.data.salary is number && request.resource.data.salary>=0 && request.resource.data.branch in ['شفا بدران','أبو نصير'];
+}
+match /artifacts/brave-academy-live-data/public/data/management_months/{id} {
+ allow read: if mgPermission('overview') || mgPermission('payroll') || mgPermission('attendance');
+ allow create: if mgPermission('payroll') && mgMonthValid(request.resource.data) && id==request.resource.data.coachId+'_'+request.resource.data.month && request.resource.data.paid==0 && request.resource.data.attendance.size()==0;
+ allow update: if mgMonthValid(request.resource.data) && (
+ (mgPermission('attendance') && resource.data.get('closed',false)==false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance'])) ||
+ (mgPermission('payroll') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed']) && request.resource.data.closed==true) ||
+ (mgPermission('payroll') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid','lastPayment']) && request.resource.data.paid>resource.data.paid &&
+ !exists(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)) &&
+ getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.amount==request.resource.data.paid-resource.data.paid &&
+ getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.coachId==resource.data.coachId &&
+ getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.month==resource.data.month));
+}
+match /artifacts/brave-academy-live-data/public/data/management_ledger/{id} {
+ allow read: if mgPermission('overview') || mgPermission('finance') || mgPermission('accounts') || mgPermission('reports') || (mgPermission('payroll') && resource.data.kind in ['salary','advance']);
+ allow create: if request.resource.data.amount is number && request.resource.data.amount>0 && request.resource.data.title is string &&
+ request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && request.resource.data.branch in ['شفا بدران','أبو نصير'] && request.resource.data.createdBy==request.auth.token.email && (
+ (mgPermission('finance') && request.resource.data.kind in ['income','expense'] && request.resource.data.keys().hasOnly(['kind','title','amount','date','branch','createdBy'])) ||
+ (mgPermission('payroll') && request.resource.data.kind in ['salary','advance'] && request.resource.data.keys().hasOnly(['kind','title','amount','date','branch','createdBy','coachId','month']) &&
+ getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_months/$(request.resource.data.coachId+'_'+request.resource.data.month)).data.lastPayment==id &&
+ getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_months/$(request.resource.data.coachId+'_'+request.resource.data.month)).data.paid==
+ get(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_months/$(request.resource.data.coachId+'_'+request.resource.data.month)).data.paid+request.resource.data.amount));
+}
+match /artifacts/brave-academy-live-data/public/data/management_notes/{id} {
+ allow read: if mgPermission('notes');
+ allow create: if mgPermission('notes') && request.resource.data.keys().hasOnly(['text','coachId','branch','date','createdBy']) && request.resource.data.text is string && request.resource.data.text.size()>0 && request.resource.data.text.size()<=10000 && request.resource.data.createdBy==request.auth.token.email;
+}
+// Read-only access from the new portal. Existing write grants are untouched.
+match /artifacts/brave-academy-live-data/public/data/{name}/{id} {
+ allow read: if name in ['students','payments','expenses','income_extra','debts'] && (mgPermission('overview') || mgPermission('finance'));
+}
+
+// Access for pages relocated into general management. Captain/user administration remains director-only.
+match /artifacts/brave-academy-live-data/public/data/{name}/{id} {
+ allow read: if (name in ['students','payments','expenses','income_extra'] && mgPermission('reports')) ||
+ (name in ['payments','expenses','income_extra'] && mgPermission('accounts')) ||
+ (name in ['products','product_categories','inventory_log'] && mgPermission('inventory'));
+ allow create: if ((name=='schedule' && mgPermission('schedule')) || (name=='news' && mgPermission('news')) ||
+ (name in ['expenses','income_extra'] && mgPermission('accounts')) ||
+ (name in ['products','inventory_log'] && mgPermission('inventory'))) && request.resource.data.branch in ['شفا بدران','أبو نصير','الكل','مشترك','الفرع الرئيسي'];
+ allow update: if ((name=='schedule' && mgPermission('schedule')) || (name=='news' && mgPermission('news')) ||
+ (name in ['expenses','income_extra'] && mgPermission('accounts')) ||
+ (name in ['products','inventory_log'] && mgPermission('inventory'))) && request.resource.data.branch==resource.data.branch;
+ allow delete: if (name=='schedule' && mgPermission('schedule')) || (name=='news' && mgPermission('news')) ||
+ (name in ['expenses','income_extra'] && mgPermission('accounts')) ||
+ (name in ['products','inventory_log'] && mgPermission('inventory'));
+ allow create,update,delete: if name=='product_categories' && mgPermission('inventory');
+}

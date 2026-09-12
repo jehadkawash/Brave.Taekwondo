@@ -244,7 +244,7 @@ export default function AttendanceManager({ students, studentsCollection, groups
             <div class="print-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom: 5px;">
                     <div>
-                        <h1>أكاديمية الشجاع للتايكواندو</h1>
+                        <h1>اكاديمية الشجاع</h1>
                         <div style="font-size:10px; font-weight:bold;">فرع: ${selectedBranch}</div>
                     </div>
                     <img src="${logoUrl}" style="height:35px;" onerror="this.style.display='none'"/>

@@ -289,7 +289,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
             <img src="${logoUrl}" class="wm" onerror="this.style.display='none'"/>
             <div class="hdr">
               <div class="co">
-                <h1>أكاديمية الشجاع للتايكواندو</h1>
+                <h1>اكاديمية الشجاع</h1>
                 <p>فرع: ${branch}</p>
               </div>
               <div class="logo"><img src="${logoUrl}" onerror="this.style.display='none'"/></div>
@@ -358,7 +358,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
         <html lang="ar" dir="rtl">
         <head>
           <meta charset="UTF-8">
-          <title>كشف الأرشيف الشامل - أكاديمية الشجاع</title>
+          <title>كشف الأرشيف الشامل - اكاديمية الشجاع</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
             @page { size: A4 landscape; margin: 8mm; }
@@ -389,7 +389,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
         <body>
           <div class="header">
             <div class="header-left">
-              <h1>أكاديمية الشجاع للتايكواندو — كشف الأرشيف الشامل</h1>
+              <h1>اكاديمية الشجاع — كشف الأرشيف الشامل</h1>
               <p>تاريخ الطباعة: ${dateNow} &nbsp;|&nbsp; عدد الطلاب: ${data.length}
                  ${searchTerm ? ` &nbsp;|&nbsp; فلتر: "${searchTerm}"` : ''}
               </p>
@@ -435,7 +435,7 @@ const ArchiveManager = ({ archiveCollection, studentsCollection, payments, group
           </table>
 
           <div class="footer">
-            تم استخراج هذا التقرير من نظام إدارة أكاديمية الشجاع للتايكواندو
+            تم استخراج هذا التقرير من نظام إدارة اكاديمية الشجاع
           </div>
 
           <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close();},600)}</script>

@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword, signInWithCustomToken } from "firebase/auth";
 import { getDoc, doc, collection, query, where, getDocs } from "firebase/firestore";
 import { httpsCallable } from 'firebase/functions';
@@ -11,12 +11,14 @@ import HomeView from './views/HomeView';
 import LoginView from './views/LoginView';
 import StudentPortal from './views/StudentPortal';
 import AdminDashboard from './views/AdminDashboard';
+const ManagementView = lazy(() => import('./views/ManagementView'));
 import { BRANCHES } from './lib/constants';
 import ToastContainer from './components/ToastContainer';
 import { toast } from './lib/toast';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
+  const portalRef=useRef(sessionStorage.getItem('bravePortal') || 'coach');
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('braveUser');
@@ -30,7 +32,7 @@ export default function App() {
   const [view, setView] = useState(() => {
     // Read hash first — preserves correct page on browser refresh
     const hash = window.location.hash.slice(1).split('/')[0];
-    const validViews = ['home', 'login', 'student_portal', 'admin_dashboard'];
+    const validViews = ['home', 'login', 'student_portal', 'admin_dashboard', 'management_portal'];
     if (hash && validViews.includes(hash)) return hash;
     // Fall back to localStorage
     try {
@@ -52,7 +54,7 @@ export default function App() {
 
   const isFamily = user?.role === 'student';
   const studentsCollection = useCollection('students', {
-    enabled: Boolean(authUid),
+    enabled: Boolean(authUid && user && user.portal !== 'management'),
     where: isFamily ? [['familyUid', '==', authUid]] :
       (user && !user.isSuper ? [['branch', '==', dashboardBranch]] : []),
   });
@@ -68,7 +70,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1).split('/')[0];
-      const validViews = ['home', 'login', 'student_portal', 'admin_dashboard'];
+      const validViews = ['home', 'login', 'student_portal', 'admin_dashboard', 'management_portal'];
       if (validViews.includes(hash)) setView(hash);
       else if (!hash) setView('home');
     };
@@ -78,29 +80,27 @@ export default function App() {
 
   // Redirect to home if unauthenticated user lands on a protected view
   useEffect(() => {
-    if (!loadingAuth && !user && (view === 'admin_dashboard' || view === 'student_portal')) {
+    if (!loadingAuth && !user && (view === 'admin_dashboard' || view === 'student_portal' || view === 'management_portal')) {
       setView('home');
       window.location.hash = 'home';
     }
   }, [loadingAuth, user, view]);
 
-  const handleLogin = async (username, password) => {
+  const handleLogin = async (username, password, portal = 'student') => {
+    portalRef.current=portal; sessionStorage.setItem('bravePortal',portal);
     // Clear previous errors
     setLoginError('');
     try {
+      if(auth.currentUser) await signOut(auth);
       // 1. Family login is verified server-side; the students collection is no
       // longer queried publicly from the browser.
-      try {
+      if (portal === 'student') {
         const familyLogin = httpsCallable(functions, 'familyLogin');
         const result = await familyLogin({ username: username.trim().toLowerCase(), password });
         if (result.data?.email) await signInWithEmailAndPassword(auth, result.data.email, password);
         else if (result.data?.customToken) await signInWithCustomToken(auth, result.data.customToken);
         else throw new Error('Missing family authentication result');
         return;
-      } catch (familyError) {
-        if (!['functions/unauthenticated', 'functions/invalid-argument'].includes(familyError.code)) {
-          console.warn('Family login unavailable, trying staff login:', familyError.code);
-        }
       }
 
       // 2. Admin / Captain login via Firebase Auth
@@ -124,22 +124,25 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          setAuthUid(firebaseUser.uid);
+          setLoadingAuth(true);
+          const requested=portalRef.current;
           const token = await firebaseUser.getIdTokenResult(true);
           if (token.claims.role === 'family') {
+            if(requested !== 'student' && sessionStorage.getItem('bravePortal')) throw new Error('هذا الحساب مخصص لبوابة الطالب والأهل.');
             const studentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'students');
             const familySnap = await getDocs(query(studentsRef, where('familyUid', '==', firebaseUser.uid)));
             if (familySnap.empty) throw new Error('Family has no linked students');
             const first = familySnap.docs[0];
             const studentData = first.data();
             const familyUser = {
-              role: 'student', familyId: studentData.familyId,
+              role: 'student', portal: 'student', familyId: studentData.familyId,
               name: studentData.familyName || studentData.name,
               id: first.id, familyUid: firebaseUser.uid,
             };
+            setAuthUid(firebaseUser.uid);
             setUser(familyUser);
             localStorage.setItem('braveUser', JSON.stringify(familyUser));
-            setView('student_portal');
+            navigateTo('student_portal');
             setLoadingAuth(false);
             return;
           }
@@ -147,23 +150,27 @@ export default function App() {
           const userRef   = doc(db, 'artifacts', appId, 'public', 'data', 'users', userEmail);
           const userSnap  = await getDoc(userRef);
 
-          if (userSnap.exists()) {
-            const userData = {
-              ...userSnap.data(),
-              email: userEmail,
-              id: firebaseUser.uid,
-              emailVerified: firebaseUser.emailVerified,  // ← هل الإيميل مُفعّل
-            };
-            setUser(userData);
-            setDashboardBranch(userData.branch || BRANCHES.SHAFA);
-            localStorage.setItem('braveUser', JSON.stringify(userData));
-            setView('admin_dashboard');
+          if(requested === 'student') throw new Error('اختر مدرب أو إدارة لهذا الحساب.');
+          let userData;
+          if(requested === 'management') {
+            const director=userSnap.data()?.isSuper===true || ['admin@brave.com','jehad234kawash@yahoo.com'].includes(userEmail);
+            const manager=director?null:await getDoc(doc(db,'artifacts',appId,'public','data','management_users',userEmail));
+            if(!director && !(manager?.exists() && manager.data().active===true)) throw new Error('هذا الحساب غير مخوّل لدخول الإدارة العامة.');
+            userData={...(manager?.data()||{}),role:'management',portal:'management',isSuper:director,email:userEmail,id:firebaseUser.uid};
           } else {
-            toast("حسابك غير مسجل في نظام الصلاحيات. تواصل مع السوبر أدمن.", 'error');
-            await signOut(auth);
+            if(!userSnap.exists()) throw new Error('حساب المدرب غير مسجل في نظام الصلاحيات.');
+            userData={...userSnap.data(),portal:'coach',email:userEmail,id:firebaseUser.uid,emailVerified:firebaseUser.emailVerified};
           }
+          setAuthUid(firebaseUser.uid);
+          setUser(userData);
+          setDashboardBranch(userData.branch || BRANCHES.SHAFA);
+          localStorage.setItem('braveUser',JSON.stringify(userData));
+          const target=userData.portal==='management'?'management_portal':'admin_dashboard';
+          const current=window.location.hash.slice(1).split('/')[0];
+          if(current!==target) navigateTo(target); else setView(target);
         } catch (err) {
-          console.error("Error fetching user profile:", err);
+          setLoginError(err.code === 'permission-denied' ? 'تعذر التحقق من صلاحيات هذه البوابة؛ يلزم تفعيل قواعد الإدارة الجديدة.' : err.message || 'تعذر التحقق من الحساب.');
+          await signOut(auth); setUser(null); setAuthUid(null); navigateTo('login');
         }
       } else {
         setAuthUid(null);
@@ -178,18 +185,25 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(()=>{
+    if(loadingAuth || !user) return;
+    const target=user.portal==='management'?'management_portal':user.role==='student'?'student_portal':'admin_dashboard';
+    if(['management_portal','student_portal','admin_dashboard'].includes(view)&&view!==target) navigateTo(target);
+  },[loadingAuth,user,view]);
+
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.removeItem('braveUser');
     setUser(null);
-    navigateTo('home');
+    sessionStorage.removeItem('bravePortal');
+    navigateTo('login');
   };
 
   // FIX: also show spinner when landing directly on a protected route with no
   // cached session yet — avoids a blank screen flash before the redirect-home effect fires
-  if (loadingAuth && (user || view === 'admin_dashboard' || view === 'student_portal')) return (
+  if (loadingAuth && (user || view === 'admin_dashboard' || view === 'student_portal' || view === 'management_portal')) return (
     <div className="flex flex-col h-screen items-center justify-center bg-slate-950 gap-5">
-      <img src="/logo.jpg" alt="Brave Academy" className="w-20 h-20 rounded-2xl shadow-2xl shadow-black/50" />
+      <img src="/logo.jpg" alt="Brave Taekwondo" className="w-20 h-20 rounded-2xl shadow-2xl shadow-black/50" />
       <div className="w-9 h-9 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin" />
       <p className="text-slate-400 font-bold text-sm tracking-wide">الرجاء الانتظار PLEASE WAIT ...</p>
     </div>
@@ -210,7 +224,7 @@ export default function App() {
             setLoginError={setLoginError}  // so LoginView can clear it on change
           />
         )}
-        {view === 'student_portal' && user && (
+        {view === 'student_portal' && user?.role === 'student' && (
           <StudentPortal
             user={user}
             students={studentsCollection.data}
@@ -219,7 +233,7 @@ export default function App() {
             handleLogout={handleLogout}
           />
         )}
-        {view === 'admin_dashboard' && user && (
+        {view === 'admin_dashboard' && user?.portal === 'coach' && (
           <AdminDashboard
             user={user}
             selectedBranch={dashboardBranch}
@@ -229,6 +243,7 @@ export default function App() {
             handleLogout={handleLogout}
           />
         )}
+        {view === 'management_portal' && user?.portal === 'management' && <Suspense fallback={<p>جارٍ تحميل الإدارة العامة…</p>}><ManagementView account={user} onLogout={handleLogout}/></Suspense>}
       </ErrorBoundary>
     </>
   );

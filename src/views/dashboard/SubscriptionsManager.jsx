@@ -129,7 +129,7 @@ export default function SubscriptionsManager({ students, studentsCollection, log
                 <div class="print-container">
                     <div class="header">
                         <div class="title-section">
-                            <h2>أكاديمية الشجاع للتايكواندو - كشف الاشتراكات</h2>
+                            <h2>اكاديمية الشجاع - كشف الاشتراكات</h2>
                             <p>الفرع: ${selectedBranch || 'عام'} | عدد الطلاب في الكشف: ${filteredStudents.length}</p>
                             <p>تاريخ استخراج التقرير: ${dateNow}</p>
                         </div>

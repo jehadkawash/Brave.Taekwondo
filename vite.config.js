@@ -15,9 +15,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'أكاديمية الشجاع للتايكواندو',
-        short_name: 'Brave TKD',
-        description: 'تطبيق إدارة أكاديمية الشجاع للتايكوندو',
+        name: 'اكاديمية الشجاع',
+        short_name: 'Brave Taekwondo',
+        description: 'تطبيق إدارة اكاديمية الشجاع',
         theme_color: '#ffffff',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

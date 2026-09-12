@@ -517,7 +517,7 @@ export default function WeightsManager({ initialStudentId, students = [], archiv
             <div class="hdr">
                 <div>
                     <h1 style="margin:0;font-size:18px;font-weight:900;color:#b45309">سجل تتبع الوزن</h1>
-                    <p style="margin:4px 0 0;font-size:12px;color:#555;font-weight:bold">أكاديمية الشجاع للتايكواندو — فرع ${selectedBranch}</p>
+                    <p style="margin:4px 0 0;font-size:12px;color:#555;font-weight:bold">اكاديمية الشجاع — فرع ${selectedBranch}</p>
                 </div>
                 <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
             </div>

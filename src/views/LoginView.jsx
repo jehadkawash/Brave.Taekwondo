@@ -9,6 +9,7 @@ import { toast } from '../lib/toast';
 
 // FIX: loginError and setLoginError are now received from App.jsx
 const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
+  const [portal,setPortal] = useState('student');
   const [username, setUsername]         = useState('');
   const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +25,7 @@ const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
-    await handleLogin(username, password);
+    await handleLogin(username, password, portal);
     setIsSubmitting(false);
   };
 
@@ -112,7 +113,7 @@ const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
               transition={{ delay: 0.3 }}
               className="text-2xl md:text-3xl font-black text-slate-100 tracking-wide"
             >
-              بوابة <span className="text-yellow-500">الأهل والإدارة</span>
+              بوابة <span className="text-yellow-500">اكاديمية الشجاع</span>
             </motion.h2>
             <p className="text-slate-400 text-xs md:text-sm mt-2 font-medium">سجل دخولك لمتابعة الأبطال</p>
           </div>
@@ -189,6 +190,7 @@ const LoginView = ({ setView, handleLogin, loginError, setLoginError }) => {
               </button>
             </motion.div>
 
+            <fieldset className="space-y-2"><legend className="text-sm text-slate-300 mb-2">اختر واجهة الدخول</legend><div className="grid grid-cols-3 gap-2">{[['student','طالب / أهل'],['coach','مدرب'],['management','إدارة']].map(([value,label])=><label key={value} className={`cursor-pointer text-center text-sm p-3 rounded-xl border ${portal===value?'border-yellow-500 text-yellow-500 bg-yellow-500/10':'border-slate-700 text-slate-400'}`}><input type="radio" name="portal" value={value} checked={portal===value} disabled={isSubmitting} onChange={()=>{setPortal(value);setLoginError?.('');}} className="sr-only"/>{label}</label>)}</div></fieldset>
             <div className="flex justify-end">
               <button
                 type="button"

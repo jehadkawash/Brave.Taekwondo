@@ -336,7 +336,7 @@ const DebtCard = ({ debt, onPay, onDelete, onPrint }) => {
         if (clean.startsWith('0')) clean = clean.substring(1);
         const msg =
             `السلام عليكم ${debt.studentName} 👋\n\n` +
-            `نودّ تذكيركم بوجود مبلغ مستحق لدى أكاديمية الشجاع للتايكواندو:\n\n` +
+            `نودّ تذكيركم بوجود مبلغ مستحق لدى اكاديمية الشجاع:\n\n` +
             `📋 البيان: ${debt.reason}\n` +
             `💰 المبلغ الكلي: ${debt.totalAmount} JD\n` +
             `✅ المدفوع: ${debt.paidAmount || 0} JD\n` +
@@ -643,7 +643,7 @@ export default function DebtManager({ initialStudentId, students, archivedStuden
         <body>
           <div class="header">
             <div class="co">
-              <h1>أكاديمية الشجاع للتايكواندو</h1>
+              <h1>اكاديمية الشجاع</h1>
               <p>فرع: ${debt.branch} | كشف حساب دين</p>
             </div>
             <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
@@ -706,7 +706,7 @@ export default function DebtManager({ initialStudentId, students, archivedStuden
           </div>
 
           <div class="footer">
-            تم استخراج هذا الكشف من نظام إدارة أكاديمية الشجاع للتايكواندو — ${new Date().toLocaleDateString('en-GB')}
+            تم استخراج هذا الكشف من نظام إدارة اكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
           </div>
 
           <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close();},600)}</script>

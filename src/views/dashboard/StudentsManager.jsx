@@ -648,7 +648,7 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
     let cleanPhone = student.phone.replace(/\D/g, ''); 
     if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
     
-    const message = `مرحباً ${student.name} 🔥\n\nأهلاً بك في أكاديمية الشجاع للتايكواندو !\nإليك بيانات الدخول الخاصة بك بالموقع :\n\n👤 اسم المستخدم: ${student.username}\n🔑 كلمة المرور: ${student.password}\n\nموقعنا الالكتروني :\nhttps://bravetkd.bar/\n\nنتمنى لك التوفيق يا بطل! 🥋\n\n📍 فروعنا :\n✅ الفرع الأول: شفابدران – شارع رفعت شموط\n📞 0795629606\n\n✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري\n📞 0790368603`;
+    const message = `مرحباً ${student.name} 🔥\n\nأهلاً بك في اكاديمية الشجاع !\nإليك بيانات الدخول الخاصة بك بالموقع :\n\n👤 اسم المستخدم: ${student.username}\n🔑 كلمة المرور: ${student.password}\n\nموقعنا الالكتروني :\nhttps://bravetkd.bar/\n\nنتمنى لك التوفيق يا بطل! 🥋\n\n📍 فروعنا :\n✅ الفرع الأول: شفابدران – شارع رفعت شموط\n📞 0795629606\n\n✅ الفرع الثاني: أبو نصير – دوار البحرية - مجمع الفرّا التجاري\n📞 0790368603`;
     window.open(`https://wa.me/962${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
     

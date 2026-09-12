@@ -211,7 +211,7 @@ const EntryRow = ({ entry, isIncome, onDelete, isAuto }) => {
 };
 
 // ─── المكوّن الرئيسي ──────────────────────────────────────────────────────────
-export default function AccountsManager({ selectedBranch, logActivity }) {
+export default function AccountsManager({ selectedBranch, logActivity, managementEntries = [] }) {
 
     // الوصولات والمصاريف (تلقائي + يدوي)
     const paymentsCol     = useCollection('payments');
@@ -232,14 +232,14 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
     [paymentsCol.data, selectedBranch, monthPrefix]);
 
     const branchExpenses = useMemo(() =>
-        expensesCol.data.filter(e => e.branch === selectedBranch && isInMonth(e.date))
+        [...expensesCol.data,...managementEntries.filter(e=>e.kind!=='income').map(e=>({...e,_management:true}))].filter(e => e.branch === selectedBranch && isInMonth(e.date))
             .sort((a, b) => toDateStr(b.date).localeCompare(toDateStr(a.date))),
-    [expensesCol.data, selectedBranch, monthPrefix]);
+    [expensesCol.data, managementEntries, selectedBranch, monthPrefix]);
 
     const branchIncomeExtra = useMemo(() =>
-        incomeExtraCol.data.filter(i => i.branch === selectedBranch && isInMonth(i.date))
+        [...incomeExtraCol.data,...managementEntries.filter(e=>e.kind==='income').map(e=>({...e,_management:true}))].filter(i => i.branch === selectedBranch && isInMonth(i.date))
             .sort((a, b) => toDateStr(b.date).localeCompare(toDateStr(a.date))),
-    [incomeExtraCol.data, selectedBranch, monthPrefix]);
+    [incomeExtraCol.data, managementEntries, selectedBranch, monthPrefix]);
 
     // مجاميع — وصولات مقسمة كاش/كليك
     const cashPayments  = branchPayments.filter(p => !p.method || p.method === 'cash');
@@ -383,7 +383,7 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
             <div class="hdr">
                 <div class="co">
                     <h1>كشف الحسابات الشهري</h1>
-                    <p>أكاديمية الشجاع للتايكواندو — فرع ${selectedBranch}</p>
+                    <p>اكاديمية الشجاع — فرع ${selectedBranch}</p>
                     <p>الفترة: ${monthNames[month]} ${year}</p>
                 </div>
                 <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
@@ -444,7 +444,7 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
             </div>
 
             <div class="footer">
-                تم استخراج هذا الكشف من نظام إدارة أكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
+                تم استخراج هذا الكشف من نظام إدارة اكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
             </div>
             <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close()},600)}</script>
         </body></html>`);
@@ -602,7 +602,7 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
                         <div className="divide-y divide-slate-800/50">
                             {branchIncomeExtra.map(e => (
                                 <EntryRow key={e.id} entry={e} isIncome={true}
-                                    onDelete={deleteIncome} isAuto={false}/>
+                                    onDelete={e._management ? null : deleteIncome} isAuto={Boolean(e._management)}/>
                             ))}
                         </div>
                     ) : (
@@ -653,7 +653,7 @@ export default function AccountsManager({ selectedBranch, logActivity }) {
                             <div className="divide-y divide-slate-800/50">
                                 {branchExpenses.map(e => (
                                     <EntryRow key={e.id} entry={e} isIncome={false}
-                                        onDelete={deleteExpense} isAuto={false}/>
+                                        onDelete={e._management ? null : deleteExpense} isAuto={Boolean(e._management)}/>
                                 ))}
                             </div>
                         </>

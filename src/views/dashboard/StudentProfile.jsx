@@ -243,7 +243,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
         <div class="hdr">
             <div>
                 <h1>بروفايل الطالب — ${student.name}</h1>
-                <p style="margin:4px 0 0;font-size:12px;color:#555;font-weight:bold">أكاديمية الشجاع — فرع ${selectedBranch}</p>
+                <p style="margin:4px 0 0;font-size:12px;color:#555;font-weight:bold">اكاديمية الشجاع — فرع ${selectedBranch}</p>
             </div>
             <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
         </div>
@@ -284,7 +284,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
         ${notesHtml}
 
         <div style="margin-top:30px;text-align:center;font-size:10px;color:#666;border-top:1px solid #eee;padding-top:10px">
-            تم استخراج هذا التقرير من نظام إدارة أكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
+            تم استخراج هذا التقرير من نظام إدارة اكاديمية الشجاع — ${new Date().toLocaleDateString('en-GB')}
         </div>
         <script>window.onload=()=>{window.focus();setTimeout(()=>{window.print();window.close()},600)}</script>
         </body></html>`);

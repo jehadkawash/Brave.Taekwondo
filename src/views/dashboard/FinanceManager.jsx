@@ -461,7 +461,7 @@ export default function FinanceManager({
                     <div class="header-right">
                         <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
                         <div class="academy-info">
-                            <h1>أكاديمية الشجاع للتايكواندو</h1>
+                            <h1>اكاديمية الشجاع</h1>
                             <p>الفرع: ${selectedBranch} | تقرير المقبوضات المالية</p>
                         </div>
                     </div>
@@ -520,7 +520,7 @@ export default function FinanceManager({
                 </div>
 
                 <div class="footer">
-                    تم إنشاء هذا المستند آلياً بواسطة نظام إدارة أكاديمية الشجاع للتايكواندو. جميع المبالغ المذكورة بالدينار الأردني.
+                    تم إنشاء هذا المستند آلياً بواسطة نظام إدارة اكاديمية الشجاع. جميع المبالغ المذكورة بالدينار الأردني.
                 </div>
             </div>
             <script>
@@ -586,7 +586,7 @@ export default function FinanceManager({
             <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
             <div class="header">
               <div class="company-info">
-                <h1>أكاديمية الشجاع للتايكواندو</h1>
+                <h1>اكاديمية الشجاع</h1>
                 <p>فرع: ${selectedBranch}</p>
               </div>
               <div class="logo">
@@ -746,7 +746,7 @@ export default function FinanceManager({
             <img src="${logoUrl}" class="watermark" onerror="this.style.display='none'"/>
             <div class="header">
               <div class="company-info">
-                <h1>أكاديمية الشجاع للتايكواندو</h1>
+                <h1>اكاديمية الشجاع</h1>
                 <p>فرع: ${selectedBranch}</p>
               </div>
               <div class="logo">
@@ -844,7 +844,7 @@ export default function FinanceManager({
     if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
 
     const message =
-      `✅ *سند قبض - أكاديمية الشجاع للتايكواندو*\n\n` +
+      `✅ *سند قبض - اكاديمية الشجاع*\n\n` +
       `👤 *استلمنا من:* ${payment.name}\n` +
       `💰 *المبلغ:* ${payment.amount} دينار أردني\n` +
       `📋 *البيان:* ${payment.reason || '-'}${extraDetails}\n` +

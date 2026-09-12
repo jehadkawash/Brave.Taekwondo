@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {MANAGEMENT_CLUB_PAGES,isManagementClubPage} from '../src/lib/portalPages.js';
+assert.deepEqual(Object.keys(MANAGEMENT_CLUB_PAGES).sort(),['accounts','captains','inventory','news','reports','schedule']);
+for(const key of ['students','attendance','finance','backup'])assert.equal(isManagementClubPage(key),false);
+const src=fs.readFileSync('src/lib/databaseBackup.js','utf8').replace(/^import .*;\r?\n/gm,'');
+let downloaded=0;const read=[];
+const factory=new Function('getDocsFromServer','collection','Timestamp','GeoPoint','DocumentReference','Bytes','db','appId','document','URL','Blob','setTimeout',src.replaceAll('export ','')+'; return {downloadDatabaseBackup,BACKUP_COLLECTIONS,encodeBackupValue};');
+const make=fail=>factory(async ref=>{read.push(ref);if(ref==='management_months'&&fail)throw Error('permission-denied');return {docs:[{id:'one',data:()=>({branch:'A',amount:20})}]};},(...args)=>args.at(-1),class{},class{},class{},class{},{},'test',{createElement:()=>({click:()=>downloaded++,remove(){}}),body:{appendChild(){}}},{createObjectURL:()=> 'blob:mock',revokeObjectURL(){}},Blob,fn=>fn());
+const success=make(false);await success.downloadDatabaseBackup();assert.equal(downloaded,1);assert.equal(read.length,success.BACKUP_COLLECTIONS.length);assert.equal(new Set(success.BACKUP_COLLECTIONS).size,success.BACKUP_COLLECTIONS.length);assert.ok(read.includes('management_ledger'));assert.ok(read.includes('users'));
+await assert.rejects(make(true).downloadDatabaseBackup(),/management_months/);assert.equal(downloaded,1);
+console.log('PASS: six pages relocated; working coach pages retained; backup reads all registered collections from server; failed collection prevents partial download.');

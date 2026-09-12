@@ -460,7 +460,7 @@ export const DashboardStats = ({
     const endStr = s.subEnd ? new Date(s.subEnd).toLocaleDateString('en-GB') : '';
     const msg =
       `مرحباً عائلة ${s.name} 👋\n\n` +
-      `نذكّركم بأن اشتراك البطل (${s.name}) في أكاديمية الشجاع للتايكواندو ` +
+      `نذكّركم بأن اشتراك البطل (${s.name}) في اكاديمية الشجاع ` +
       `قد انتهى${endStr ? ' بتاريخ ' + endStr : ''}.\n\n` +
       `نتمنى رؤيته مجدداً قريباً! 🥋\n\n` +
       `📞 شفابدران: 0795629606\n📞 أبو نصير: 0790368603`;
