@@ -1,5 +1,5 @@
 import {compareWeightEntries} from '../../lib/weightDates';
-import {measurementDate,displayWeightDate,categoryLabel,goalLabel,studentWeightData} from '../../lib/weightTracking';
+import {currentTrackingGoal,measurementDate,displayWeightDate,categoryLabel,goalLabel,studentWeightData} from '../../lib/weightTracking';
 // src/views/dashboard/StudentProfile.jsx
 import React, { useState, useMemo, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
@@ -131,7 +131,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
             .filter(w => w.studentId === student.id && !w._isTarget)
             .sort(compareWeightEntries),
     [weightsCol.data, student.id]);
-    const trackingGoal = studentWeightData(weightsCol.data,student.id).goal;
+    const trackingGoal = currentTrackingGoal(student,studentWeightData(weightsCol.data,student.id).goal);
     const targetWeight = trackingGoal?.weight;
     const currentWeight = studentWeights[0]?.weight;
     const chartData = useMemo(() =>
