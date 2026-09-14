@@ -1,6 +1,6 @@
 {
   "firestore": {
-    "rules": "firestore.rules",
+    "rules": "management/firestore.combined.rules",
     "indexes": "firestore.indexes.json"
   },
   "storage": {

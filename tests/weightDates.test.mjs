@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {Timestamp} from 'firebase/firestore';
+import {weightDateMillis,compareWeightEntries,compareWeightStudents} from '../src/lib/weightDates.js';
+const instant=Date.parse('2026-09-01T12:00:00Z');
+for(const value of [new Date(instant),new Date(instant).toISOString(),Timestamp.fromMillis(instant),{seconds:instant/1000,nanoseconds:0},instant,{toDate:()=>new Date(instant)}])assert.equal(weightDateMillis(value),instant);
+for(const value of [null,undefined,'',{},'invalid',new Date(NaN),{toMillis:()=>{throw Error('bad');}}])assert.equal(weightDateMillis(value),null);
+const entries=[{id:'missing'},{id:'old',createdAt:'2026-08-01'},{id:'latest',createdAt:Timestamp.fromMillis(instant)}];
+assert.deepEqual([...entries].sort(compareWeightEntries).map(r=>r.id),['latest','old','missing']);
+assert.deepEqual([{id:'late',joinDate:Timestamp.fromMillis(instant)},{id:'early',createdAt:'2026-08-01'},{id:'bad',joinDate:'bad',createdAt:'2026-08-02'}].sort(compareWeightStudents).map(r=>r.id),['early','bad','late']);
+assert.equal(weightDateMillis(0),0);
+console.log('PASS: ISO, Date, real Firebase Timestamp, serialized timestamp, malformed dates; student and measurement sorting.');

@@ -14,10 +14,17 @@ function mgPermission(permission) {
 }
 function mgEarned(data) {
  let days=data.attendance.values().removeAll([false]).size();
- return math.round(data.salary * (days>26?26:days) / 26 * 100)/100;
+ return math.round(data.salary * (days>26?26:days) / 26 * 100) / 100;
+}
+function mgAttendanceUpdate(before,after) {
+ let changed=after.attendance.diff(before.attendance).affectedKeys();
+ let day=after.get('attendanceDate','');
+ let parts=day.split('-');
+ return changed.size()==1 && changed.hasOnly([day]) && day.matches('^'+before.month+'-(0[1-9]|[12][0-9]|3[01])$') &&
+ timestamp.date(int(parts[0]),int(parts[1]),int(parts[2]))<=request.time;
 }
 function mgMonthValid(data) {
- return data.keys().hasOnly(['coachId','month','branch','salary','attendance','paid','lastPayment','closed']) &&
+ return data.keys().hasOnly(['coachId','month','branch','salary','attendance','paid','lastPayment','closed','attendanceDate']) &&
  data.coachId is string && data.month.matches('^[0-9]{4}-(0[1-9]|1[0-2])$') &&
  data.branch in ['شفا بدران','أبو نصير'] && data.salary is number && data.salary>=0 &&
  data.attendance is map && data.attendance.size()<=31 && data.attendance.values().hasOnly([true,false]) &&
@@ -39,11 +46,11 @@ match /artifacts/brave-academy-live-data/public/data/management_months/{id} {
  allow read: if mgPermission('overview') || mgPermission('payroll') || mgPermission('attendance');
  allow create: if mgPermission('payroll') && mgMonthValid(request.resource.data) && id==request.resource.data.coachId+'_'+request.resource.data.month && request.resource.data.paid==0 && request.resource.data.attendance.size()==0;
  allow update: if mgMonthValid(request.resource.data) && (
- (mgPermission('attendance') && resource.data.get('closed',false)==false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance'])) ||
+ (mgPermission('attendance') && resource.data.get('closed',false)==false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance','attendanceDate']) && mgAttendanceUpdate(resource.data,request.resource.data)) ||
  (mgPermission('payroll') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed']) && request.resource.data.closed==true) ||
  (mgPermission('payroll') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid','lastPayment']) && request.resource.data.paid>resource.data.paid &&
  !exists(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)) &&
- getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.amount==request.resource.data.paid-resource.data.paid &&
+ getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.amount * 100==math.round((request.resource.data.paid-resource.data.paid) * 100) &&
  getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.coachId==resource.data.coachId &&
  getAfter(/databases/$(database)/documents/artifacts/brave-academy-live-data/public/data/management_ledger/$(request.resource.data.lastPayment)).data.month==resource.data.month));
 }

@@ -12,17 +12,20 @@ import {
 import { useCollection } from '../../hooks/useCollection';
 import { IMAGES } from '../../lib/constants';
 import { toast } from '../../lib/toast';
+import { weightDateMillis, compareWeightEntries, compareWeightStudents } from '../../lib/weightDates';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const nowIso = () => new Date().toISOString();
 const fmtDate = (iso) => {
-    if (!iso) return '-';
-    const d = new Date(iso);
+    const millis = weightDateMillis(iso);
+    if (millis === null) return '-';
+    const d = new Date(millis);
     return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 };
 const fmtTime = (iso) => {
-    if (!iso) return '';
-    const d = new Date(iso);
+    const millis = weightDateMillis(iso);
+    if (millis === null) return '';
+    const d = new Date(millis);
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
@@ -268,7 +271,7 @@ const PickStudentsModal = ({ event, allStudents, currentIds, onClose, onSave }) 
 // ─── بطاقة طالب في القائمة ───────────────────────────────────────────────────
 const StudentRow = ({ student, entries, target, isSelected, onClick, isArchived }) => {
     const sorted = useMemo(() =>
-        [...entries].sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+        [...entries].sort(compareWeightEntries),
     [entries]);
 
     const latest = sorted[0];
@@ -340,11 +343,7 @@ export default function WeightsManager({ initialStudentId, students = [], archiv
     // كل الطلاب: النشطون أولاً (مرتّبين حسب تاريخ الالتحاق — الأقدم أولاً)،
     // ثم المؤرشفون بالأسفل (مرتّبين حسب تاريخ الالتحاق أيضاً)
     const allStudents = useMemo(() => {
-        const sortByJoin = (a, b) => {
-            const ja = a.joinDate || a.createdAt || '';
-            const jb = b.joinDate || b.createdAt || '';
-            return ja.localeCompare(jb); // الأقدم أولاً
-        };
+        const sortByJoin = compareWeightStudents;
         const activeSorted = students
             .map(s => ({ ...s, _archived: false }))
             .sort(sortByJoin);
@@ -359,7 +358,7 @@ export default function WeightsManager({ initialStudentId, students = [], archiv
     // الفعاليات (البطولات) للفرع الحالي
     const branchEvents = useMemo(() =>
         eventsCol.data.filter(e => e.branch === selectedBranch)
-            .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+            .sort(compareWeightEntries),
     [eventsCol.data, selectedBranch]);
 
     // الطلاب الظاهرين حسب التبويب — نحافظ على ترتيب allStudents
@@ -389,7 +388,7 @@ export default function WeightsManager({ initialStudentId, students = [], archiv
 
     const selectedEntries = useMemo(() =>
         selectedStudent
-            ? [...getEntries(selectedStudent.id)].sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+            ? [...getEntries(selectedStudent.id)].sort(compareWeightEntries)
             : [],
     [selectedStudent, allWeights]);
 
