@@ -18,5 +18,5 @@ export function compareWeightDates(a,b,direction=1) {
  if(right===null) return -1;
  return (left-right)*direction;
 }
-export const compareWeightEntries = (a,b) => compareWeightDates(a.createdAt,b.createdAt,-1) || String(a.id||'').localeCompare(String(b.id||''));
+export const compareWeightEntries = (a,b) => compareWeightDates(a.measuredAt || a.createdAt,b.measuredAt || b.createdAt,-1) || String(a.id||'').localeCompare(String(b.id||''));
 export const compareWeightStudents = (a,b) => compareWeightDates(weightDateMillis(a.joinDate) ?? a.createdAt,weightDateMillis(b.joinDate) ?? b.createdAt) || String(a.id||'').localeCompare(String(b.id||''));

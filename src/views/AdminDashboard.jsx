@@ -152,7 +152,7 @@ const AdminDashboard = ({
     if (parts[0] === 'admin_dashboard' && parts[1] && !isManagementClubPage(parts[1])) return parts[1];
     return user.isSuper || (user.permissions && user.permissions.includes('dashboard'))
       ? 'dashboard'
-      : 'attendance';
+      : user.permissions?.includes('attendance') ? 'attendance' : user.permissions?.includes('weight') ? 'weights' : 'attendance';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [studentRequest, setStudentRequest] = useState(null);
@@ -302,7 +302,7 @@ const AdminDashboard = ({
     hasPerm('tests')         && { id: 'tests',         icon: Award,        label: 'فحص' },
     hasPerm('finance')       && { id: 'finance',       icon: DollarSign,   label: 'وصولات' },
     hasPerm('finance')       && { id: 'debts',         icon: AlertTriangle,label: 'الذمم والأقساط' },
-    hasPerm('students')      && { id: 'weights',       icon: Scale,        label: 'متابعة الأوزان' },
+    (hasPerm('weight') || hasPerm('students')) && { id: 'weights',       icon: Scale,        label: 'متابعة الأوزان' },
     hasPerm('archive')       && { id: 'archive',       icon: Archive,      label: 'الأرشيف' },
   ].filter(Boolean);
 
@@ -568,7 +568,7 @@ const AdminDashboard = ({
               logActivity={handleLog}
               debts={debtsCollection.data || []}
               onNavigateToDebts={hasPerm('finance')  ? (id) => navigateForStudent('debts', id)   : null}
-              onNavigateToWeights={hasPerm('students') ? (id) => navigateForStudent('weights', id) : null}
+              onNavigateToWeights={(hasPerm('weight') || hasPerm('students')) ? (id) => navigateForStudent('weights', id) : null}
               onNavigateToFinance={hasPerm('finance')  ? (id) => navigateForStudent('finance', id) : null}
             />
           )}
@@ -672,7 +672,7 @@ const AdminDashboard = ({
               logActivity={handleLog}
             />
           )}
-          {activeTab === 'weights' && hasPerm('students') && (
+          {activeTab === 'weights' && (hasPerm('weight') || hasPerm('students')) && (
             <WeightsManager
               key={studentRequest?.tab === "weights" ? studentRequest.key : "weights"}
               initialStudentId={studentRequest?.tab === "weights" ? studentRequest.studentId : null}

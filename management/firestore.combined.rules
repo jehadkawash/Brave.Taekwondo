@@ -367,6 +367,14 @@ match /artifacts/brave-academy-live-data/public/data/{name}/{id} {
  allow read: if name in ['students','payments','expenses','income_extra','debts'] && (mgPermission('overview') || mgPermission('finance'));
 }
 
+// Weight coaches can access tracking records and the student directory in their own branch.
+match /artifacts/{appId}/public/data/{name}/{id} {
+ allow read: if name in ['students','archive','weights','weight_events'] && hasPermission(appId,'weight') && canDeleteInBranch(appId);
+ allow create: if name in ['weights','weight_events'] && hasPermission(appId,'weight') && canCreateInBranch(appId);
+ allow update: if name in ['weights','weight_events'] && hasPermission(appId,'weight') && canChangeInBranch(appId);
+ allow delete: if name in ['weights','weight_events'] && hasPermission(appId,'weight') && canDeleteInBranch(appId);
+}
+
 // Access for pages relocated into general management. Captain/user administration remains director-only.
 match /artifacts/brave-academy-live-data/public/data/{name}/{id} {
  allow read: if (name in ['students','payments','expenses','income_extra'] && mgPermission('reports')) ||

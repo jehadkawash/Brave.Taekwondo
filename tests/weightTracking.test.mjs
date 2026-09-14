@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {studentWeightData,goalStatus,changeLabel,birthYear,WEIGHT_CATEGORIES} from '../src/lib/weightTracking.js';
+import {weightReportHtml} from '../src/lib/weightReport.js';
+const rows=[{id:'a',studentId:'s',weight:31,measuredAt:'2026-09-01T13:00:01Z'},{id:'b',studentId:'s',weight:30.5,measuredAt:'2026-09-01T15:00:02Z'},{id:'g',studentId:'s',_isTarget:true,weight:29},{id:'other',studentId:'other',weight:80}];
+test('shared student history preserves multiple measurements per day',()=>{const {entries,goal}=studentWeightData(rows,'s');assert.deepEqual(entries.map(r=>r.id),['b','a']);assert.equal(goal.weight,29);assert.equal(changeLabel(entries[0],entries[1]),'نقصان 0.5 كغم');assert.equal(goalStatus(31,goal).gap,2);assert.equal(goalStatus(29,goal).reached,false);assert.equal(goalStatus(28.99,goal).reached,true);assert.equal(goalStatus(34,{weight:35,direction:'over'}).gap,1);});
+test('source categories and birth year',()=>{assert.equal(WEIGHT_CATEGORIES.length,8);assert.deepEqual(WEIGHT_CATEGORIES[1].limits,[20,22,24,26,29,32,35,40,45]);assert.equal(WEIGHT_CATEGORIES[1].over,50);assert.equal(birthYear({dob:'2013-04-01'}),'2013');assert.equal(birthYear({dob:{bad:true}}),'غير مسجلة');});
+test('report escapes input and compares with earlier measurement outside selected range',()=>{const {entries,goal}=studentWeightData(rows,'s');const html=weightReportHtml({student:{name:'<script>bad</script>',dob:'2013-04-01'},entries:[entries[0]],allEntries:entries,goal,branch:'test'});assert.ok(!html.includes('<script>'));assert.ok(html.includes('&lt;script&gt;'));assert.ok(html.includes('نقصان 0.5'));assert.ok(html.includes('1.5 كغم'));assert.ok(!html.includes('NaN'));});

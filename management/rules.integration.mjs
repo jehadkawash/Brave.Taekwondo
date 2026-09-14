@@ -41,6 +41,15 @@ try{
  // Existing club data still writable by the original director and family scoped reads remain intact.
  await setDoc(ref(admin,'students','existing'),{name:'Test student',branch:'شفا بدران',familyUid:'family'});
  await getDoc(ref(family,'students','existing'));
+ const weightCoach=client('weight-coach',{});
+ await setDoc(ref(admin,'users','weight-coach@test.local'),{permissions:['weight'],branch:'شفا بدران'});
+ await getDocs(query(collection(weightCoach,...base,'students'),where('branch','==','شفا بدران')));
+ await setDoc(ref(weightCoach,'weights','measurement'),{studentId:'existing',branch:'شفا بدران',weight:31,measuredAt:'2026-09-01T13:00:01Z'});
+ await updateDoc(ref(weightCoach,'weights','measurement'),{weight:30.5});
+ await getDocs(query(collection(weightCoach,...base,'weights'),where('branch','==','شفا بدران')));
+ await denied(setDoc(ref(weightCoach,'weights','other-branch'),{branch:'أبو نصير',weight:31}));
+ await denied(updateDoc(ref(weightCoach,'students','existing'),{name:'unauthorized'}));
+ await denied(getDocs(query(collection(weightCoach,...base,'weights'),where('branch','==','أبو نصير'))));
  await denied(updateDoc(ref(family,'students','existing'),{name:'unauthorized'}));
  console.log('PASS: director reads all new collections; anonymous/family/coach denied; supervisor scopes; monthly salary; 26-day cap; advance/payment atomicity; closed month; existing student access.');
 }finally{await Promise.all(apps.map(deleteApp));}

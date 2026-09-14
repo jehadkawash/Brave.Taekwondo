@@ -1,3 +1,5 @@
+import {compareWeightEntries} from '../../lib/weightDates';
+import {measurementDate,displayWeightDate,categoryLabel,goalLabel,studentWeightData} from '../../lib/weightTracking';
 // src/views/dashboard/StudentProfile.jsx
 import React, { useState, useMemo, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
@@ -111,7 +113,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     const studentPayments = useMemo(() =>
         paymentsCol.data
             .filter(p => p.studentId === student.id)
-            .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+            .sort(compareWeightEntries),
     [paymentsCol.data, student.id]);
 
     const totalPaid = studentPayments.reduce((a, p) => a + Number(p.amount || 0), 0);
@@ -127,14 +129,15 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     const studentWeights = useMemo(() =>
         weightsCol.data
             .filter(w => w.studentId === student.id && !w._isTarget)
-            .sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+            .sort(compareWeightEntries),
     [weightsCol.data, student.id]);
-    const targetWeight  = weightsCol.data.find(w => w.studentId === student.id && w._isTarget)?.weight;
+    const trackingGoal = studentWeightData(weightsCol.data,student.id).goal;
+    const targetWeight = trackingGoal?.weight;
     const currentWeight = studentWeights[0]?.weight;
     const chartData = useMemo(() =>
         [...studentWeights].reverse().map(w => ({
-            label: fmtDate(w.createdAt),
-            fullDate: `${fmtDate(w.createdAt)} ${fmtTime(w.createdAt)}`,
+            label: displayWeightDate(measurementDate(w)),
+            fullDate: displayWeightDate(measurementDate(w)),
             weight: Number(w.weight),
             note: w.note || '',
         })),
@@ -206,7 +209,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
         const weightsRows = studentWeights.length === 0
             ? '<tr><td colspan="3" style="text-align:center;padding:10px;color:#666">لا يوجد قياسات</td></tr>'
             : studentWeights.slice(0, 10).map(w => `<tr>
-                <td style="border:1px solid #ddd;padding:5px;font-family:monospace;font-size:11px;">${fmtDate(w.createdAt)} ${fmtTime(w.createdAt)}</td>
+                <td style="border:1px solid #ddd;padding:5px;font-family:monospace;font-size:11px;">${displayWeightDate(measurementDate(w))}</td>
                 <td style="border:1px solid #ddd;padding:5px;text-align:center;font-weight:bold;">${w.weight} kg</td>
                 <td style="border:1px solid #ddd;padding:5px;font-size:11px;color:#555;">${w.note || '-'}</td>
             </tr>`).join('');
@@ -594,8 +597,8 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                         ) : (
                             <>
                                 <div className="flex gap-3 mb-3">
-                                    <StatPill label="الوزن الحالي" value={`${currentWeight} kg`} color="text-blue-400"/>
-                                    {targetWeight && <StatPill label="الهدف" value={`${targetWeight} kg`} color="text-emerald-400"/>}
+                                    <StatPill label="الوزن الحالي" value={`${currentWeight} kg`} color="text-blue-400"/><StatPill label="الفئة" value={categoryLabel(trackingGoal?.categoryId)} color="text-slate-300"/>
+                                    {Boolean(targetWeight) && <StatPill label="الهدف" value={goalLabel(trackingGoal)} color="text-emerald-400"/>}
                                 </div>
                                 {chartData.length > 1 && (
                                     <div style={{ height: 200, width: '100%' }} className="min-w-0 mb-3">
@@ -615,10 +618,10 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
                                     </div>
                                 )}
                                 <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar">
-                                    {studentWeights.slice(0, 5).map(w => (
+                                    {studentWeights.map(w => (
                                         <div key={w.id} className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 flex items-center justify-between">
                                             <span className="font-black text-slate-200 text-sm">{w.weight} <span className="text-[10px] text-slate-500">kg</span></span>
-                                            <span className="text-[10px] text-slate-500 font-mono">{fmtDate(w.createdAt)} {fmtTime(w.createdAt)}</span>
+                                            <span className="text-[10px] text-slate-500 font-mono">{displayWeightDate(measurementDate(w))}</span>
                                         </div>
                                     ))}
                                 </div>
