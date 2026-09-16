@@ -128,7 +128,7 @@ export default function StudentProfile({ student, allStudents = [], studentsColl
     // الأوزان
     const studentWeights = useMemo(() =>
         weightsCol.data
-            .filter(w => w.studentId === student.id && !w._isTarget)
+            .filter(w => w.studentId === student.id && !w._isTarget && !w._voided)
             .sort(compareWeightEntries),
     [weightsCol.data, student.id]);
     const trackingGoal = currentTrackingGoal(student,studentWeightData(weightsCol.data,student.id).goal);
