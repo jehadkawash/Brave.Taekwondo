@@ -1,0 +1,9 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {loadManagement} from './loadManagement.mjs';
+const missing=new TypeError('Failed to fetch dynamically imported module: /assets/old.js');
+function fixture(){const data=new Map();const b={navigator:{onLine:true},sessionStorage:{getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)},location:{href:'https://example.test/?branch=1#management_portal',replace:url=>{b.redirect=url}},history:{state:null,replaceState:(_,__,url)=>{b.cleaned=url}}};return b;}
+test('missing chunk reloads once and preserves route, then stops looping',async()=>{const b=fixture();loadManagement(()=>Promise.reject(missing),b);await new Promise(resolve=>setImmediate(resolve));assert.equal(new URL(b.redirect).hash,'#management_portal');assert.equal(new URL(b.redirect).searchParams.get('branch'),'1');assert.ok(new URL(b.redirect).searchParams.has('app-update'));await assert.rejects(loadManagement(()=>Promise.reject(missing),b),missing);});
+test('offline and programming errors never reload',async()=>{const b=fixture();b.navigator.onLine=false;await assert.rejects(loadManagement(()=>Promise.reject(missing),b),missing);b.navigator.onLine=true;await assert.rejects(loadManagement(()=>Promise.reject(new Error('bug')),b),/bug/);assert.equal(b.redirect,undefined);});
+test('successful recovery cleans marker while preserving URL state',async()=>{const b=fixture();b.location.href='https://example.test/?branch=1&app-update=123#management_portal';const module={default:'page'};assert.equal(await loadManagement(()=>Promise.resolve(module),b),module);assert.equal(b.cleaned,'https://example.test/?branch=1#management_portal');});
+test('blocked storage does not break a successful page load',async()=>{const b=fixture();b.sessionStorage.removeItem=()=>{throw Error('blocked')};assert.equal(await loadManagement(()=>Promise.resolve('page'),b),'page');});

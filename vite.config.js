@@ -31,6 +31,7 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 6000000,
+        navigateFallbackDenylist: [/[?&]app-update=/],
       },
     }),
   ],

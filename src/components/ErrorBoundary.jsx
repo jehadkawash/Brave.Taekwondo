@@ -1,6 +1,7 @@
 // src/components/ErrorBoundary.jsx
 import React from 'react';
 import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
+import {isChunkLoadError} from '../lib/loadManagement.mjs';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -8,8 +9,8 @@ export default class ErrorBoundary extends React.Component {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, chunkError: isChunkLoadError(error) };
   }
 
   componentDidCatch(error, info) {
@@ -31,9 +32,9 @@ export default class ErrorBoundary extends React.Component {
             <div className="w-16 h-16 bg-red-900/20 border border-red-500/30 rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-400">
               <AlertTriangle size={32} />
             </div>
-            <h2 className="text-xl font-black text-slate-100 mb-2">حدث خطأ غير متوقع</h2>
+            <h2 className="text-xl font-black text-slate-100 mb-2">{this.state.chunkError ? 'تعذر تحميل نسخة الإدارة' : 'حدث خطأ غير متوقع'}</h2>
             <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-              صار خطأ بهذه الصفحة. جرّب تحديث الصفحة، وإذا استمرت المشكلة تواصل مع الدعم التقني.
+              {this.state.chunkError ? 'قد تكون نسخة الموقع تغيّرت أو الاتصال انقطع. تأكد من الإنترنت ثم أعد تحميل الصفحة. بياناتك المحفوظة لم تُحذف.' : 'صار خطأ بهذه الصفحة. جرّب تحديث الصفحة، وإذا استمرت المشكلة تواصل مع الدعم التقني.'}
             </p>
             <div className="flex gap-3">
               <button
