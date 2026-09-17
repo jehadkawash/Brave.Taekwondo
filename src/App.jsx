@@ -215,7 +215,7 @@ export default function App() {
       <ToastContainer />
       <ErrorBoundary>
         {view === 'home' && (
-          <HomeView setView={navigateTo} schedule={scheduleCollection.data} />
+          <HomeView setView={navigateTo} schedule={scheduleCollection.data} scheduleLoading={scheduleCollection.loading} scheduleError={scheduleCollection.error} />
         )}
         {view === 'login' && (
           <LoginView
