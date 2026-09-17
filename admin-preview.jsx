@@ -1,1 +1,0 @@
-import React from 'react';import{createRoot}from'react-dom/client';import ManagementView from './src/views/ManagementView';createRoot(document.getElementById('root')).render(<ManagementView account={{isSuper:true,email:'demo@example.test',name:'إدارة الأكاديمية'}} onLogout={()=>{}}/>);
