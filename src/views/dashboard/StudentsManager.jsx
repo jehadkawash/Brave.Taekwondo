@@ -1,3 +1,4 @@
+import FamilyContactsMenu from './FamilyContactsMenu';
 import FamilyContactsExport from './FamilyContactsExport';
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -743,7 +744,7 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
         </ModalOverlay>
       )}
       
-      {showFamilyExport&&<FamilyContactsExport students={processedStudents} onClose={()=>setShowFamilyExport(false)}/>}
+      {showFamilyExport&&<FamilyContactsExport format={showFamilyExport} students={processedStudents} onClose={()=>setShowFamilyExport(false)}/>}
       <section dir="rtl" className="space-y-5" aria-label="إدارة الطلاب">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -751,7 +752,7 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
             <p className="text-sm text-slate-400 mt-1">تابع الاشتراكات واعثر على الطالب بسرعة · {selectedBranch}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" disabled={!processedStudents.length} onClick={()=>setShowFamilyExport(true)} className="bg-slate-800 text-slate-300 border border-slate-700"><Phone size={16}/> تصدير أرقام الأهالي</Button>
+            <FamilyContactsMenu disabled={!processedStudents.length} onSelect={setShowFamilyExport}/>
             <Button variant="secondary" onClick={handlePrintStudents} className="bg-slate-800 text-slate-300 border border-slate-700"><Printer size={16}/> طباعة النتائج</Button>
             <Button onClick={() => {setEditingStudent(null); setShowModal(true);}} className="bg-yellow-500 text-slate-900 hover:bg-yellow-400 font-bold"><UserPlus size={18}/> طالب جديد</Button>
           </div>
