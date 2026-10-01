@@ -26,8 +26,8 @@ export default function MultiItemReceipt({ students, selectedBranch, paymentsCol
     // Collections
     const productsCol  = useCollection('products');
     const packagesCol  = useCollection('packages');
-    const debtsCol     = useCollection('debts');
-    const inventoryLog = useCollection('inventory_log');
+    const debtsCol     = useCollection('debts', { enabled: false });
+    const inventoryLog = useCollection('inventory_log', { enabled: false });
 
     const products = useMemo(() =>
         productsCol.data.filter(p => !p.branch || p.branch === selectedBranch),

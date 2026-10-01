@@ -43,6 +43,7 @@ export const StatusBadge = ({ status }) => {
 export const StudentSearch = ({ students, onSelect, placeholder = "بحث عن طالب...", showAllOption = false, onClear }) => {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [resultLimit, setResultLimit] = useState(20);
   
   const filtered = useMemo(() => {
     if (!query) return students;
@@ -50,7 +51,9 @@ export const StudentSearch = ({ students, onSelect, placeholder = "بحث عن �
   }, [students, query]);
 
   return (
-    <div className="relative w-full group">
+    <div className="relative w-full group" onBlur={e => {
+      if (!e.currentTarget.contains(e.relatedTarget)) setIsOpen(false);
+    }} onKeyDown={e => { if (e.key === 'Escape') setIsOpen(false); }}>
       <div className="relative">
         {/* ✅ Dark Input Styling */}
         <input
@@ -60,15 +63,15 @@ export const StudentSearch = ({ students, onSelect, placeholder = "بحث عن �
           value={query}
           onChange={e => {
              setQuery(e.target.value);
+             setResultLimit(20);
              setIsOpen(true);
              if(e.target.value === '' && onClear) onClear();
           }}
           onFocus={() => setIsOpen(true)}
-          onBlur={() => setTimeout(() => setIsOpen(false), 200)} 
         />
         <Search className="absolute left-3 top-3 text-slate-500 group-focus-within:text-yellow-500 transition-colors" size={18}/>
         {query && (
-           <button onClick={() => { setQuery(''); if(onClear) onClear(); }} className="absolute left-9 top-3 text-slate-500 hover:text-red-400">
+           <button type="button" aria-label="مسح بحث الطالب" onClick={() => { setQuery(''); setResultLimit(20); if(onClear) onClear(); }} className="absolute left-9 top-3 text-slate-500 hover:text-red-400">
              <X size={18}/>
            </button>
         )}
@@ -76,20 +79,22 @@ export const StudentSearch = ({ students, onSelect, placeholder = "بحث عن �
       {isOpen && (
         <div className="absolute z-50 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-56 overflow-y-auto mt-2 custom-scrollbar">
           {showAllOption && (
-             <div className="p-3 hover:bg-slate-800 cursor-pointer text-sm border-b border-slate-800 font-bold text-blue-400 transition-colors" onClick={() => { setQuery(''); if(onClear) onClear(); setIsOpen(false); }}>
+             <button type="button" className="w-full text-right p-3 hover:bg-slate-800 cursor-pointer text-sm border-b border-slate-800 font-bold text-blue-400 transition-colors" onClick={() => { setQuery(''); if(onClear) onClear(); setIsOpen(false); }}>
                عرض الكل
-             </div>
+             </button>
           )}
-          {filtered.length > 0 ? filtered.map(s => (
-             <div
+          {filtered.length > 0 ? filtered.slice(0, resultLimit).map(s => (
+             <button type="button"
                key={s.id}
-               className="p-3 hover:bg-slate-800 cursor-pointer text-sm border-b border-slate-800/50 last:border-0 flex justify-between items-center transition-colors"
+               onMouseDown={e => e.preventDefault()}
+               className="w-full text-right p-3 hover:bg-slate-800 cursor-pointer text-sm border-b border-slate-800/50 last:border-0 flex justify-between items-center transition-colors"
                onClick={() => { setQuery(s.name); onSelect(s); setIsOpen(false); }}
              >
                <span className="font-bold text-slate-200">{s.name}</span>
                <span className={`text-[10px] px-2 py-1 rounded border border-slate-700 ${s.belt?.includes('أحمر') || s.belt?.includes('أسود') ? 'bg-red-900/20 text-red-400' : 'bg-slate-800 text-slate-400'}`}>{s.belt}</span>
-             </div>
+             </button>
            )) : <div className="p-4 text-slate-500 text-sm text-center">لا توجد نتائج</div>}
+          {filtered.length > resultLimit && <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setResultLimit(n => n + 20)} className="w-full p-3 text-blue-400 text-sm">عرض المزيد ({filtered.length - resultLimit})</button>}
         </div>
       )}
     </div>

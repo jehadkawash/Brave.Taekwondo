@@ -216,7 +216,7 @@ const AdminDashboard = ({
     'payments', { enabled: isDashboard || isFinance || isReports || isArchive || activeTab === 'accounts', where: [['branch', '==', selectedBranch]] }
   );
   const expensesCollection = useCollection(
-    'expenses', { enabled: isDashboard || isFinance || isReports || activeTab === 'accounts', where: [['branch', '==', selectedBranch]] }
+    'expenses', { enabled: isDashboard || isReports || activeTab === 'accounts', where: [['branch', '==', selectedBranch]] }
   );
   const registrationsCollection = useCollection(
     'registrations', { enabled: isDashboard || isRegistration || isReports, where: [['branch', '==', selectedBranch]] }

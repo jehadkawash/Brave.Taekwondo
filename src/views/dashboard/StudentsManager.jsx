@@ -1,3 +1,6 @@
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/Pagination';
 import FamilyContactsMenu from './FamilyContactsMenu';
 import FamilyContactsExport from './FamilyContactsExport';
 import React, { useState, useMemo } from 'react';
@@ -218,6 +221,7 @@ const SubscriptionModal = ({ student, onClose, onSave }) => {
 
 
 const StudentsManager = ({ initialStudentId, students, studentsCollection, archiveCollection, selectedBranch, logActivity, groups, debts = [], onNavigateToDebts, onNavigateToWeights, onNavigateToFinance }) => {
+  const isDesktop = useMediaQuery('(min-width: 1280px)');
   const [profileStudent, setProfileStudent] = useState(() => students.find(s => s.id === initialStudentId) || null);
   const [credentialsStudentId, setCredentialsStudentId] = useState(null);
   const credentialsStudent = students.find(student => student.id === credentialsStudentId);
@@ -371,6 +375,8 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
 
       return result;
   }, [students, search, statusFilter, sortOption, groupFilter, beltFilter, debtTotals]);
+
+  const pagination = usePagination(processedStudents, JSON.stringify([selectedBranch, search, statusFilter, sortOption, groupFilter, beltFilter]));
 
   const handlePrintStudents = () => printStudentReport({ students: processedStudents, selectedBranch, debtTotals, filterDescription: [search && `بحث: ${search}`, statusFilter !== 'all' && `الحالة: ${{active:'نشط',near_end:'قرب الانتهاء',expired:'منتهي'}[statusFilter]}`, groupFilter !== 'all' && `المجموعة: ${groupFilter}`, beltFilter !== 'all' && `الحزام: ${beltFilter}`].filter(Boolean).join(' · ') });
 
@@ -801,13 +807,14 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
 
       {/* Desktop table and mobile cards share the same actions and status details. */}
       {processedStudents.length > 0 && <>
-        <Card noPadding className="hidden xl:block overflow-hidden border border-slate-800 rounded-2xl p-0 bg-slate-900">
+        <Pagination {...pagination} label="صفحات الطلاب" />
+        {isDesktop ? <Card noPadding className="overflow-hidden border border-slate-800 rounded-2xl p-0 bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right">
               <caption className="sr-only">قائمة الطلاب واشتراكاتهم وإجراءات المتابعة</caption>
               <thead className="bg-slate-950 text-slate-400 border-b border-slate-800"><tr>{['الطالب والمجموعة', 'التواصل', 'الحزام', 'الذمم', 'الاشتراك', 'الإجراءات'].map(label => <th scope="col" key={label} className="p-4 font-bold">{label}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-800">
-                {processedStudents.map(student => <tr key={student.id} className="hover:bg-slate-800/50 transition-colors align-top">
+                {pagination.pageItems.map(student => <tr key={student.id} className="hover:bg-slate-800/50 transition-colors align-top">
                   <td className="p-4"><button onClick={() => setProfileStudent(student)} className="text-right text-base font-bold text-slate-200 hover:text-yellow-500">{student.name}</button><p className="text-xs text-slate-400 mt-2">{formatGroupName(student.group)}</p><div className="flex flex-wrap gap-2 mt-2">{isNewStudent(student.joinDate) && <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-900/20 px-2 py-1 text-xs font-bold text-red-400"><AlertTriangle size={14}/> طالب جديد</span>}{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 flex items-center gap-1"><FileWarning size={14}/> ملاحظات خاصة</button>}</div></td>
                   <td className="p-4"><div className="flex flex-col items-start gap-2">{student.phone ? <><a dir="ltr" href={`tel:${student.phone}`} className="text-slate-300 font-mono min-h-11 inline-flex items-center gap-2"><Phone size={14}/>{student.phone}</a><span className="text-xs text-slate-400">{student.phoneLabel || "الرقم الأساسي"}</span>{student.secondaryPhone && <a href={`tel:${student.secondaryPhone}`} className="text-xs text-slate-400 min-h-11">{student.secondaryPhoneLabel || "رقم ثانوي"}: <bdi>{student.secondaryPhone}</bdi></a>}<button onClick={() => openWhatsAppChat(student.phone)} className="text-emerald-400 text-xs flex items-center gap-2 min-h-11"><MessageCircle size={16}/> واتساب</button></> : <span className="text-slate-500">غير محدد</span>}</div></td>
                   <td className="p-4"><span className="inline-block px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">{student.belt || 'غير محدد'}</span></td>
@@ -819,15 +826,16 @@ return { id, displayName: `${displayName} (يشمل: ${data.members.join('، ')}
             </table>
           </div>
         </Card>
-        <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
-          {processedStudents.map(student => <article key={student.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 min-w-0">
+        : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {pagination.pageItems.map(student => <article key={student.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 min-w-0">
             <div>{isNewStudent(student.joinDate) && <span className="inline-flex items-center gap-1 mb-2 px-2 py-1 rounded-lg border border-red-500/40 bg-red-900/20 text-red-400 text-xs font-bold"><AlertTriangle size={14}/> طالب جديد</span>}<button onClick={() => setProfileStudent(student)} className="text-right font-bold text-lg text-slate-100 hover:text-yellow-500 break-words">{student.name}</button><p className="text-sm text-slate-400 mt-1">{formatGroupName(student.group)} · الحزام {student.belt || 'غير محدد'}</p>{(student.internalNotes?.length > 0 || student.note?.trim()) && <button onClick={() => setStudentForNotes(student)} className="text-xs text-orange-400 mt-2 min-h-8 flex items-center gap-1"><FileWarning size={14}/> توجد ملاحظات خاصة</button>}</div>
             <div className="grid grid-cols-2 gap-3 bg-slate-950 border border-slate-800 rounded-xl p-3"><div><p className="text-xs text-slate-400 mb-2">الاشتراك</p>{renderSubscription(student)}</div><div><p className="text-xs text-slate-400 mb-2">الذمم المالية</p>{renderDebt(student)}</div></div>
             {student.phone && <div className="flex flex-wrap items-center justify-between gap-2"><a dir="ltr" href={`tel:${student.phone}`} className="min-h-11 flex items-center gap-2 text-sm text-slate-300 font-mono"><Phone size={16}/>{student.phone}</a><button onClick={() => openWhatsAppChat(student.phone)} className="min-h-11 px-3 rounded-lg text-emerald-400 bg-emerald-900/20 flex items-center gap-2 text-sm"><MessageCircle size={16}/> واتساب</button></div>}
             <p className="text-xs text-slate-400">الأساسي: {student.phoneLabel || "غير محدد"}</p>{student.secondaryPhone && <a href={`tel:${student.secondaryPhone}`} className="text-sm text-slate-300 min-h-11">{student.secondaryPhoneLabel || "رقم ثانوي"}: <bdi>{student.secondaryPhone}</bdi></a>}
             <div className="border-t border-slate-800 pt-3 mt-auto">{renderActions(student)}</div>
           </article>)}
-        </div>
+        </div>}
+        <Pagination {...pagination} label="صفحات الطلاب أسفل القائمة" />
       </>}
 
       {/* --- Add/Edit Modal --- */}

@@ -1,5 +1,8 @@
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/Pagination';
 // src/views/dashboard/FinanceManager.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { DollarSign, Printer, Trash2, Calendar, FileText, User, Settings, Plus, X, PieChart, Download, MessageCircle, AlertCircle, Receipt, Layers, Pencil } from 'lucide-react';
 import { Button, Card, StudentSearch } from '../../components/UIComponents';
@@ -53,15 +56,15 @@ const ReasonsModal = ({ isOpen, onClose, reasons, onAdd, onDelete }) => {
                     </h3>
                     <button onClick={onClose}><X size={20} className="text-slate-500 hover:text-red-500"/></button>
                 </div>
-                
+
                 <div className="flex gap-2 mb-6">
-                    <input 
+                    <input
                         className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 focus:border-green-500 outline-none placeholder-slate-600"
                         placeholder="اسم البند الجديد..."
                         value={newReason}
                         onChange={(e) => setNewReason(e.target.value)}
                     />
-                    <button 
+                    <button
                         onClick={() => { if(newReason) { onAdd(newReason); setNewReason(""); } }}
                         className="bg-green-600 text-white p-3 rounded-xl hover:bg-green-500 shadow-lg shadow-green-900/20"
                     >
@@ -114,7 +117,7 @@ const ReportModal = ({ isOpen, onClose, onGenerate }) => {
                         <label className="block text-sm font-bold text-slate-400 mb-1">إلى تاريخ</label>
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-3 rounded-xl outline-none focus:border-blue-500"/>
                     </div>
-                    
+
                     <div className="pt-4">
                         <Button onClick={() => onGenerate(startDate, endDate)} className="w-full bg-blue-600 text-white hover:bg-blue-500 py-3 shadow-lg shadow-blue-600/20 border-none">
                             <Printer size={18} className="ml-2"/> استخراج وطباعة التقرير
@@ -282,19 +285,15 @@ export default function FinanceManager({
     // ملاحظة: expenses و expensesCollection لم تعد مستخدمة هنا — انتقلت لـ AccountsManager
   // viewMode removed — page is now only for Receipts. Expenses moved to AccountsManager.
   // FIX 2: أضفنا date للفورم — اليوم افتراضياً لكن يمكن تغييره للتاريخ الفعلي
-  const [payForm, setPayForm] = useState({
-    sid: students.find(s => s.id === initialStudentId)?.name || '', studentObjId: initialStudentId || '', amount: '', reason: '', customReason: '',
-    details: '', method: 'cash', extraName: '',
-    date: todayString()   // ← قابل للتعديل
-  });
   const [incomeFilterStudent, setIncomeFilterStudent] = useState(null);
   const [showReasonsModal, setShowReasonsModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
 
-  const branchPayments = payments.filter(p => p.branch === selectedBranch);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const branchPayments = useMemo(() => payments.filter(p => p.branch === selectedBranch), [payments, selectedBranch]);
 
-  const filteredPayments = (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : branchPayments)
+  const filteredPayments = useMemo(() => (incomeFilterStudent ? branchPayments.filter(p => p.studentId === incomeFilterStudent) : [...branchPayments])
       .sort((a, b) => {
         // FIX 1: الترتيب الصحيح — الأجدد أولاً
         // نستخدم createdAt (ISO كامل مع الوقت) للتمييز بين وصولات نفس اليوم
@@ -307,7 +306,8 @@ export default function FinanceManager({
         const da = toDateString(a.date);
         const db = toDateString(b.date);
         return db.localeCompare(da);
-      });
+      }), [branchPayments, incomeFilterStudent]);
+  const pagination = usePagination(filteredPayments, JSON.stringify([selectedBranch, incomeFilterStudent]));
 
   const handleAddReason = async (title) => {
       if (financeReasons.some(r => r.title === title)) return toast("هذا البند موجود مسبقاً", 'error');
@@ -319,46 +319,6 @@ export default function FinanceManager({
       await financeReasonsCollection.remove(reasonObj.id);
   };
 
-  const handleAddPayment = async (e) => { 
-    e.preventDefault(); 
-    if(!payForm.studentObjId) return toast('اختر طالباً', 'error');
-    const selectedStudent = students.find(s => s.id === payForm.studentObjId);
-    if(!selectedStudent) return toast('طالب غير موجود', 'error');
-
-    if (!payForm.reason && financeReasons.length > 0) return toast("الرجاء اختيار سبب الدفع", 'error');
-
-    const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason; 
-    
-    const paymentName = payForm.extraName 
-        ? `${selectedStudent.name} و ${payForm.extraName}` 
-        : selectedStudent.name;
-
-    // FIX BUG-1: removed manual 'id' field from the object.
-    // useCollection maps docs as { id: d.id, ...d.data() }.
-    // If the data also has an 'id' field, the spread overwrites Firestore's doc ID,
-    // breaking remove() because it passes the wrong ID to deleteDoc().
-    // Firestore assigns its own auto-generated ID — we don't need to set one.
-    const newPay = {
-        studentId: selectedStudent.id,
-        name: paymentName,
-        amount: Number(payForm.amount),
-        reason: finalReason,
-        details: payForm.details,
-        method: payForm.method || 'cash',
-        // FIX 2: نستخدم التاريخ اللي حدده المستخدم (ممكن يكون ماضي)
-        date:      payForm.date || todayString(),
-        // createdAt = وقت الإدخال الفعلي (للترتيب الصحيح بين وصولات نفس اليوم)
-        createdAt: new Date().toISOString(),
-        branch: selectedBranch,
-    };
-
-    const saved = await paymentsCollection.add(newPay);
-    if (!saved) return toast("تعذر حفظ الوصل. لم يتم تسجيل الدفعة، حاول مرة أخرى.", "error");
-    logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`);
-
-    // reset مع إبقاء التاريخ المحدد (مفيد لو بدو يضيف وصولات بنفس اليوم القديم)
-    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '', date: payForm.date, _showDatePicker: false });
-  };
 
   // ─── حذف الوصل (يدوي فقط — لا يوجد حذف تلقائي في أي مكان) ────────────────
   // الوصولات تبقى دائماً حتى لو تم حذف الطالب أو أرشفته.
@@ -524,8 +484,8 @@ export default function FinanceManager({
                 </div>
             </div>
             <script>
-                window.onload = function() { 
-                    setTimeout(function() { window.print(); window.close(); }, 500); 
+                window.onload = function() {
+                    setTimeout(function() { window.print(); window.close(); }, 500);
                 }
             </script>
         </body>
@@ -881,8 +841,8 @@ export default function FinanceManager({
       )}
 
       <ReasonsModal
-        isOpen={showReasonsModal} 
-        onClose={() => setShowReasonsModal(false)} 
+        isOpen={showReasonsModal}
+        onClose={() => setShowReasonsModal(false)}
         reasons={financeReasons}
         onAdd={handleAddReason}
         onDelete={handleDeleteReason}
@@ -917,21 +877,209 @@ export default function FinanceManager({
            </div>
 
           {/* Add Payment Form */}
-          <Card title="سند قبض جديد" className="border-green-500/20 shadow-lg shadow-green-900/10 bg-slate-900">
+          <ReceiptForm key={selectedBranch} {...{initialStudentId, students, financeReasons, paymentsCollection, selectedBranch, logActivity, setShowReasonsModal}} />
+
+          {/* Filter */}
+          <div className="flex items-center gap-2 mb-2 w-full md:w-64">
+             <StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} />
+          </div>
+
+          {/* DESKTOP TABLE */}
+          <Pagination {...pagination} label="صفحات الوصولات" />
+          {isDesktop ? <div>
+            <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+                <table className="w-full text-sm text-right">
+                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                        <tr>
+                            <th className="p-3">#</th>
+                            <th className="p-3">الطالب</th>
+                            <th className="p-3">البيان</th>
+                            <th className="p-3">طريقة الدفع</th>
+                            <th className="p-3">التاريخ</th>
+                            <th className="p-3">المبلغ</th>
+                            <th className="p-3">طباعة</th>
+                            <th className="p-3">تعديل</th>
+                            <th className="p-3">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 bg-slate-900">
+                        {pagination.pageItems.map(p => (
+                            <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
+                                <td className="p-3 text-slate-600 font-mono text-xs">{String(p.id).slice(-6)}</td>
+                                <td className="p-3 font-bold text-slate-200">{p.name}</td>
+                                <td className="p-3 text-slate-400">
+                                    <span className="block font-bold text-xs text-slate-300">{p.reason}</span>
+                                    <span className="text-[10px] text-slate-500">{p.details}</span>
+                                </td>
+                                <td className="p-3">
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${p.method === 'cliq' ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' : 'bg-green-900/20 text-green-400 border-green-500/20'}`}>
+                                        {p.method === 'cliq' ? 'كليك' : 'كاش'}
+                                    </span>
+                                </td>
+                                {/* ✅ عرض التاريخ بشكل آمن */}
+                                <td className="p-3 text-xs text-slate-500">{formatDateDisplay(p.date)}</td>
+                                <td className="p-3 font-bold text-green-400">+{p.amount}</td>
+                                {/* ─── أزرار الوصل الثلاثة ─── */}
+                                <td className="p-3">
+                                  <div className="flex items-center gap-1">
+                                    {/* طباعة */}
+                                    <button onClick={()=>printReceipt(p)} title="طباعة" className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700 transition-colors">
+                                      <Printer size={15}/>
+                                    </button>
+                                    {/* تحميل PDF */}
+                                    <button onClick={()=>downloadReceiptAsPDF(p)} title="تحميل PDF مباشر" className="p-2 bg-blue-900/20 rounded-lg hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 transition-colors">
+                                      <Download size={15}/>
+                                    </button>
+                                    {/* إرسال WhatsApp */}
+                                    <button onClick={()=>sendReceiptWhatsApp(p)} title="إرسال WhatsApp" className="p-2 bg-green-900/20 rounded-lg hover:bg-[#25D366] text-[#25D366] border border-green-500/20 transition-colors">
+                                      <MessageCircle size={15}/>
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <button onClick={() => setEditingPayment(p)} title="تعديل الوصل" className="p-2 bg-yellow-900/20 rounded-lg hover:bg-yellow-600 text-yellow-400 hover:text-white border border-yellow-500/20 transition-colors">
+                                    <Pencil size={15}/>
+                                  </button>
+                                </td>
+                                {/* يدوي فقط — الوصل لا يُحذف إلا من هنا */}
+                                <td className="p-3"><button onClick={()=>deletePayment(p)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
+                            </tr>
+                        ))}
+                         {filteredPayments.length === 0 && <tr><td colSpan="9" className="p-8 text-center text-slate-600">لا يوجد سندات</td></tr>}
+                    </tbody>
+                </table>
+            </Card>
+          </div>
+
+          : <div className="grid gap-4">
+              {pagination.pageItems.map(p => (
+                  <div key={p.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col gap-3 relative overflow-hidden">
+                      <div className={`absolute top-0 left-0 w-1 h-full ${p.method === 'cliq' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                      <div className="flex justify-between items-start pl-2">
+                          <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                  <User size={14} className="text-slate-500"/>
+                                  <span className="font-bold text-slate-200">{p.name}</span>
+                              </div>
+                              <div className="text-xs text-slate-500 flex items-center gap-2">
+                                  {/* ✅ عرض التاريخ بشكل آمن */}
+                                  <Calendar size={12}/> {formatDateDisplay(p.date)}
+                              </div>
+                          </div>
+                          <div className="text-green-400 font-bold text-lg bg-green-900/20 px-2 py-1 rounded-lg border border-green-500/20">
+                              +{p.amount}
+                          </div>
+                      </div>
+
+                      <div className="bg-slate-950 p-2 rounded-lg text-sm text-slate-400 border border-slate-800">
+                          <div className="flex justify-between items-center mb-1">
+                             <div className="flex items-center gap-2">
+                                <FileText size={14} className="text-slate-500"/>
+                                <span className="font-bold text-xs text-slate-300">{p.reason}</span>
+                             </div>
+                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${p.method === 'cliq' ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' : 'bg-green-900/20 text-green-400 border-green-500/20'}`}>
+                                {p.method === 'cliq' ? 'كليك' : 'كاش'}
+                             </span>
+                          </div>
+                          <span className="text-[10px] pr-6 block text-slate-500">{p.details}</span>
+                      </div>
+
+                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-slate-800 flex-wrap">
+                          {/* طباعة */}
+                          <button onClick={()=>printReceipt(p)} title="طباعة" className="flex items-center gap-1 text-xs bg-slate-800 text-slate-400 px-3 py-2 rounded-lg font-bold border border-slate-700 hover:bg-slate-700 transition-colors">
+                              <Printer size={14}/> طباعة
+                          </button>
+                          {/* تحميل PDF */}
+                          <button onClick={()=>downloadReceiptAsPDF(p)} title="تحميل PDF" className="flex items-center gap-1 text-xs bg-blue-900/20 text-blue-400 px-3 py-2 rounded-lg font-bold border border-blue-500/20 hover:bg-blue-600 hover:text-white transition-colors">
+                              <Download size={14}/> PDF
+                          </button>
+                          {/* WhatsApp */}
+                          <button onClick={()=>sendReceiptWhatsApp(p)} title="WhatsApp" className="flex items-center gap-1 text-xs bg-green-900/20 text-[#25D366] px-3 py-2 rounded-lg font-bold border border-green-500/20 hover:bg-[#25D366] hover:text-white transition-colors">
+                              <MessageCircle size={14}/> واتساب
+                          </button>
+                          {/* تعديل */}
+                          <button onClick={() => setEditingPayment(p)} title="تعديل الوصل" className="flex items-center gap-1 text-xs bg-yellow-900/20 text-yellow-400 px-3 py-2 rounded-lg font-bold border border-yellow-500/20 hover:bg-yellow-600 hover:text-white transition-colors">
+                              <Pencil size={14}/> تعديل
+                          </button>
+                          {/* يدوي فقط */}
+                          <button onClick={()=>deletePayment(p)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30" title="حذف يدوي فقط">
+                              <Trash2 size={14}/> حذف
+                          </button>
+                      </div>
+                  </div>
+              ))}
+              {filteredPayments.length === 0 && <div className="text-center p-8 text-slate-600 bg-slate-900 rounded-xl border border-slate-800 border-dashed">لا يوجد سندات</div>}
+          </div>}
+          <Pagination {...pagination} label="صفحات الوصولات أسفل القائمة" />
+        </>
+      </>
+    </div>
+  );
+}
+// Keep typing local to the form: the receipt list does not rerender per keystroke.
+function ReceiptForm({ initialStudentId, students, financeReasons, paymentsCollection, selectedBranch, logActivity, setShowReasonsModal }) {
+  const [payForm, setPayForm] = useState({
+    sid: students.find(s => s.id === initialStudentId)?.name || '', studentObjId: initialStudentId || '', amount: '', reason: '', customReason: '',
+    details: '', method: 'cash', extraName: '',
+    date: todayString()   // ← قابل للتعديل
+  });
+
+  const handleAddPayment = async (e) => {
+    e.preventDefault();
+    if(!payForm.studentObjId) return toast('اختر طالباً', 'error');
+    const selectedStudent = students.find(s => s.id === payForm.studentObjId);
+    if(!selectedStudent) return toast('طالب غير موجود', 'error');
+
+    if (!payForm.reason && financeReasons.length > 0) return toast("الرجاء اختيار سبب الدفع", 'error');
+
+    const finalReason = payForm.reason === 'أخرى' ? payForm.customReason : payForm.reason;
+
+    const paymentName = payForm.extraName
+        ? `${selectedStudent.name} و ${payForm.extraName}`
+        : selectedStudent.name;
+
+    // FIX BUG-1: removed manual 'id' field from the object.
+    // useCollection maps docs as { id: d.id, ...d.data() }.
+    // If the data also has an 'id' field, the spread overwrites Firestore's doc ID,
+    // breaking remove() because it passes the wrong ID to deleteDoc().
+    // Firestore assigns its own auto-generated ID — we don't need to set one.
+    const newPay = {
+        studentId: selectedStudent.id,
+        name: paymentName,
+        amount: Number(payForm.amount),
+        reason: finalReason,
+        details: payForm.details,
+        method: payForm.method || 'cash',
+        // FIX 2: نستخدم التاريخ اللي حدده المستخدم (ممكن يكون ماضي)
+        date:      payForm.date || todayString(),
+        // createdAt = وقت الإدخال الفعلي (للترتيب الصحيح بين وصولات نفس اليوم)
+        createdAt: new Date().toISOString(),
+        branch: selectedBranch,
+    };
+
+    const saved = await paymentsCollection.add(newPay);
+    if (!saved) return toast("تعذر حفظ الوصل. لم يتم تسجيل الدفعة، حاول مرة أخرى.", "error");
+    logActivity("قبض مالي", `استلام ${payForm.amount} من ${paymentName}`);
+
+    // reset مع إبقاء التاريخ المحدد (مفيد لو بدو يضيف وصولات بنفس اليوم القديم)
+    setPayForm({ sid: '', amount: '', reason: '', customReason: '', details: '', method: 'cash', extraName: '', date: payForm.date, _showDatePicker: false });
+  };
+
+  return (<Card title="سند قبض جديد" className="border-green-500/20 shadow-lg shadow-green-900/10 bg-slate-900">
             <form onSubmit={handleAddPayment} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div className="relative col-span-1 md:col-span-1">
                   <label className="text-xs block mb-1 font-bold text-slate-400">اسم الطالب</label>
                   <StudentSearch students={students} onSelect={(s) => setPayForm({...payForm, sid: s.name, studentObjId: s.id})} onClear={() => setPayForm({...payForm, sid: '', studentObjId: ''})} placeholder="ابحث..." />
                   {payForm.studentObjId && <p className="text-xs text-emerald-400 mt-2">الطالب المحدد: {payForm.sid}</p>}
               </div>
-              
+
               <div className="col-span-1">
                   <label className="text-xs block mb-1 font-bold text-slate-400">اسم الاخ (اختياري)</label>
-                  <input 
-                    className="w-full bg-slate-950 border border-slate-700 p-2 rounded-xl focus:border-green-500 outline-none placeholder-slate-600 text-slate-200 text-xs h-[45px]" 
-                    value={payForm.extraName} 
-                    onChange={e=>setPayForm({...payForm, extraName:e.target.value})} 
-                    placeholder="اكتب الاسم الثاني هنا" 
+                  <input
+                    className="w-full bg-slate-950 border border-slate-700 p-2 rounded-xl focus:border-green-500 outline-none placeholder-slate-600 text-slate-200 text-xs h-[45px]"
+                    value={payForm.extraName}
+                    onChange={e=>setPayForm({...payForm, extraName:e.target.value})}
+                    placeholder="اكتب الاسم الثاني هنا"
                   />
               </div>
 
@@ -939,10 +1087,10 @@ export default function FinanceManager({
                   <label className="text-xs block mb-1 font-bold text-slate-400">المبلغ</label>
                   <input type="number" className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none placeholder-slate-600" value={payForm.amount} onChange={e=>setPayForm({...payForm, amount:e.target.value})} required placeholder="0.00" />
               </div>
-              
+
               <div>
                   <label className="text-xs block mb-1 font-bold text-slate-400">طريقة الدفع</label>
-                  <select 
+                  <select
                     className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none h-[45px]"
                     value={payForm.method}
                     onChange={e => setPayForm({...payForm, method: e.target.value})}
@@ -959,9 +1107,9 @@ export default function FinanceManager({
                           <Settings size={10}/> تعديل القائمة
                       </button>
                   </label>
-                  <select 
-                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none cursor-pointer h-[45px]" 
-                    value={payForm.reason} 
+                  <select
+                    className="w-full bg-slate-950 border border-slate-700 text-slate-200 p-2 rounded-xl focus:border-green-500 outline-none cursor-pointer h-[45px]"
+                    value={payForm.reason}
                     onChange={e=>setPayForm({...payForm, reason:e.target.value})}
                   >
                     <option value="" disabled>اختر السبب...</option>
@@ -1032,141 +1180,5 @@ export default function FinanceManager({
                   <Button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/20 py-3 border-none">حفظ وقبض</Button>
               </div>
             </form>
-          </Card>
-
-          {/* Filter */}
-          <div className="flex items-center gap-2 mb-2 w-full md:w-64">
-             <StudentSearch students={students} onSelect={(s) => setIncomeFilterStudent(s.id)} onClear={() => setIncomeFilterStudent(null)} placeholder="فلترة حسب الطالب..." showAllOption={true} />
-          </div>
-
-          {/* DESKTOP TABLE */}
-          <div className="hidden md:block">
-            <Card noPadding className="bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
-                <table className="w-full text-sm text-right">
-                    <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
-                        <tr>
-                            <th className="p-3">#</th>
-                            <th className="p-3">الطالب</th>
-                            <th className="p-3">البيان</th>
-                            <th className="p-3">طريقة الدفع</th>
-                            <th className="p-3">التاريخ</th>
-                            <th className="p-3">المبلغ</th>
-                            <th className="p-3">طباعة</th>
-                            <th className="p-3">تعديل</th>
-                            <th className="p-3">حذف</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-900">
-                        {filteredPayments.map(p => (
-                            <tr key={p.id} className="hover:bg-slate-800/50 transition-colors">
-                                <td className="p-3 text-slate-600 font-mono text-xs">{String(p.id).slice(-6)}</td>
-                                <td className="p-3 font-bold text-slate-200">{p.name}</td>
-                                <td className="p-3 text-slate-400">
-                                    <span className="block font-bold text-xs text-slate-300">{p.reason}</span>
-                                    <span className="text-[10px] text-slate-500">{p.details}</span>
-                                </td>
-                                <td className="p-3">
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${p.method === 'cliq' ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' : 'bg-green-900/20 text-green-400 border-green-500/20'}`}>
-                                        {p.method === 'cliq' ? 'كليك' : 'كاش'}
-                                    </span>
-                                </td>
-                                {/* ✅ عرض التاريخ بشكل آمن */}
-                                <td className="p-3 text-xs text-slate-500">{formatDateDisplay(p.date)}</td>
-                                <td className="p-3 font-bold text-green-400">+{p.amount}</td>
-                                {/* ─── أزرار الوصل الثلاثة ─── */}
-                                <td className="p-3">
-                                  <div className="flex items-center gap-1">
-                                    {/* طباعة */}
-                                    <button onClick={()=>printReceipt(p)} title="طباعة" className="p-2 bg-slate-800 rounded-lg hover:bg-slate-700 text-slate-400 border border-slate-700 transition-colors">
-                                      <Printer size={15}/>
-                                    </button>
-                                    {/* تحميل PDF */}
-                                    <button onClick={()=>downloadReceiptAsPDF(p)} title="تحميل PDF مباشر" className="p-2 bg-blue-900/20 rounded-lg hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 transition-colors">
-                                      <Download size={15}/>
-                                    </button>
-                                    {/* إرسال WhatsApp */}
-                                    <button onClick={()=>sendReceiptWhatsApp(p)} title="إرسال WhatsApp" className="p-2 bg-green-900/20 rounded-lg hover:bg-[#25D366] text-[#25D366] border border-green-500/20 transition-colors">
-                                      <MessageCircle size={15}/>
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="p-3">
-                                  <button onClick={() => setEditingPayment(p)} title="تعديل الوصل" className="p-2 bg-yellow-900/20 rounded-lg hover:bg-yellow-600 text-yellow-400 hover:text-white border border-yellow-500/20 transition-colors">
-                                    <Pencil size={15}/>
-                                  </button>
-                                </td>
-                                {/* يدوي فقط — الوصل لا يُحذف إلا من هنا */}
-                                <td className="p-3"><button onClick={()=>deletePayment(p)} className="p-2 bg-red-900/20 rounded-lg hover:bg-red-900/30 text-red-400 border border-red-500/20" title="حذف يدوي فقط"><Trash2 size={16}/></button></td>
-                            </tr>
-                        ))}
-                         {filteredPayments.length === 0 && <tr><td colSpan="9" className="p-8 text-center text-slate-600">لا يوجد سندات</td></tr>}
-                    </tbody>
-                </table>
-            </Card>
-          </div>
-
-          {/* MOBILE VIEW */}
-          <div className="md:hidden grid gap-4">
-              {filteredPayments.map(p => (
-                  <div key={p.id} className="bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-800 flex flex-col gap-3 relative overflow-hidden">
-                      <div className={`absolute top-0 left-0 w-1 h-full ${p.method === 'cliq' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
-                      <div className="flex justify-between items-start pl-2">
-                          <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                  <User size={14} className="text-slate-500"/>
-                                  <span className="font-bold text-slate-200">{p.name}</span>
-                              </div>
-                              <div className="text-xs text-slate-500 flex items-center gap-2">
-                                  {/* ✅ عرض التاريخ بشكل آمن */}
-                                  <Calendar size={12}/> {formatDateDisplay(p.date)}
-                              </div>
-                          </div>
-                          <div className="text-green-400 font-bold text-lg bg-green-900/20 px-2 py-1 rounded-lg border border-green-500/20">
-                              +{p.amount}
-                          </div>
-                      </div>
-                      
-                      <div className="bg-slate-950 p-2 rounded-lg text-sm text-slate-400 border border-slate-800">
-                          <div className="flex justify-between items-center mb-1">
-                             <div className="flex items-center gap-2">
-                                <FileText size={14} className="text-slate-500"/>
-                                <span className="font-bold text-xs text-slate-300">{p.reason}</span>
-                             </div>
-                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${p.method === 'cliq' ? 'bg-blue-900/20 text-blue-400 border-blue-500/20' : 'bg-green-900/20 text-green-400 border-green-500/20'}`}>
-                                {p.method === 'cliq' ? 'كليك' : 'كاش'}
-                             </span>
-                          </div>
-                          <span className="text-[10px] pr-6 block text-slate-500">{p.details}</span>
-                      </div>
-
-                      <div className="flex justify-end gap-2 mt-1 border-t pt-3 border-slate-800 flex-wrap">
-                          {/* طباعة */}
-                          <button onClick={()=>printReceipt(p)} title="طباعة" className="flex items-center gap-1 text-xs bg-slate-800 text-slate-400 px-3 py-2 rounded-lg font-bold border border-slate-700 hover:bg-slate-700 transition-colors">
-                              <Printer size={14}/> طباعة
-                          </button>
-                          {/* تحميل PDF */}
-                          <button onClick={()=>downloadReceiptAsPDF(p)} title="تحميل PDF" className="flex items-center gap-1 text-xs bg-blue-900/20 text-blue-400 px-3 py-2 rounded-lg font-bold border border-blue-500/20 hover:bg-blue-600 hover:text-white transition-colors">
-                              <Download size={14}/> PDF
-                          </button>
-                          {/* WhatsApp */}
-                          <button onClick={()=>sendReceiptWhatsApp(p)} title="WhatsApp" className="flex items-center gap-1 text-xs bg-green-900/20 text-[#25D366] px-3 py-2 rounded-lg font-bold border border-green-500/20 hover:bg-[#25D366] hover:text-white transition-colors">
-                              <MessageCircle size={14}/> واتساب
-                          </button>
-                          {/* تعديل */}
-                          <button onClick={() => setEditingPayment(p)} title="تعديل الوصل" className="flex items-center gap-1 text-xs bg-yellow-900/20 text-yellow-400 px-3 py-2 rounded-lg font-bold border border-yellow-500/20 hover:bg-yellow-600 hover:text-white transition-colors">
-                              <Pencil size={14}/> تعديل
-                          </button>
-                          {/* يدوي فقط */}
-                          <button onClick={()=>deletePayment(p)} className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-3 py-2 rounded-lg font-bold border border-red-500/20 hover:bg-red-900/30" title="حذف يدوي فقط">
-                              <Trash2 size={14}/> حذف
-                          </button>
-                      </div>
-                  </div>
-              ))}
-              {filteredPayments.length === 0 && <div className="text-center p-8 text-slate-600 bg-slate-900 rounded-xl border border-slate-800 border-dashed">لا يوجد سندات</div>}
-          </div>
-        </>
-      </>
-    </div>
-  );
+          </Card>);
 }
